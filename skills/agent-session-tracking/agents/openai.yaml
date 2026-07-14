@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Session Tracking"
+  short_description: "Track AI task sessions across agents"
+  default_prompt: "Use $agent-session-tracking to record this AI-assisted task from start to completion."
+
+policy:
+  allow_implicit_invocation: true
