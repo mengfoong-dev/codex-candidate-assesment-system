@@ -1,55 +1,31 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
+[ext_resource type="PackedScene" path="res://scenes/room/cozy_office_shell.tscn" id="3_shell"]
+[ext_resource type="PackedScene" path="res://scenes/room/cozy_office_dressing.tscn" id="4_dressing"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
-background_color = Color(0.035, 0.047, 0.075, 1)
+background_color = Color(0.07, 0.07, 0.12, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.48, 0.57, 0.75, 1)
-ambient_light_energy = 0.7
+ambient_light_color = Color(0.62, 0.6, 0.66, 1)
+ambient_light_energy = 0.55
 
 [sub_resource type="BoxShape3D" id="FloorShape"]
 size = Vector3(16, 0.2, 10)
 
-[sub_resource type="BoxMesh" id="FloorMesh"]
-size = Vector3(16, 0.2, 10)
-
-[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
-albedo_color = Color(0.14, 0.17, 0.23, 1)
-roughness = 0.88
-
 [sub_resource type="BoxShape3D" id="RearWallShape"]
-size = Vector3(16, 2.5, 0.3)
-
-[sub_resource type="BoxMesh" id="RearWallMesh"]
 size = Vector3(16, 2.5, 0.3)
 
 [sub_resource type="BoxShape3D" id="SideWallShape"]
 size = Vector3(0.3, 2.5, 10)
-
-[sub_resource type="BoxMesh" id="SideWallMesh"]
-size = Vector3(0.3, 2.5, 10)
-
-[sub_resource type="StandardMaterial3D" id="WallMaterial"]
-albedo_color = Color(0.1, 0.19, 0.27, 1)
-metallic = 0.05
-roughness = 0.75
 
 [sub_resource type="BoxShape3D" id="FrontBoundaryShape"]
 size = Vector3(16, 1, 0.2)
 
 [sub_resource type="BoxShape3D" id="RightBoundaryShape"]
 size = Vector3(0.2, 1, 10)
-
-[sub_resource type="BoxMesh" id="PathMesh"]
-size = Vector3(3.2, 0.03, 7.4)
-
-[sub_resource type="StandardMaterial3D" id="PathMaterial"]
-albedo_color = Color(0.19, 0.24, 0.32, 1)
-emission_enabled = true
-emission = Color(0.035, 0.07, 0.11, 1)
 
 [node name="IncidentRoom" type="Node3D"]
 
@@ -58,8 +34,8 @@ environment = SubResource("Environment_room")
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-55, -30, 0)
-light_color = Color(0.84, 0.91, 1, 1)
-light_energy = 1.25
+light_color = Color(1, 0.96, 0.9, 1)
+light_energy = 1.15
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
@@ -77,14 +53,7 @@ position = Vector3(0, -0.1, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Floor"]
 shape = SubResource("FloorShape")
 
-[node name="Mesh" type="MeshInstance3D" parent="Architecture/Floor"]
-mesh = SubResource("FloorMesh")
-material_override = SubResource("FloorMaterial")
-
-[node name="CenterPath" type="MeshInstance3D" parent="Architecture"]
-position = Vector3(0, 0.015, 0.4)
-mesh = SubResource("PathMesh")
-material_override = SubResource("PathMaterial")
+[node name="CozyOfficeShell" parent="Architecture" instance=ExtResource("3_shell")]
 
 [node name="Walls" type="StaticBody3D" parent="Architecture"]
 
@@ -92,19 +61,9 @@ material_override = SubResource("PathMaterial")
 position = Vector3(0, 1.25, -5)
 shape = SubResource("RearWallShape")
 
-[node name="RearMesh" type="MeshInstance3D" parent="Architecture/Walls"]
-position = Vector3(0, 1.25, -5)
-mesh = SubResource("RearWallMesh")
-material_override = SubResource("WallMaterial")
-
 [node name="LeftCollision" type="CollisionShape3D" parent="Architecture/Walls"]
 position = Vector3(-8, 1.25, 0)
 shape = SubResource("SideWallShape")
-
-[node name="LeftMesh" type="MeshInstance3D" parent="Architecture/Walls"]
-position = Vector3(-8, 1.25, 0)
-mesh = SubResource("SideWallMesh")
-material_override = SubResource("WallMaterial")
 
 [node name="FrontBoundary" type="CollisionShape3D" parent="Architecture/Walls"]
 position = Vector3(0, 0.5, 5)
@@ -113,6 +72,8 @@ shape = SubResource("FrontBoundaryShape")
 [node name="RightBoundary" type="CollisionShape3D" parent="Architecture/Walls"]
 position = Vector3(8, 0.5, 0)
 shape = SubResource("RightBoundaryShape")
+
+[node name="Dressing" parent="." instance=ExtResource("4_dressing")]
 
 [node name="ObservabilityWall" parent="." instance=ExtResource("2_station")]
 position = Vector3(-5.6, 0, -3.6)
