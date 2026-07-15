@@ -101,6 +101,7 @@ func submit_final(submission: Dictionary) -> Dictionary:
         return _reject("Final submission is only available inside the workspace")
     var result: Dictionary = _session.submit_final(submission)
     if not result.ok:
+        workspace.set_submit_error(result.get("errors", []))
         return _finish_intent(result)
 
     var event_warning: String = _logger.persistence_warning()

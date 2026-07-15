@@ -54,7 +54,6 @@ var _brief_confidence: HSlider
 var _brief_confidence_label: Label
 var _brief_confirm: Button
 var _brief_status: Label
-var _brief_confidence_touched := false
 
 var _evidence_detail: RichTextLabel
 var _evidence_buttons: Dictionary = {}
@@ -83,6 +82,7 @@ var _submit_confidence: HSlider
 var _submit_confidence_label: Label
 var _submit_rationale: TextEdit
 var _submit_button: Button
+var _submit_status: Label
 
 var _report_heading: Label
 var _report_status: Label
@@ -252,15 +252,14 @@ func _build_brief_page() -> void:
     body.add_child(_brief_status)
     _brief_option.item_selected.connect(func(_i: int) -> void: _update_brief_confirm())
     _brief_confidence.value_changed.connect(func(v: float) -> void:
-        _brief_confidence_touched = true
-        _brief_confidence_label.text = "Confidence: %d%%" % int(v)
-        _update_brief_confirm())
+        _brief_confidence_label.text = "Confidence: %d%%" % int(v))
     _brief_confirm.pressed.connect(func() -> void:
         if not _brief_confirm.disabled:
             initial_hypothesis_submitted.emit(str(_brief_option.get_item_metadata(_brief_option.selected)), int(_brief_confidence.value)))
 
 func _update_brief_confirm() -> void:
-    _brief_confirm.disabled = not (_brief_option.selected >= 0 and _brief_confidence_touched)
+    # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
+    _brief_confirm.disabled = _brief_option.selected < 0
 
 func _refresh_brief(snapshot: Dictionary) -> void:
     if _brief_status == null:
@@ -439,6 +438,9 @@ func _build_submit_page() -> void:
     _submit_button = _flat_button("Submit conclusion")
     _submit_button.disabled = true
     body.add_child(_submit_button)
+    _submit_status = _heading("", 14, ACCENT["submit"])
+    _submit_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    body.add_child(_submit_status)
 
     _revise_confidence.value_changed.connect(func(v: float) -> void: _revise_confidence_label.text = "Confidence: %d%%" % int(v))
     _revise_option.item_selected.connect(func(_i: int) -> void: _revise_button.disabled = _revise_option.selected < 0)
@@ -457,9 +459,15 @@ func _on_revise() -> void:
         int(_revise_confidence.value),
         _selected_metadata(_revise_facts))
 
+func set_submit_error(errors: Array) -> void:
+    if _submit_status != null:
+        _submit_status.text = str(errors[0]) if not errors.is_empty() else ""
+
 func _on_submit() -> void:
     if _submit_button.disabled:
         return
+    if _submit_status != null:
+        _submit_status.text = ""
     final_submission_requested.emit({
         "root_cause_id": _submit_root.get_item_metadata(_submit_root.selected),
         "evidence_ids": _selected_metadata(_submit_evidence),
@@ -484,19 +492,25 @@ func _refresh_submit(snapshot: Dictionary) -> void:
         return
     var current: Dictionary = snapshot.get("current_hypothesis", {})
     _revise_current.text = "Current hypothesis: %s" % _hypothesis_label(str(current.get("hypothesis_id", "not recorded")))
-    _revise_facts.clear()
     var viewed: Array = snapshot.get("viewed_artifact_ids", [])
+    # Rebuild the lists to reflect newly-viewed evidence, but keep the candidate's
+    # existing selection so an unrelated refresh never silently drops their input.
+    var kept_facts := _selected_metadata(_revise_facts)
+    _revise_facts.clear()
     for artifact: Dictionary in _scenario.get("artifacts", []):
         if not viewed.has(str(artifact.get("artifact_id", ""))):
             continue
         for fact: Dictionary in artifact.get("facts", []):
             _revise_facts.add_item(str(fact.get("label", fact.get("fact_id", ""))))
             _revise_facts.set_item_metadata(_revise_facts.item_count - 1, fact.get("fact_id", ""))
+    _reselect(_revise_facts, kept_facts)
+    var kept_evidence := _selected_metadata(_submit_evidence)
     _submit_evidence.clear()
     for artifact_id: Variant in viewed:
         var artifact := _lookup(_scenario.get("artifacts", []), "artifact_id", str(artifact_id))
         _submit_evidence.add_item(str(artifact.get("title", artifact_id)))
         _submit_evidence.set_item_metadata(_submit_evidence.item_count - 1, artifact_id)
+    _reselect(_submit_evidence, kept_evidence)
 
 # --- Report ------------------------------------------------------------------
 
@@ -641,6 +655,11 @@ func _selected_metadata(list: ItemList) -> Array:
     for index: int in list.get_selected_items():
         ids.append(list.get_item_metadata(index))
     return ids
+
+func _reselect(list: ItemList, kept: Array) -> void:
+    for index: int in range(list.item_count):
+        if kept.has(list.get_item_metadata(index)):
+            list.select(index, false)
 
 func _hypothesis_label(hypothesis_id: String) -> String:
     return str(_lookup(_scenario.get("hypotheses", []), "hypothesis_id", hypothesis_id).get("label", hypothesis_id))
