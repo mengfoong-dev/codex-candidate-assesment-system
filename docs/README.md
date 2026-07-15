@@ -2,6 +2,10 @@
 
 This is the canonical documentation index for VibeProof. Active product guidance lives in the files below; superseded exploration is retained separately as historical context.
 
+## Current direction
+
+VibeProof is an AI-allowed Ownership Challenge for software-engineering candidates. The baseline MVP uses a focused web workspace and the Homepage Latency Spike scenario, then produces a recruiter-facing Proof Replay. Start with the product documents below and use `decisions.md` to resolve any ambiguity.
+
 ## Product
 
 - [Product brief](product/product-brief.md) - problem, users, positioning, and non-goals.

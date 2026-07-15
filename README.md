@@ -4,6 +4,12 @@
 
 VibeProof is an AI-allowed engineering assessment that helps hiring teams verify whether a candidate can understand, investigate, test, adapt, and take responsibility for software work.
 
+## Current status
+
+The product direction and documentation are consolidated around VibeProof. The baseline MVP is a focused web engineering workspace using the Homepage Latency Spike scenario. Earlier branding, game-engine, Miro, and debate material is preserved in the archive and is not active guidance.
+
+The next delivery goal is to implement the candidate investigation flow, structured event log, deterministic rubric, and recruiter Proof Replay described in the [MVP scope](docs/product/mvp-scope.md).
+
 ## What we are building
 
 VibeProof presents a short, realistic engineering **Ownership Challenge**. The candidate works through an incident using code, metrics, logs, traces, tests, and an AI assistant. The platform records observable evidence from the investigation and produces a **Proof Replay** for a human reviewer.

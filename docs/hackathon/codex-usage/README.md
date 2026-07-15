@@ -2,6 +2,18 @@
 
 This folder records how AI-agent time and usage contribute to the VibeProof hackathon project.
 
+## Canonical project direction
+
+This folder is an operational history, not the product specification. For current VibeProof guidance, use:
+
+- [Documentation index](../../README.md)
+- [Product brief](../../product/product-brief.md)
+- [User scenario](../../product/user-scenario.md)
+- [MVP scope](../../product/mvp-scope.md)
+- [Product decisions](../../decisions.md)
+
+Older session rows may mention `Patch & Ship`, KerjaProof, or the former `docs/research/meng/` path. Those descriptions record what happened at the time and must not be treated as current product guidance.
+
 ## What is tracked
 
 - Session start and end time
@@ -11,7 +23,7 @@ This folder records how AI-agent time and usage contribute to the VibeProof hack
 - Concrete outcome or artifact produced
 - Agent spend or usage units, when copied from the account usage/billing view
 
-The workspace cannot read account-level agent credit prices, so the `usage_spend` and `usage_units` fields are intentionally marked for manual entry. No cost is guessed.
+The workspace cannot read account-level agent usage. For an included Codex plan, set `usage_spend` to `INCLUDED_PLAN`; enter `usage_units` manually from the Codex usage dashboard when credits or tokens are available. No usage is guessed.
 
 ## Start and stop a session
 
@@ -35,7 +47,7 @@ The completed session is appended to `sessions.csv`. If the agent shows usage or
 
 ## Current project goal
 
-Build a feasible hackathon prototype of VibeProof: an AI-allowed technical work simulation that shows how candidates investigate incidents, verify AI-generated code, manage risk, and explain engineering decisions.
+Build the VibeProof MVP: a focused, AI-allowed Homepage Latency Spike challenge that records how candidates investigate, verify, adapt, and explain engineering decisions, then produces a transparent Proof Replay for a human reviewer.
 
 ## Important reporting boundary
 
