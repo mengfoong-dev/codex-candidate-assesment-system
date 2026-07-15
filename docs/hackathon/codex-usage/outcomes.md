@@ -9,7 +9,7 @@ VibeProof is now the canonical product direction:
 - Product format: **Ownership Challenge**
 - Primary scenario: **Homepage Latency Spike**
 - Candidate application: Godot Incident Room
-- Current milestone: verified playable local candidate flow and Windows build before backend scoring
+- Current milestone: verified Windows and Web builds, with the Godot candidate flow deployed to Railway before backend scoring
 - Evidence output: **Proof Replay**
 - Assessment boundary: observable work evidence with human review
 - Historical material: preserved in the [pre-VibeProof archive](../../archive/2026-07-pre-vibeproof/README.md)
@@ -58,7 +58,12 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-215815` | Codex | 61.5 minutes | Promote Godot project to primary application path |
 | `S-20260715-230038` | Codex | 1.1 minutes | Reconcile concurrent README changes with the migration |
 | `S-20260715-230327` | Codex | 25.5 minutes | Complete, test, and export the unscored Godot candidate flow |
+| `S-20260715-232031` | Claude Code | 5.7 minutes | Backend MVP design and execution briefs |
 | `S-20260715-233700` | Codex | 1.1 minutes | Design the Godot Web deployment for Railway |
+| `S-20260715-234214` | Codex | 2.5 minutes | Merge backend kickoff documentation into main |
+| `S-20260715-234554` | Codex | 3.9 minutes | Implement and stage the Godot Web export |
+| `S-20260715-235300` | Codex | 11.6 minutes | Reconcile and push concurrent main changes |
+| `S-20260716-000559` | Codex | 8.1 minutes | Verify and deploy the Godot Web build to Railway |
 
 ## 14 July 2026 - Historical product discovery
 
