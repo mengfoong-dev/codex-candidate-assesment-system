@@ -1,126 +1,197 @@
 class_name BrowserWorkspace
 extends Control
 
-## Browser-styled workspace chrome. Hosts the assessment panels as tab pages so the
-## desktop reads like a candidate opening tabs in a web app. Tab clicks emit
-## `tab_activated`; the coordinator maps that to its existing intents (keep flow).
+## Browser-styled 2D workspace: the candidate uses the assessment as tabs in a web
+## app (Brief / Evidence / Assistant / Files & Tests / Submit + a Report view). Every
+## tab is built in code from scenario data; the view only emits intents and renders
+## from the snapshot, while the coordinator owns the domain session (keep flow).
 
-signal tab_activated(key: String)
+signal initial_hypothesis_submitted(hypothesis_id: String, confidence: int)
+signal evidence_view_requested(artifact_id: String)
+signal disposition_submitted(option_id: String)
+signal verification_requested(test_id: String, remediation_id: String)
+signal revision_submitted(hypothesis_id: String, confidence: int, fact_ids: Array)
+signal final_submission_requested(submission: Dictionary)
+signal restart_requested
 
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
 const INK := Color(0.13, 0.17, 0.31, 1)
 const MUTED := Color(0.4, 0.38, 0.44, 1)
-const ACCENTS := {
-    "observability_wall": Color(0.1, 0.78, 0.95, 1),
-    "developer_desk": Color(0.66, 0.42, 0.94, 1),
-    "release_console": Color(0.24, 0.82, 0.49, 1),
-    "hypothesis": Color(0.98, 0.7, 0.25, 1),
+const CARD := Color(0.99, 0.97, 0.93, 1)
+const CARD_BORDER := Color(0.82, 0.78, 0.7, 1)
+const ACCENT := {
+    "brief": Color(0.98, 0.7, 0.25, 1),
+    "evidence": Color(0.1, 0.78, 0.95, 1),
+    "assistant": Color(0.66, 0.42, 0.94, 1),
+    "tests": Color(0.24, 0.82, 0.49, 1),
+    "submit": Color(0.95, 0.45, 0.55, 1),
+    "report": Color(0.98, 0.7, 0.25, 1),
 }
+const TAB_DEFS := [
+    {"key": "brief", "label": "Brief"},
+    {"key": "evidence", "label": "Evidence"},
+    {"key": "assistant", "label": "Assistant"},
+    {"key": "tests", "label": "Files & Tests"},
+    {"key": "submit", "label": "Submit"},
+]
 
-@export var demo_mode := true
+@export var demo_mode := false
 
 @onready var _tabs_box: HBoxContainer = $Frame/TabStrip/Tabs
 @onready var _host: Control = $Frame/Content/PanelHost
 @onready var _url: Label = $Frame/Chrome/ChromeRow/Address/Url
 
-var _tab_defs: Array = []
-var _active_key := ""
+var _scenario: Dictionary = {}
+var _pages: Dictionary = {}
 var _buttons: Dictionary = {}
+var _active := ""
+var _started := false
+var _report_available := false
+
+var _brief_option: OptionButton
+var _brief_confidence: HSlider
+var _brief_confidence_label: Label
+var _brief_confirm: Button
+var _brief_status: Label
+var _brief_confidence_touched := false
+
+var _evidence_detail: RichTextLabel
+var _evidence_buttons: Dictionary = {}
+
+var _disposition_option: OptionButton
+var _disposition_confirm: Button
+var _disposition_status: Label
+
+var _tests_remediation: OptionButton
+var _test_result_labels: Dictionary = {}
+
+var _revise_current: Label
+var _revise_option: OptionButton
+var _revise_confidence: HSlider
+var _revise_confidence_label: Label
+var _revise_facts: ItemList
+var _revise_button: Button
+var _submit_root: OptionButton
+var _submit_remediation: OptionButton
+var _submit_rollback: OptionButton
+var _submit_risks: ItemList
+var _submit_assumptions: ItemList
+var _submit_validation: ItemList
+var _submit_evidence: ItemList
+var _submit_confidence: HSlider
+var _submit_confidence_label: Label
+var _submit_rationale: TextEdit
+var _submit_button: Button
+
+var _report_heading: Label
+var _report_status: Label
+var _report_details: RichTextLabel
+var _report_notices: RichTextLabel
 
 func _ready() -> void:
     _apply_page_theme()
-    if demo_mode:
-        set_tabs([
-            {"key": "observability_wall", "label": "Observability"},
-            {"key": "developer_desk", "label": "Developer"},
-            {"key": "release_console", "label": "Release"},
-            {"key": "hypothesis", "label": "Hypothesis"},
-        ])
-        set_active_tab("observability_wall")
-        _build_demo_page()
+    if demo_mode and _scenario.is_empty():
+        var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
+        if loaded.ok:
+            configure(loaded.scenario)
+            set_started(true)
 
-func set_tabs(defs: Array) -> void:
-    _tab_defs = defs
-    for child: Node in _tabs_box.get_children():
-        child.queue_free()
-    _buttons.clear()
-    for def: Dictionary in defs:
-        var key := str(def.get("key", ""))
-        var button := Button.new()
-        button.text = str(def.get("label", key))
-        button.focus_mode = Control.FOCUS_ALL
-        button.add_theme_font_size_override("font_size", 15)
-        button.custom_minimum_size = Vector2(0, 38)
-        button.pressed.connect(_on_tab_pressed.bind(key))
-        _tabs_box.add_child(button)
-        _buttons[key] = button
-    _restyle_tabs()
+# --- Public API --------------------------------------------------------------
 
-func set_active_tab(key: String) -> void:
-    _active_key = key
-    _restyle_tabs()
-
-func content_root() -> Control:
-    return _host
-
-func clear_page() -> void:
+func configure(scenario: Dictionary) -> void:
+    _scenario = scenario
+    _started = false
+    _report_available = false
     for child: Node in _host.get_children():
         child.queue_free()
+    _pages.clear()
+    _build_tabs()
+    _build_brief_page()
+    _build_evidence_page()
+    _build_assistant_page()
+    _build_tests_page()
+    _build_submit_page()
+    _build_report_page()
+    set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
+    set_active_tab("brief")
+
+func set_started(started: bool) -> void:
+    _started = started
+    _refresh_tab_states()
+    if started and _active == "brief":
+        set_active_tab("evidence")
+
+func show_report(summary: Dictionary) -> void:
+    _report_available = true
+    _populate_report(summary)
+    _refresh_tab_states()
+    set_active_tab("report")
+
+func refresh(snapshot: Dictionary) -> void:
+    _refresh_brief(snapshot)
+    _refresh_evidence(snapshot)
+    _refresh_assistant(snapshot)
+    _refresh_tests(snapshot)
+    _refresh_submit(snapshot)
+
+func set_active_tab(key: String) -> void:
+    if not _pages.has(key):
+        return
+    _active = key
+    for page_key: String in _pages:
+        (_pages[page_key] as Control).visible = page_key == key
+    _restyle_tabs()
 
 func set_url(text: String) -> void:
     _url.text = text
 
-func _apply_page_theme() -> void:
-    # Light "web page" theme for hosted panels. The chrome's own nodes use explicit
-    # style overrides, which win over this theme, so only the tab pages are restyled.
-    var t := Theme.new()
-    t.set_color("font_color", "Label", INK)
-    t.set_color("default_color", "RichTextLabel", INK)
-    t.set_color("font_color", "Button", INK)
-    t.set_color("font_hover_color", "Button", INK)
-    t.set_color("font_pressed_color", "Button", INK)
-    t.set_color("font_disabled_color", "Button", MUTED)
-    t.set_color("font_color", "OptionButton", INK)
-    t.set_color("font_hover_color", "OptionButton", INK)
-    var card := StyleBoxFlat.new()
-    card.bg_color = Color(0.98, 0.96, 0.92, 1)
-    card.set_corner_radius_all(12)
-    card.set_content_margin_all(6)
-    t.set_stylebox("panel", "PanelContainer", card)
-    t.set_stylebox("panel", "Panel", card)
-    for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
-        var box := StyleBoxFlat.new()
-        box.bg_color = Color(0.93, 0.9, 0.83, 1)
-        if state == "hover":
-            box.bg_color = Color(0.9, 0.86, 0.77, 1)
-        elif state == "disabled":
-            box.bg_color = Color(0.9, 0.88, 0.83, 0.6)
-        box.set_corner_radius_all(8)
-        box.set_content_margin_all(9)
-        box.set_border_width_all(1)
-        box.border_color = Color(0.82, 0.78, 0.7, 1)
-        t.set_stylebox(state, "Button", box)
-        t.set_stylebox(state, "OptionButton", box)
-    theme = t
+# --- Tab strip ---------------------------------------------------------------
+
+func _build_tabs() -> void:
+    for child: Node in _tabs_box.get_children():
+        child.queue_free()
+    _buttons.clear()
+    for def: Dictionary in TAB_DEFS:
+        _add_tab_button(str(def.key), str(def.label))
+
+func _add_tab_button(key: String, label: String) -> void:
+    var button := Button.new()
+    button.text = label
+    button.focus_mode = Control.FOCUS_ALL
+    button.add_theme_font_size_override("font_size", 15)
+    button.custom_minimum_size = Vector2(0, 38)
+    button.pressed.connect(func() -> void: _on_tab_pressed(key))
+    _tabs_box.add_child(button)
+    _buttons[key] = button
 
 func _on_tab_pressed(key: String) -> void:
+    if key == "report" and not _report_available:
+        return
+    if key != "brief" and key != "report" and not _started:
+        return
     set_active_tab(key)
-    tab_activated.emit(key)
+
+func _refresh_tab_states() -> void:
+    if not _buttons.has("report") and _report_available:
+        _add_tab_button("report", "Report")
+    _restyle_tabs()
 
 func _restyle_tabs() -> void:
     for key: String in _buttons:
         var button: Button = _buttons[key]
-        var accent: Color = ACCENTS.get(key, NAVY)
-        var active := key == _active_key
+        var accent: Color = ACCENT.get(key, NAVY)
+        var active := key == _active
+        var locked := (key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
+        button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
         button.add_theme_stylebox_override("hover", _tab_style(active, accent, true))
         button.add_theme_stylebox_override("pressed", _tab_style(active, accent))
         button.add_theme_stylebox_override("focus", _tab_style(active, accent, true))
-        button.add_theme_color_override("font_color", INK if active else CREAM)
-        button.add_theme_color_override("font_hover_color", INK if active else CREAM)
-        button.add_theme_color_override("font_pressed_color", INK if active else CREAM)
-        button.add_theme_color_override("font_focus_color", INK if active else CREAM)
+        button.add_theme_stylebox_override("disabled", _tab_style(false, accent))
+        var text_color := INK if active else (Color(0.5, 0.55, 0.7, 1) if locked else CREAM)
+        for slot: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
+            button.add_theme_color_override(slot, text_color)
 
 func _tab_style(active: bool, accent: Color, hover := false) -> StyleBoxFlat:
     var style := StyleBoxFlat.new()
@@ -137,6 +208,409 @@ func _tab_style(active: bool, accent: Color, hover := false) -> StyleBoxFlat:
     style.border_color = accent if active else Color(accent.r, accent.g, accent.b, 0.0)
     return style
 
+# --- Page scaffolding --------------------------------------------------------
+
+func _page_body(key: String) -> VBoxContainer:
+    var page := MarginContainer.new()
+    page.name = "Page_" + key
+    page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    page.add_theme_constant_override("margin_left", 34)
+    page.add_theme_constant_override("margin_top", 24)
+    page.add_theme_constant_override("margin_right", 34)
+    page.add_theme_constant_override("margin_bottom", 24)
+    page.visible = false
+    _host.add_child(page)
+    _pages[key] = page
+    var scroll := ScrollContainer.new()
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    page.add_child(scroll)
+    var body := VBoxContainer.new()
+    body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_theme_constant_override("separation", 10)
+    scroll.add_child(body)
+    return body
+
+# --- Brief -------------------------------------------------------------------
+
+func _build_brief_page() -> void:
+    var body := _page_body("brief")
+    body.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 27, INK))
+    var brief := _richtext(str(_scenario.get("brief", "")), 90)
+    body.add_child(brief)
+    body.add_child(HSeparator.new())
+    body.add_child(_heading("Record your initial hypothesis before you dig in.", 16, MUTED))
+    _brief_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
+    body.add_child(_brief_option)
+    _brief_confidence = _slider()
+    body.add_child(_brief_confidence)
+    _brief_confidence_label = _heading("Confidence: 50%", 15, INK)
+    body.add_child(_brief_confidence_label)
+    _brief_confirm = _flat_button("Record initial hypothesis")
+    _brief_confirm.disabled = true
+    body.add_child(_brief_confirm)
+    _brief_status = _heading("", 15, ACCENT["brief"])
+    body.add_child(_brief_status)
+    _brief_option.item_selected.connect(func(_i: int) -> void: _update_brief_confirm())
+    _brief_confidence.value_changed.connect(func(v: float) -> void:
+        _brief_confidence_touched = true
+        _brief_confidence_label.text = "Confidence: %d%%" % int(v)
+        _update_brief_confirm())
+    _brief_confirm.pressed.connect(func() -> void:
+        if not _brief_confirm.disabled:
+            initial_hypothesis_submitted.emit(str(_brief_option.get_item_metadata(_brief_option.selected)), int(_brief_confidence.value)))
+
+func _update_brief_confirm() -> void:
+    _brief_confirm.disabled = not (_brief_option.selected >= 0 and _brief_confidence_touched)
+
+func _refresh_brief(snapshot: Dictionary) -> void:
+    if _brief_status == null:
+        return
+    var initial: Dictionary = snapshot.get("initial_hypothesis", {})
+    if initial.is_empty():
+        return
+    _brief_status.text = "Recorded: %s at %d%% confidence." % [_hypothesis_label(str(initial.get("hypothesis_id", ""))), int(initial.get("confidence", 0))]
+    _brief_option.disabled = true
+    _brief_confidence.editable = false
+    _brief_confirm.visible = false
+
+# --- Evidence ----------------------------------------------------------------
+
+func _build_evidence_page() -> void:
+    var body := _page_body("evidence")
+    body.add_child(_heading("Evidence", 27, INK))
+    body.add_child(_heading("Open any artifact to read it. Every view is recorded in the session timeline.", 15, MUTED))
+    _evidence_buttons.clear()
+    for artifact: Dictionary in _scenario.get("artifacts", []):
+        var artifact_id := str(artifact.get("artifact_id", ""))
+        var station := _lookup(_scenario.get("stations", []), "station_id", str(artifact.get("station_id", "")))
+        var button := _card_button("%s   ·   %s" % [artifact.get("title", artifact_id), station.get("title", artifact.get("station_id", ""))])
+        button.pressed.connect(func() -> void:
+            evidence_view_requested.emit(artifact_id)
+            _show_artifact(artifact))
+        body.add_child(button)
+        _evidence_buttons[artifact_id] = button
+    body.add_child(HSeparator.new())
+    _evidence_detail = _richtext("Select an artifact to read its contents.", 150)
+    body.add_child(_evidence_detail)
+
+func _show_artifact(artifact: Dictionary) -> void:
+    var lines := PackedStringArray(["[b]%s[/b]" % str(artifact.get("title", ""))])
+    for line: Variant in artifact.get("content", []):
+        lines.append("• %s" % str(line))
+    _evidence_detail.text = "\n".join(lines)
+
+func _refresh_evidence(snapshot: Dictionary) -> void:
+    var viewed: Array = snapshot.get("viewed_artifact_ids", [])
+    for artifact_id: String in _evidence_buttons:
+        var button: Button = _evidence_buttons[artifact_id]
+        var base: String = button.text.split("   ✓")[0]
+        button.text = base + ("   ✓ viewed" if viewed.has(artifact_id) else "")
+
+# --- Assistant ---------------------------------------------------------------
+
+func _build_assistant_page() -> void:
+    var body := _page_body("assistant")
+    var interaction: Dictionary = _scenario.get("ai_interaction", {})
+    var prompt: Dictionary = interaction.get("prompt", {})
+    var response: Dictionary = interaction.get("response", {})
+    body.add_child(_heading("AI Assistant", 27, INK))
+    body.add_child(_heading("Scripted offline assistant · %s" % str(response.get("model_label", "")), 14, MUTED))
+    body.add_child(_bubble("You", str(prompt.get("text", "")), Color(0.9, 0.92, 0.98, 1)))
+    body.add_child(_bubble("Assistant", str(response.get("text", "")), Color(0.93, 0.88, 0.99, 1)))
+    body.add_child(HSeparator.new())
+    body.add_child(_heading("How did you handle this suggestion?", 16, INK))
+    _disposition_option = _option(interaction.get("dispositions", []), "option_id", "disposition", true)
+    body.add_child(_disposition_option)
+    _disposition_confirm = _flat_button("Record how I handled the suggestion")
+    _disposition_confirm.disabled = true
+    body.add_child(_disposition_confirm)
+    _disposition_status = _heading("", 15, ACCENT["assistant"])
+    body.add_child(_disposition_status)
+    _disposition_option.item_selected.connect(func(_i: int) -> void: _disposition_confirm.disabled = _disposition_option.selected < 0)
+    _disposition_confirm.pressed.connect(func() -> void:
+        if _disposition_option.selected >= 0:
+            disposition_submitted.emit(str(_disposition_option.get_item_metadata(_disposition_option.selected))))
+
+func _refresh_assistant(snapshot: Dictionary) -> void:
+    if _disposition_status == null:
+        return
+    var disposition_id := str(snapshot.get("ai_disposition_id", ""))
+    _disposition_status.text = "" if disposition_id.is_empty() else "Recorded your disposition: %s." % _humanize(disposition_id)
+
+# --- Files & Tests -----------------------------------------------------------
+
+func _build_tests_page() -> void:
+    var body := _page_body("tests")
+    body.add_child(_heading("Files & Tests", 27, INK))
+    body.add_child(_heading("No candidate files are attached to this scenario. Run the validation tests against a remediation.", 15, MUTED))
+    body.add_child(_heading("Remediation to validate", 15, INK))
+    _tests_remediation = _option(_scenario.get("submission_options", {}).get("remediations", []), "option_id", "label")
+    body.add_child(_tests_remediation)
+    body.add_child(HSeparator.new())
+    _test_result_labels.clear()
+    for test: Dictionary in _scenario.get("tests", []):
+        var test_id := str(test.get("test_id", ""))
+        var card := VBoxContainer.new()
+        card.add_theme_constant_override("separation", 4)
+        var row := HBoxContainer.new()
+        row.add_theme_constant_override("separation", 10)
+        var info := VBoxContainer.new()
+        info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        info.add_child(_heading(str(test.get("title", test_id)), 16, INK))
+        info.add_child(_heading(str(test.get("expected_result", "")), 13, MUTED))
+        row.add_child(info)
+        var run := _flat_button("Run test")
+        run.custom_minimum_size = Vector2(120, 40)
+        row.add_child(run)
+        card.add_child(row)
+        var result := _heading("", 14, ACCENT["tests"])
+        card.add_child(result)
+        body.add_child(card)
+        body.add_child(HSeparator.new())
+        _test_result_labels[test_id] = result
+        run.pressed.connect(func() -> void:
+            if _tests_remediation.selected < 0:
+                result.text = "Choose a remediation to validate first."
+                return
+            verification_requested.emit(test_id, str(_tests_remediation.get_item_metadata(_tests_remediation.selected))))
+
+func _refresh_tests(snapshot: Dictionary) -> void:
+    if _test_result_labels.is_empty():
+        return
+    var latest: Dictionary = {}
+    for action: Dictionary in snapshot.get("verification_actions", []):
+        latest[str(action.get("test_id", ""))] = action
+    for test_id: String in _test_result_labels:
+        var label: Label = _test_result_labels[test_id]
+        if latest.has(test_id):
+            var displayed: Dictionary = latest[test_id].get("displayed_result", {})
+            label.text = "✓ %s — %s" % [latest[test_id].get("remediation_id", ""), displayed.get("actual_result", "recorded")]
+        else:
+            label.text = ""
+
+# --- Submit ------------------------------------------------------------------
+
+func _build_submit_page() -> void:
+    var body := _page_body("submit")
+    var options: Dictionary = _scenario.get("submission_options", {})
+    body.add_child(_heading("Revise your hypothesis (optional)", 20, INK))
+    _revise_current = _heading("Current hypothesis: not recorded", 14, MUTED)
+    body.add_child(_revise_current)
+    _revise_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
+    body.add_child(_revise_option)
+    _revise_confidence = _slider()
+    body.add_child(_revise_confidence)
+    _revise_confidence_label = _heading("Confidence: 50%", 14, INK)
+    body.add_child(_revise_confidence_label)
+    body.add_child(_heading("Trigger facts (from evidence you viewed):", 13, MUTED))
+    _revise_facts = _itemlist(120)
+    body.add_child(_revise_facts)
+    _revise_button = _flat_button("Update hypothesis")
+    _revise_button.disabled = true
+    body.add_child(_revise_button)
+    body.add_child(HSeparator.new())
+
+    body.add_child(_heading("Submit your conclusion", 22, INK))
+    _submit_root = _option(options.get("root_causes", []), "option_id", "label")
+    body.add_child(_labeled("Root cause", _submit_root))
+    _submit_remediation = _option(options.get("remediations", []), "option_id", "label")
+    body.add_child(_labeled("Remediation", _submit_remediation))
+    _submit_rollback = _option(options.get("rollbacks", []), "option_id", "label")
+    body.add_child(_labeled("Rollback plan", _submit_rollback))
+    _submit_validation = _itemlist(90)
+    _fill_itemlist(_submit_validation, _scenario.get("tests", []), "test_id", "title")
+    body.add_child(_labeled("Validation tests (select the ones you ran)", _submit_validation))
+    _submit_evidence = _itemlist(90)
+    body.add_child(_labeled("Supporting evidence (viewed artifacts)", _submit_evidence))
+    _submit_risks = _itemlist(90)
+    _fill_itemlist(_submit_risks, options.get("risks", []), "option_id", "label")
+    body.add_child(_labeled("Risks", _submit_risks))
+    _submit_assumptions = _itemlist(90)
+    _fill_itemlist(_submit_assumptions, options.get("assumptions", []), "option_id", "label")
+    body.add_child(_labeled("Assumptions", _submit_assumptions))
+    _submit_confidence = _slider()
+    body.add_child(_submit_confidence)
+    _submit_confidence_label = _heading("Final confidence: 50%", 14, INK)
+    body.add_child(_submit_confidence_label)
+    _submit_rationale = TextEdit.new()
+    _submit_rationale.custom_minimum_size = Vector2(0, 80)
+    _submit_rationale.placeholder_text = "Explain your reasoning…"
+    body.add_child(_labeled("Rationale", _submit_rationale))
+    _submit_button = _flat_button("Submit conclusion")
+    _submit_button.disabled = true
+    body.add_child(_submit_button)
+
+    _revise_confidence.value_changed.connect(func(v: float) -> void: _revise_confidence_label.text = "Confidence: %d%%" % int(v))
+    _revise_option.item_selected.connect(func(_i: int) -> void: _revise_button.disabled = _revise_option.selected < 0)
+    _revise_button.pressed.connect(_on_revise)
+    _submit_confidence.value_changed.connect(func(v: float) -> void: _submit_confidence_label.text = "Final confidence: %d%%" % int(v))
+    for control: OptionButton in [_submit_root, _submit_remediation, _submit_rollback]:
+        control.item_selected.connect(func(_i: int) -> void: _update_submit_state())
+    _submit_validation.multi_selected.connect(func(_i: int, _s: bool) -> void: _update_submit_state())
+    _submit_button.pressed.connect(_on_submit)
+
+func _on_revise() -> void:
+    if _revise_option.selected < 0:
+        return
+    revision_submitted.emit(
+        str(_revise_option.get_item_metadata(_revise_option.selected)),
+        int(_revise_confidence.value),
+        _selected_metadata(_revise_facts))
+
+func _on_submit() -> void:
+    if _submit_button.disabled:
+        return
+    final_submission_requested.emit({
+        "root_cause_id": _submit_root.get_item_metadata(_submit_root.selected),
+        "evidence_ids": _selected_metadata(_submit_evidence),
+        "remediation_id": _submit_remediation.get_item_metadata(_submit_remediation.selected),
+        "risk_ids": _selected_metadata(_submit_risks),
+        "assumption_ids": _selected_metadata(_submit_assumptions),
+        "validation_test_ids": _selected_metadata(_submit_validation),
+        "rollback_id": _submit_rollback.get_item_metadata(_submit_rollback.selected),
+        "final_confidence": int(_submit_confidence.value),
+        "rationale": _submit_rationale.text,
+    })
+
+func _update_submit_state() -> void:
+    _submit_button.disabled = (
+        _submit_root.selected < 0
+        or _submit_remediation.selected < 0
+        or _submit_rollback.selected < 0
+        or _submit_validation.get_selected_items().is_empty())
+
+func _refresh_submit(snapshot: Dictionary) -> void:
+    if _revise_current == null:
+        return
+    var current: Dictionary = snapshot.get("current_hypothesis", {})
+    _revise_current.text = "Current hypothesis: %s" % _hypothesis_label(str(current.get("hypothesis_id", "not recorded")))
+    _revise_facts.clear()
+    var viewed: Array = snapshot.get("viewed_artifact_ids", [])
+    for artifact: Dictionary in _scenario.get("artifacts", []):
+        if not viewed.has(str(artifact.get("artifact_id", ""))):
+            continue
+        for fact: Dictionary in artifact.get("facts", []):
+            _revise_facts.add_item(str(fact.get("label", fact.get("fact_id", ""))))
+            _revise_facts.set_item_metadata(_revise_facts.item_count - 1, fact.get("fact_id", ""))
+    _submit_evidence.clear()
+    for artifact_id: Variant in viewed:
+        var artifact := _lookup(_scenario.get("artifacts", []), "artifact_id", str(artifact_id))
+        _submit_evidence.add_item(str(artifact.get("title", artifact_id)))
+        _submit_evidence.set_item_metadata(_submit_evidence.item_count - 1, artifact_id)
+
+# --- Report ------------------------------------------------------------------
+
+func _build_report_page() -> void:
+    var body := _page_body("report")
+    _report_heading = _heading("Unscored prototype summary", 27, INK)
+    body.add_child(_report_heading)
+    _report_status = _heading("", 15, ACCENT["report"])
+    body.add_child(_report_status)
+    _report_details = _richtext("", 200)
+    body.add_child(_report_details)
+    body.add_child(HSeparator.new())
+    _report_notices = _richtext("", 120)
+    body.add_child(_report_notices)
+    var restart := _flat_button("Start another session")
+    body.add_child(restart)
+    restart.pressed.connect(func() -> void: restart_requested.emit())
+
+func _populate_report(summary: Dictionary) -> void:
+    _report_heading.text = str(summary.get("label", "Unscored prototype summary"))
+    var status := "%s • %s" % [
+        "Session complete" if summary.get("completed", false) else "Session in progress",
+        "Saved locally" if summary.get("saved_to_disk", false) else "In-memory only",
+    ]
+    if not str(summary.get("persistence_warning", "")).is_empty():
+        status += "\n%s" % summary.persistence_warning
+    _report_status.text = status
+    var submission: Dictionary = summary.get("final_submission", {})
+    var lines := PackedStringArray([
+        "Initial hypothesis: %s" % summary.get("initial_hypothesis", {}).get("label", "Not recorded"),
+        "Final hypothesis: %s" % summary.get("final_hypothesis", {}).get("label", "Not recorded"),
+        "Evidence views: %d" % summary.get("evidence_timeline", []).size(),
+        "Verification actions: %d" % summary.get("verification_actions", []).size(),
+    ])
+    if not submission.is_empty():
+        lines.append("Root cause: %s" % submission.get("root_cause", {}).get("label", "Not recorded"))
+        lines.append("Remediation: %s" % submission.get("remediation", {}).get("label", "Not recorded"))
+        lines.append("Rollback: %s" % submission.get("rollback", {}).get("label", "Not recorded"))
+        lines.append("Rationale: %s" % submission.get("rationale", ""))
+    _report_details.text = "\n".join(lines)
+    var notices: Dictionary = summary.get("notices", {})
+    _report_notices.text = "%s\n\n%s\n\n%s" % [notices.get("human_review", ""), notices.get("limitations", ""), notices.get("navigation", "")]
+
+# --- Widget helpers ----------------------------------------------------------
+
+func _heading(text: String, size: int, color: Color) -> Label:
+    var label := Label.new()
+    label.text = text
+    label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    label.add_theme_font_size_override("font_size", size)
+    label.add_theme_color_override("font_color", color)
+    return label
+
+func _richtext(text: String, min_height: int) -> RichTextLabel:
+    var rt := RichTextLabel.new()
+    rt.bbcode_enabled = true
+    rt.fit_content = true
+    rt.custom_minimum_size = Vector2(0, min_height)
+    rt.add_theme_color_override("default_color", INK)
+    rt.text = text
+    return rt
+
+func _slider() -> HSlider:
+    var slider := HSlider.new()
+    slider.min_value = 0
+    slider.max_value = 100
+    slider.value = 50
+    slider.focus_mode = Control.FOCUS_ALL
+    return slider
+
+func _option(items: Variant, id_field: String, label_field: String, humanize := false) -> OptionButton:
+    var control := OptionButton.new()
+    control.focus_mode = Control.FOCUS_ALL
+    for item: Dictionary in items if typeof(items) == TYPE_ARRAY else []:
+        var text := str(item.get(label_field, item.get(id_field, "")))
+        control.add_item(_humanize(text) if humanize else text)
+        control.set_item_metadata(control.item_count - 1, item.get(id_field, ""))
+    control.select(-1)
+    return control
+
+func _itemlist(min_height: int) -> ItemList:
+    var list := ItemList.new()
+    list.select_mode = ItemList.SELECT_MULTI
+    list.custom_minimum_size = Vector2(0, min_height)
+    list.focus_mode = Control.FOCUS_ALL
+    list.add_theme_color_override("font_color", INK)
+    return list
+
+func _fill_itemlist(list: ItemList, items: Variant, id_field: String, label_field: String) -> void:
+    list.clear()
+    for item: Dictionary in items if typeof(items) == TYPE_ARRAY else []:
+        list.add_item(str(item.get(label_field, item.get(id_field, ""))))
+        list.set_item_metadata(list.item_count - 1, item.get(id_field, ""))
+
+func _labeled(label: String, control: Control) -> VBoxContainer:
+    var box := VBoxContainer.new()
+    box.add_theme_constant_override("separation", 3)
+    box.add_child(_heading(label, 14, INK))
+    box.add_child(control)
+    return box
+
+func _bubble(speaker: String, text: String, bg: Color) -> PanelContainer:
+    var panel := PanelContainer.new()
+    var style := StyleBoxFlat.new()
+    style.bg_color = bg
+    style.set_corner_radius_all(10)
+    style.set_content_margin_all(12)
+    panel.add_theme_stylebox_override("panel", style)
+    var col := VBoxContainer.new()
+    col.add_child(_heading(speaker, 13, MUTED))
+    col.add_child(_heading(text, 15, INK))
+    panel.add_child(col)
+    return panel
+
 func _card_button(text: String) -> Button:
     var button := Button.new()
     button.text = text
@@ -145,10 +619,10 @@ func _card_button(text: String) -> Button:
     button.custom_minimum_size = Vector2(0, 44)
     button.add_theme_font_size_override("font_size", 15)
     var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.99, 0.97, 0.93, 1)
+    style.bg_color = CARD
     style.set_corner_radius_all(8)
     style.set_border_width_all(1)
-    style.border_color = Color(0.82, 0.78, 0.7, 1)
+    style.border_color = CARD_BORDER
     style.content_margin_left = 14
     style.content_margin_right = 14
     style.content_margin_top = 8
@@ -157,30 +631,61 @@ func _card_button(text: String) -> Button:
     button.add_theme_color_override("font_color", INK)
     return button
 
-func _heading(text: String, size: int, color: Color) -> Label:
-    var label := Label.new()
-    label.text = text
-    label.add_theme_font_size_override("font_size", size)
-    label.add_theme_color_override("font_color", color)
-    return label
+func _flat_button(text: String) -> Button:
+    var button := _card_button(text)
+    button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+    return button
 
-func _build_demo_page() -> void:
-    clear_page()
-    var margin := MarginContainer.new()
-    margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    margin.add_theme_constant_override("margin_left", 30)
-    margin.add_theme_constant_override("margin_top", 26)
-    margin.add_theme_constant_override("margin_right", 30)
-    margin.add_theme_constant_override("margin_bottom", 26)
-    _host.add_child(margin)
-    var page := VBoxContainer.new()
-    page.add_theme_constant_override("separation", 12)
-    margin.add_child(page)
-    page.add_child(_heading("Observability Wall", 27, INK))
-    page.add_child(_heading("Open evidence artifacts. Repeated views stay in the session timeline.", 15, MUTED))
-    page.add_child(_card_button("📊  Latency dashboard — p99 spike at 14:02 UTC"))
-    page.add_child(_card_button("📈  Error-rate panel — 4xx flat, 5xx climbing"))
-    page.add_child(_card_button("🗒️  Deploy log — release r-2291 rolled out 13:58"))
-    page.add_child(HSeparator.new())
-    page.add_child(_heading("Scripted assistant", 18, ACCENTS["observability_wall"]))
-    page.add_child(_heading("\"The p99 climb starts right after r-2291. Want me to pull the diff?\"", 15, INK))
+func _selected_metadata(list: ItemList) -> Array:
+    var ids: Array = []
+    for index: int in list.get_selected_items():
+        ids.append(list.get_item_metadata(index))
+    return ids
+
+func _hypothesis_label(hypothesis_id: String) -> String:
+    return str(_lookup(_scenario.get("hypotheses", []), "hypothesis_id", hypothesis_id).get("label", hypothesis_id))
+
+func _lookup(items: Variant, field: String, requested_id: String) -> Dictionary:
+    for item: Variant in items if typeof(items) == TYPE_ARRAY else []:
+        if typeof(item) == TYPE_DICTIONARY and str(item.get(field, "")) == requested_id:
+            return item
+    return {}
+
+func _humanize(value: String) -> String:
+    return value.replace("_", " ").capitalize()
+
+func _apply_page_theme() -> void:
+    var t := Theme.new()
+    t.set_color("font_color", "Label", INK)
+    t.set_color("default_color", "RichTextLabel", INK)
+    t.set_color("font_color", "Button", INK)
+    t.set_color("font_color", "OptionButton", INK)
+    var card := StyleBoxFlat.new()
+    card.bg_color = CARD
+    card.set_corner_radius_all(12)
+    card.set_content_margin_all(6)
+    t.set_stylebox("panel", "PanelContainer", card)
+    var field := StyleBoxFlat.new()
+    field.bg_color = Color(1, 0.99, 0.97, 1)
+    field.set_corner_radius_all(6)
+    field.set_border_width_all(1)
+    field.border_color = CARD_BORDER
+    field.set_content_margin_all(6)
+    t.set_stylebox("normal", "TextEdit", field)
+    t.set_color("font_color", "TextEdit", INK)
+    t.set_stylebox("panel", "ItemList", field)
+    t.set_color("font_color", "ItemList", INK)
+    for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+        var box := StyleBoxFlat.new()
+        box.bg_color = Color(0.93, 0.9, 0.83, 1)
+        if state == "hover":
+            box.bg_color = Color(0.9, 0.86, 0.77, 1)
+        elif state == "disabled":
+            box.bg_color = Color(0.9, 0.88, 0.83, 0.6)
+        box.set_corner_radius_all(8)
+        box.set_content_margin_all(9)
+        box.set_border_width_all(1)
+        box.border_color = CARD_BORDER
+        t.set_stylebox(state, "Button", box)
+        t.set_stylebox(state, "OptionButton", box)
+    theme = t
