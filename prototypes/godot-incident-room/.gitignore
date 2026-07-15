@@ -1,0 +1,4 @@
+.godot/
+dist/
+test-output/
+*.tmp

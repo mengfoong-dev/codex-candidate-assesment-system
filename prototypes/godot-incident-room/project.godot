@@ -1,0 +1,23 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+config/name="VibeProof Incident Room"
+run/main_scene="res://scenes/main/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.web="gl_compatibility"
+gl_compatibility/driver.windows="opengl3_angle"
+gl_compatibility/fallback_to_native=true
+environment/defaults/default_clear_color=Color(0.055, 0.071, 0.11, 1)
