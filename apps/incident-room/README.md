@@ -38,6 +38,8 @@ Launch the application from the repository root:
 
 ## Browser build
 
+Play the deployed build at [vibeproof-web-production.up.railway.app](https://vibeproof-web-production.up.railway.app).
+
 Build the single-threaded Godot Web export and its Railway staging bundle:
 
 ```powershell
@@ -53,6 +55,17 @@ node apps/incident-room/scripts/development/serve_web.mjs apps/incident-room/dis
 Then open `http://127.0.0.1:8060/`. Use a current Chromium-based browser or Firefox with WebAssembly and WebGL 2.0 enabled. The Web build uses the Compatibility renderer and the official Godot 4.7.1 no-thread template, so cross-origin isolation headers are not required.
 
 Browser sessions are local to that browser and site origin. `user://` evidence is not uploaded to the static host, and clearing site data can remove it. This deployment does not add backend scoring or centralized candidate storage.
+
+### Railway deployment
+
+The production build is deployed as the isolated `vibeproof-web` service in the existing Railway project. The generated `dist/` files remain untracked; each deployment must be rebuilt from source first.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/build_web.ps1
+railway up apps/incident-room/dist/railway-web --path-as-root --no-gitignore --service vibeproof-web --environment production --ci
+```
+
+The staging bundle uses Caddy on Railway's assigned `PORT` and serves the Godot `.wasm` file as `application/wasm`. A deployment smoke check should confirm `200` responses for `/`, `/index.wasm`, and `/index.pck` before sharing the build.
 
 ## Candidate journey
 
