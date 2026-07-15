@@ -57,10 +57,10 @@ The vertical slice should prove that VibeProof can collect useful ownership evid
 - Arbitrary candidate-repository execution.
 - Fully generated assessments without manager approval.
 - Proctoring, facial analysis, voice analysis, and AI-authorship inference.
-- Automatic hiring or rejection.
+- Employment-decision automation.
 - Custom model training.
 - Multiplayer or complex game mechanics.
-- Required 2D or 3D navigation.
+- 2D or 3D navigation as an MVP dependency.
 
 ## Data flow
 
