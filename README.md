@@ -10,6 +10,8 @@ The product direction and documentation are consolidated around VibeProof. The b
 
 The next delivery goal is to implement the candidate investigation flow, structured event log, deterministic rubric, and recruiter Proof Replay described in the [MVP scope](docs/product/mvp-scope.md).
 
+An optional [Godot Incident Room prototype](prototypes/godot-incident-room/README.md) now provides the independently loadable scenario and validation foundation. It is an in-progress presentation experiment, not a completed replacement for the canonical web workspace.
+
 ## What we are building
 
 VibeProof presents a short, realistic engineering **Ownership Challenge**. The candidate works through an incident using code, metrics, logs, traces, tests, and an AI assistant. The platform records observable evidence from the investigation and produces a **Proof Replay** for a human reviewer.
@@ -67,6 +69,8 @@ Start with the [documentation index](docs/README.md), then read:
 - [Evidence and scoring](docs/assessment/evidence-and-scoring.md)
 - [Research, validation, and market](docs/research/validation-and-market.md)
 - [Product decisions](docs/decisions.md)
+- [Godot Incident Room design](docs/superpowers/specs/2026-07-15-vibeproof-incident-room-mvp-design.md)
+- [Godot Incident Room implementation plan](docs/superpowers/plans/2026-07-15-vibeproof-incident-room-mvp.md)
 
 Historical product explorations and source material are preserved in the [archive](docs/archive/2026-07-pre-vibeproof/README.md).
 

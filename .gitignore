@@ -3,3 +3,6 @@ docs/hackathon/codex-usage/active-session.json
 
 # Isolated feature worktrees managed by Codex.
 .worktrees/
+
+# Generated Superpowers brainstorming companion state and temporary screens.
+.superpowers/

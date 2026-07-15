@@ -25,6 +25,12 @@ VibeProof is an AI-allowed Ownership Challenge for software-engineering candidat
 
 - [Agent usage records](hackathon/codex-usage/README.md) - generated session and outcome logs for the hackathon project.
 
+## Prototype experiment
+
+- [Godot Incident Room design](superpowers/specs/2026-07-15-vibeproof-incident-room-mvp-design.md) - approved spatial-presentation experiment and responsible-assessment constraints.
+- [Godot Incident Room implementation plan](superpowers/plans/2026-07-15-vibeproof-incident-room-mvp.md) - test-first delivery plan for the optional prototype.
+- [Godot project README](../prototypes/godot-incident-room/README.md) - current scaffold status, pinned toolchain, controls, verification, and licensing.
+
 ## Historical material
 
 - [Pre-VibeProof archive](archive/2026-07-pre-vibeproof/README.md) - earlier branding, platform exploration, Miro material, research sources, and product debates.
