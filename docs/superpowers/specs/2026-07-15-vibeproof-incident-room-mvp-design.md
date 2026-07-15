@@ -28,11 +28,11 @@ The user then requested implementation with suitable online resources gathered f
 
 Build a short, playable Godot prototype that presents VibeProof's controlled homepage-latency incident as an interactive office investigation. The player walks through a believable incident room, inspects operational evidence, revises a hypothesis, verifies a proposed change, and submits a defensible conclusion.
 
-The prototype should demonstrate the complete evidence chain in three to five minutes. It is not intended to prove assessment validity or replace the canonical web workspace.
+The application should demonstrate the complete evidence chain in three to five minutes. It is not intended to prove assessment validity.
 
 ## Relationship to the canonical product
 
-The repository's canonical MVP remains a focused web engineering workspace. The Godot project is an optional engagement experiment permitted by `docs/decisions.md` and `docs/product/user-scenario.md`.
+The Godot project is the first VibeProof application. It implements the same controlled scenario and observable evidence boundaries defined by `docs/decisions.md` and `docs/product/user-scenario.md`.
 
 The prototype must therefore:
 
@@ -225,7 +225,7 @@ The character rotates toward movement. Jumping, sprinting, crouching, aiming, an
 Create the standalone prototype under:
 
 ```text
-prototypes/godot-incident-room/
+apps/incident-room/
 |-- project.godot
 |-- README.md
 |-- .gitignore
@@ -443,8 +443,8 @@ Automated coverage must include:
 Required engine checks:
 
 ```text
-godot --headless --path prototypes/godot-incident-room --import
-godot --headless --path prototypes/godot-incident-room --script res://tests/run_tests.gd
+godot --headless --path apps/incident-room --import
+godot --headless --path apps/incident-room --script res://tests/run_tests.gd
 ```
 
 Manual checks cover:

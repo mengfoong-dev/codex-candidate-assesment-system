@@ -4,7 +4,7 @@
 
 Approved by the user on 2026-07-15.
 
-This design changes the implementation order for the optional Godot Incident Room prototype. It preserves the room, camera, controls, scenario, visual direction, evidence boundaries, and offline constraints in the [Incident Room MVP design](2026-07-15-vibeproof-incident-room-mvp-design.md). Where the earlier design schedules deterministic scoring before or alongside the playable flow, this document takes precedence: finish the candidate-facing Godot experience and local event record first; add scoring as a later backend integration.
+This design changes the implementation order for the Godot Incident Room application. It preserves the room, camera, controls, scenario, visual direction, evidence boundaries, and offline constraints in the [Incident Room MVP design](2026-07-15-vibeproof-incident-room-mvp-design.md). Where the earlier design schedules deterministic scoring before or alongside the playable flow, this document takes precedence: finish the candidate-facing Godot experience and local event record first; add scoring as a later backend integration.
 
 ## Goal
 
@@ -24,7 +24,7 @@ The milestone proves that a candidate can complete the assessment experience and
 
 ## Product boundary
 
-The canonical VibeProof product remains an AI-allowed Ownership Challenge with a human-reviewed Proof Replay. The Godot project remains an optional presentation experiment for the same controlled scenario.
+The canonical VibeProof product remains an AI-allowed Ownership Challenge with a human-reviewed Proof Replay. The Godot project is its first candidate-facing application for the controlled scenario.
 
 The Godot-first milestone must:
 

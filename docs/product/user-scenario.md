@@ -75,16 +75,16 @@ A strong investigation might proceed as follows:
 
 The assessment does not require this exact order. It requires a defensible evidence chain.
 
-## Investigation workspace
+## Investigation application
 
-The baseline is a focused web engineering workspace with:
+The current implementation is the Godot Incident Room with:
 
 - the incident description and task boundary;
-- evidence tabs for metrics, logs, traces, and code;
+- three stations exposing metrics, logs, traces, code, verification, and submission;
 - an AI conversation panel;
 - hypothesis and confidence controls;
 - test or verification controls;
-- a chronological activity timeline;
+- an append-only local event record;
 - a structured final-submission form.
 
 The workspace records structured events. It does not score mouse movement, typing speed, gaming skill, facial expressions, voice accent, or unrelated stress behavior.
@@ -136,14 +136,14 @@ The recruiter reviews the evidence and decides what to investigate in the human 
 
 The timeline provides context. A shorter session is not automatically better than a careful, evidence-based session.
 
-## Optional presentation experiments
+## Presentation-layer boundary
 
-A Godot 3D office, Phaser 2D map, or other spatial interface may be tested as an engagement layer. If explored, it must:
+The Godot Incident Room is the first application. It must:
 
-- expose the same tools and structured event model as the web workspace;
+- expose the canonical tools and structured event model;
 - remain accessible without game experience;
 - avoid scoring navigation speed or spatial control;
 - load and run reliably on candidate hardware;
 - add engagement without changing the construct being assessed.
 
-No spatial interface is required for the MVP.
+The presentation layer does not define the assessment signal. A future web client can use the same scenario and event contract without changing the evidence model.

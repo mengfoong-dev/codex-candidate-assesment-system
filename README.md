@@ -14,11 +14,11 @@ VibeProof is an AI-allowed engineering assessment that helps hiring teams verify
 
 ## Current status
 
-The product direction and documentation are consolidated around VibeProof. The baseline MVP is a focused web engineering workspace using the Homepage Latency Spike scenario. Earlier branding, game-engine, Miro, and debate material is preserved in the archive and is not active guidance.
+The product direction and documentation are consolidated around VibeProof. The primary application under active development is the Godot Incident Room using the Homepage Latency Spike scenario. Earlier branding, Miro, and product-debate material is preserved in the archive and is not active guidance.
 
-The next delivery goal is to implement the candidate investigation flow, structured event log, deterministic rubric, and recruiter Proof Replay described in the [MVP scope](docs/product/mvp-scope.md).
+The next delivery goal is to complete the playable candidate investigation flow, structured local event log, and unscored session summary described in the [Godot-first design](docs/superpowers/specs/2026-07-15-vibeproof-godot-first-candidate-flow-design.md). Scoring and recruiter result processing follow later as a separate backend milestone.
 
-An optional [Godot Incident Room prototype](prototypes/godot-incident-room/README.md) now provides the independently loadable scenario and validation foundation. It is an in-progress presentation experiment, not a completed replacement for the canonical web workspace.
+The [Godot Incident Room application](apps/incident-room/README.md) contains the independently loadable game, scenario, local evidence contract, and tests.
 
 ## What we are building
 
@@ -55,17 +55,17 @@ Time, prompt count, token count, and tool-call count are context. They are not d
 
 ## MVP
 
-The first complete vertical slice includes:
+The first complete application slice includes:
 
 - one controlled homepage-latency incident;
-- one focused engineering workspace;
+- one playable Godot Incident Room;
 - metrics, logs, traces, source code, and AI-assistant tools;
 - hypothesis capture and revision;
 - structured final submission;
-- deterministic scoring;
-- one recruiter Proof Replay.
+- an append-only local event record;
+- one explicitly unscored session summary.
 
-An immersive or spatial interface may be explored later, but it is not required for the MVP and cannot affect the engineering score.
+Backend scoring and the recruiter-facing Proof Replay are later milestones. Navigation speed, route choice, camera control, and gaming skill cannot affect the engineering evidence.
 
 ## Documentation
 

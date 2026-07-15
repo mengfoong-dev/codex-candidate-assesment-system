@@ -8,8 +8,8 @@ VibeProof is now the canonical product direction:
 
 - Product format: **Ownership Challenge**
 - Primary scenario: **Homepage Latency Spike**
-- Candidate environment: focused web engineering workspace
-- Prototype experiment: optional Godot Incident Room scaffold
+- Candidate application: Godot Incident Room
+- Current milestone: playable local candidate flow before backend scoring
 - Evidence output: **Proof Replay**
 - Assessment boundary: observable work evidence with human review
 - Historical material: preserved in the [pre-VibeProof archive](../../archive/2026-07-pre-vibeproof/README.md)
