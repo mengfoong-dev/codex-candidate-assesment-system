@@ -8,7 +8,8 @@ VibeProof is now the canonical product direction:
 
 - Product format: **Ownership Challenge**
 - Primary scenario: **Homepage Latency Spike**
-- Candidate environment: focused web engineering workspace
+- Candidate application: Godot Incident Room
+- Current milestone: verified playable local candidate flow and Windows build before backend scoring
 - Evidence output: **Proof Replay**
 - Assessment boundary: observable work evidence with human review
 - Historical material: preserved in the [pre-VibeProof archive](../../archive/2026-07-pre-vibeproof/README.md)
@@ -41,6 +42,23 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-113622` | Codex | 3.3 minutes | Documentation-migration plan |
 | `S-20260715-114543` | Codex | 10.6 minutes | VibeProof documentation migration |
 | `S-20260715-115920` | Codex | 4.6 minutes | Repository-wide VibeProof reference update |
+| `S-20260715-152642` | Codex | 5.8 minutes | Single-player office-incident concept |
+| `S-20260715-153826` | Codex | 4.4 minutes | Office-layout and camera comparison |
+| `S-20260715-154348` | Codex | 2.1 minutes | Third-person room and interaction design |
+| `S-20260715-155226` | Codex | 1.7 minutes | Incident-room environment comparison |
+| `S-20260715-155837` | Codex | 0.5 minutes | Hybrid Incident Room architecture |
+| `S-20260715-160737` | Codex | 9.3 minutes | Incident Room MVP design and resource plan |
+| `S-20260715-162841` | Codex | 3.9 minutes | Free diorama art-direction specification |
+| `S-20260715-163403` | Codex | 171.1 minutes | Godot MVP implementation plan |
+| `S-20260715-194007` | Codex | 91.4 minutes | Godot scaffold and scenario-loader checkpoint |
+| `S-20260715-212631` | Codex | 3.6 minutes | Godot-first candidate-flow design |
+| `S-20260715-213054` | Codex | 7.9 minutes | Godot-first candidate-flow implementation plan |
+| `S-20260715-214140` | Codex | 6.7 minutes | Godot event, persistence, and session-state implementation |
+| `S-20260715-215438` | Codex | 0.9 minutes | Godot app repository-layout decision |
+| `S-20260715-215815` | Codex | 61.5 minutes | Promote Godot project to primary application path |
+| `S-20260715-230038` | Codex | 1.1 minutes | Reconcile concurrent README changes with the migration |
+| `S-20260715-230327` | Codex | 25.5 minutes | Complete, test, and export the unscored Godot candidate flow |
+| `S-20260715-233700` | Codex | 1.1 minutes | Design the Godot Web deployment for Railway |
 
 ## 14 July 2026 - Historical product discovery
 
