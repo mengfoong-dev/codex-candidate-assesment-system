@@ -85,6 +85,28 @@ Automated acceptance coverage exercises both an evidence-based sequential-call d
 | 2026-07-15 | Godot 4.7.1, Windows 11 Pro for Workstations 10.0.26200 | Persistence failure | Reached unscored summary | Warning shown; evidence retained in memory |
 | 2026-07-15 | Godot 4.7.1, Windows 11 Pro for Workstations 10.0.26200 | Restart | Returned to title with a new session ID | Previous candidate state not reused |
 
+## Windows export evidence
+
+The ignored release build is generated at `apps/incident-room/dist/VibeProof-Incident-Room.exe` with the `Windows Desktop` preset:
+
+```powershell
+& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" `
+  --headless --path apps/incident-room `
+  --export-release "Windows Desktop" `
+  apps/incident-room/dist/VibeProof-Incident-Room.exe
+```
+
+Build verification on 2026-07-15 produced:
+
+- `VibeProof-Incident-Room.exe` — 109,290,480 bytes;
+- `THIRD_PARTY_NOTICES.md` — 577 bytes;
+- `GODOT_LICENSE.txt` — 1,149 bytes;
+- `GODOT_COPYRIGHT.txt` — 100,108 bytes;
+- exported executable startup smoke test with `--quit-after 3` — exit code `0`;
+- clean-import automated candidate paths — `TESTS PASSED: 9 suites`.
+
+The automated suites complete the candidate journeys in-engine. The exported executable smoke check verifies packaged startup; a human visual/control pass remains appropriate before distributing a hackathon demo build.
+
 ## Distribution notices
 
 Distributions must ship `THIRD_PARTY_NOTICES.md`, `licenses/GODOT_LICENSE.txt`, and `licenses/GODOT_COPYRIGHT.txt` beside the executable. The notice and license inventory describe the pinned engine release and must not be omitted from a build handoff.
