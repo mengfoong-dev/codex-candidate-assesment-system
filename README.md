@@ -1,97 +1,71 @@
-# KerjaProof
+# VibeProof
 
-> See capability in action.
+> Build with AI. Prove you know why it works.
 
-KerjaProof is a research-informed capability assessment product for AI-assisted software engineering.
+VibeProof is an AI-allowed engineering assessment that helps hiring teams verify whether a candidate can understand, investigate, test, adapt, and take responsibility for software work.
 
-## The problem we are solving
+## What we are building
 
-Generative AI has changed how software is produced and how candidates present themselves. A candidate can use AI to generate a polished résumé, build a convincing prototype, or submit code that they do not fully understand.
+VibeProof presents a short, realistic engineering **Ownership Challenge**. The candidate works through an incident using code, metrics, logs, traces, tests, and an AI assistant. The platform records observable evidence from the investigation and produces a **Proof Replay** for a human reviewer.
 
-This creates a hiring problem for Malaysian SMEs and startups:
+VibeProof is positioned between a portfolio, take-home exercise, or baseline assessment and a human technical interview. It complements existing hiring tools instead of replacing the interview or becoming a full applicant-tracking system.
 
-> A résumé or code submission may show what was produced, but not whether the candidate can understand, verify, debug, test, and take responsibility for the result.
+## User scenario
 
-Traditional hiring signals are becoming weaker because:
+The MVP uses a **Homepage Latency Spike**:
 
-- Résumés can be optimized with AI.
-- Take-home projects can be generated with AI.
-- Interviews can test explanation rather than real execution.
-- Algorithm tests may not represent daily engineering work.
+1. A candidate receives an incident briefing: homepage p95 latency increased from 180 ms to 850 ms while CPU remains at 35%.
+2. The candidate inspects metrics, logs, traces, source code, and AI-assisted explanations.
+3. They record and revise hypotheses, verify assumptions, and identify sequential independent API calls as the root cause.
+4. They submit the diagnosis, supporting evidence, remediation, risks, and validation plan.
+5. A recruiter receives a chronological Proof Replay and rubric-linked evidence for human review.
 
-## Our solution
+See the complete [candidate and recruiter scenario](docs/product/user-scenario.md).
 
-KerjaProof places a software-engineering candidate in a short, realistic AI-assisted production incident called **Patch & Ship**.
+## What VibeProof measures
 
-The candidate must:
+VibeProof evaluates observable evidence of:
 
-- Inspect code, requirements, logs, and test results.
-- Review an AI-generated pull request.
-- Predict possible failure points.
-- Run tests and investigate evidence.
-- Decide whether to improve, deploy, or roll back.
-- Adapt when a new incident appears.
-- Explain the final technical decision.
+- problem framing;
+- investigation strategy;
+- hypothesis quality and revision;
+- evidence use;
+- responsible AI direction and verification;
+- debugging and adaptation;
+- technical and operational judgment;
+- communication and confidence calibration.
 
-The system produces a transparent capability profile showing evidence of:
+Time, prompt count, token count, and tool-call count are context. They are not direct measures of competence.
 
-- Technical correctness
-- AI verification
-- Error detection and correction
-- Problem understanding
-- Adaptability
-- Confidence calibration
+## MVP
 
-KerjaProof does not try to detect whether a candidate used AI. We allow AI and evaluate whether the candidate can responsibly direct, verify, debug, test, and own AI-assisted code.
+The first complete vertical slice includes:
 
-## Product positioning
+- one controlled homepage-latency incident;
+- one focused engineering workspace;
+- metrics, logs, traces, source code, and AI-assistant tools;
+- hypothesis capture and revision;
+- structured final submission;
+- deterministic scoring;
+- one recruiter Proof Replay.
 
-> AI can generate code. Can you own it?
+An immersive or spatial interface may be explored later, but it is not required for the MVP and cannot affect the engineering score.
 
-KerjaProof is not an ATS, an AI-code detector, or an automatic hiring decision-maker. It is a human-review tool that exposes observable evidence from a controlled work simulation.
+## Documentation
 
-## Hackathon timeline
+Start with the [documentation index](docs/README.md), then read:
 
-### Official event dates
+- [Product brief](docs/product/product-brief.md)
+- [User scenario](docs/product/user-scenario.md)
+- [MVP scope](docs/product/mvp-scope.md)
+- [Evidence and scoring](docs/assessment/evidence-and-scoring.md)
+- [Research, validation, and market](docs/research/validation-and-market.md)
+- [Product decisions](docs/decisions.md)
 
-- **8 July 2026, 11:59 PM MYT** — Confirmation deadline
-- **11 July 2026** — Online kickoff, team formation, and project scoping
-- **11–17 July 2026** — Online preparation week, mentor support, partner sessions, and build preparation
-- **13 July 2026, 7:00–10:00 PM MYT** — Databricks workshop: Build and deploy AI agents on Databricks
-- **18 July 2026** — Physical hackathon, demos, judging, and prize ceremony at Sunway University
+Historical product explorations and source material are preserved in the [archive](docs/archive/2026-07-pre-vibeproof/README.md).
 
-### Project delivery plan
+## Responsible-assessment boundary
 
-This plan assumes work begins on **14 July 2026**:
+VibeProof records candidate actions, prompts, tests, decisions, explanations, and responses to evidence. It does not claim access to private thoughts, reliably determine who generated code, or predict future job performance without validation.
 
-- **14 July** — Lock the software-engineering scenario, scoring rubric, and candidate simulation.
-- **15 July** — Build event tracking, deterministic scoring, AI-generated pull request review, and capability report.
-- **16 July** — Add employer view, seeded candidate profiles, bilingual labels, consent, and responsible-AI messaging.
-- **17 July** — Deploy, test on another laptop, record a backup demo, freeze features, and rehearse.
-- **18 July** — Run the live demo, explain the research basis, and present the product story.
-
-Because the current date is 14 July 2026, the confirmation deadline, kickoff, and Databricks workshop have passed. If confirmation was not submitted, contact the organizers immediately through the provided Discord channel and request late confirmation and kickoff materials.
-
-## Research and findings
-
-All research findings, product decisions, research links, psychology/neuroscience notes, Unity feasibility analysis, branding, pitch language, and delivery planning are in:
-
-- [Research findings index](docs/research/meng/README.md)
-- [Problem and research validation](docs/research/meng/01-problem-and-research-validation.md)
-- [Product concept and MVP scope](docs/research/meng/02-product-concept-and-mvp.md)
-- [Vibe-coding assessment](docs/research/meng/03-vibe-coding-assessment.md)
-- [Psychology and neuroscience foundation](docs/research/meng/04-psychology-and-neuroscience.md)
-- [Unity 3D and serious-game feasibility](docs/research/meng/05-unity-3d-feasibility.md)
-- [Branding and positioning](docs/research/meng/06-branding-and-positioning.md)
-- [Hackathon delivery plan](docs/research/meng/07-hackathon-delivery-plan.md)
-- [Pitch language and responsible claims](docs/research/meng/08-pitch-and-claims.md)
-
-The original research document is available at [Research Validation & Industry Evidence](docs/research/meng/Research%20Validation%20%26%20Industry%20Evidence%20%281%29.pdf).
-
-## Research limitation
-
-KerjaProof is a research-informed hackathon prototype, not yet a scientifically validated psychometric hiring test. The prototype should not claim to read thoughts, measure brain activity, predict job performance, detect cheating, or automatically reject candidates.
-
-The immediate goal is to demonstrate a credible and testable hypothesis:
-
-> Observable behavior during a realistic AI-assisted engineering task can provide useful evidence that a résumé or unverified code submission cannot.
+Final hiring decisions remain with people. The prototype provides transparent evidence for a human reviewer and requires future reliability, fairness, accessibility, and job-related validation before high-stakes use.
