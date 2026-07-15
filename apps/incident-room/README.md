@@ -36,6 +36,24 @@ Launch the application from the repository root:
 & "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --path apps/incident-room
 ```
 
+## Browser build
+
+Build the single-threaded Godot Web export and its Railway staging bundle:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/build_web.ps1
+```
+
+Generated files remain ignored under `apps/incident-room/dist/`. Serve the local export over HTTP—opening `index.html` directly from disk will not work:
+
+```powershell
+node apps/incident-room/scripts/development/serve_web.mjs apps/incident-room/dist/web 8060
+```
+
+Then open `http://127.0.0.1:8060/`. Use a current Chromium-based browser or Firefox with WebAssembly and WebGL 2.0 enabled. The Web build uses the Compatibility renderer and the official Godot 4.7.1 no-thread template, so cross-origin isolation headers are not required.
+
+Browser sessions are local to that browser and site origin. `user://` evidence is not uploaded to the static host, and clearing site data can remove it. This deployment does not add backend scoring or centralized candidate storage.
+
 ## Candidate journey
 
 1. Read the prototype and human-review notices, then begin the briefing.
