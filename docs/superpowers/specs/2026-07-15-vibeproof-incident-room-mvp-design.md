@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft implementation specification. The core design direction is approved; the complete specification awaits final user review before implementation planning begins.
+Approved for implementation on 2026-07-15 after final user review.
 
 The user approved:
 
@@ -441,7 +441,7 @@ Automated coverage must include:
 Required engine checks:
 
 ```text
-godot --headless --path prototypes/godot-incident-room --editor --quit
+godot --headless --path prototypes/godot-incident-room --import
 godot --headless --path prototypes/godot-incident-room --script res://tests/run_tests.gd
 ```
 
