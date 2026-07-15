@@ -1,0 +1,93 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Material" path="res://resources/materials/cream_architecture.tres" id="1_cream"]
+[ext_resource type="Material" path="res://resources/materials/navy_trim.tres" id="2_navy"]
+[ext_resource type="Material" path="res://resources/materials/warm_wood.tres" id="3_wood"]
+
+[sub_resource type="BoxMesh" id="FloorSurfaceMesh"]
+size = Vector3(16, 0.04, 10)
+
+[sub_resource type="BoxMesh" id="RearWallMesh"]
+size = Vector3(16, 2.8, 0.2)
+
+[sub_resource type="BoxMesh" id="LeftWallBackMesh"]
+size = Vector3(0.2, 2.8, 5.8)
+
+[sub_resource type="BoxMesh" id="LeftWallFrontMesh"]
+size = Vector3(0.2, 2.8, 2.3)
+
+[sub_resource type="BoxMesh" id="RearSkirtMesh"]
+size = Vector3(16, 0.34, 0.26)
+
+[sub_resource type="BoxMesh" id="LeftSkirtMesh"]
+size = Vector3(0.26, 0.34, 10)
+
+[sub_resource type="BoxMesh" id="WindowMesh"]
+size = Vector3(2.6, 1.4, 0.06)
+
+[sub_resource type="StandardMaterial3D" id="WindowMaterial"]
+albedo_color = Color(0.7, 0.86, 0.98, 1)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0.68, 0.83, 0.98, 1)
+emission_energy_multiplier = 0.4
+
+[sub_resource type="BoxMesh" id="PartitionMesh"]
+size = Vector3(0.14, 0.95, 2.6)
+
+[node name="CozyOfficeShell" type="Node3D"]
+
+[node name="FloorSurface" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+mesh = SubResource("FloorSurfaceMesh")
+surface_material_override/0 = ExtResource("1_cream")
+
+[node name="RearWall" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -4.95)
+mesh = SubResource("RearWallMesh")
+surface_material_override/0 = ExtResource("3_wood")
+
+[node name="LeftWallBack" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.95, 1.4, -2.1)
+mesh = SubResource("LeftWallBackMesh")
+surface_material_override/0 = ExtResource("3_wood")
+
+[node name="LeftWallFront" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.95, 1.4, 3.85)
+mesh = SubResource("LeftWallFrontMesh")
+surface_material_override/0 = ExtResource("3_wood")
+
+[node name="RearSkirting" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, -4.83)
+mesh = SubResource("RearSkirtMesh")
+surface_material_override/0 = ExtResource("2_navy")
+
+[node name="LeftSkirting" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.83, 0.17, 0)
+mesh = SubResource("LeftSkirtMesh")
+surface_material_override/0 = ExtResource("2_navy")
+
+[node name="WindowLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 1.75, -4.82)
+mesh = SubResource("WindowMesh")
+surface_material_override/0 = SubResource("WindowMaterial")
+
+[node name="WindowCenter" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, -4.82)
+mesh = SubResource("WindowMesh")
+surface_material_override/0 = SubResource("WindowMaterial")
+
+[node name="WindowRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 1.75, -4.82)
+mesh = SubResource("WindowMesh")
+surface_material_override/0 = SubResource("WindowMaterial")
+
+[node name="PartitionDeveloper" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, 0.5, -3.2)
+mesh = SubResource("PartitionMesh")
+surface_material_override/0 = ExtResource("2_navy")
+
+[node name="PartitionRelease" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, 0.5, 3.1)
+mesh = SubResource("PartitionMesh")
+surface_material_override/0 = ExtResource("2_navy")

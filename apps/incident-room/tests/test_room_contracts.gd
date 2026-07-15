@@ -58,5 +58,13 @@ func run(tree: SceneTree) -> Array[String]:
     t.assert_false(controller_source.contains("CandidateSession"), "movement does not call candidate session")
     t.assert_false(controller_source.contains("EventLogger"), "movement does not call event logger")
 
+    var shell := room.get_node_or_null("Architecture/CozyOfficeShell")
+    t.assert_true(shell is Node3D, "room has the cozy office shell")
+    var dressing := room.get_node_or_null("Dressing")
+    t.assert_true(dressing is Node3D, "room has a furniture dressing layer")
+    if dressing != null:
+        var dressing_nodes := dressing.find_children("*", "Node3D", true, false)
+        t.assert_true(dressing_nodes.size() >= 18, "dressing composes at least 18 furniture nodes")
+
     room.queue_free()
     return t.failures
