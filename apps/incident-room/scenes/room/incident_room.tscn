@@ -1,9 +1,12 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="PackedScene" path="res://scenes/room/cozy_office_shell.tscn" id="3_shell"]
 [ext_resource type="PackedScene" path="res://scenes/room/cozy_office_dressing.tscn" id="4_dressing"]
+[ext_resource type="PackedScene" path="res://scenes/stations/observability_station_visual.tscn" id="5_obs"]
+[ext_resource type="PackedScene" path="res://scenes/stations/developer_station_visual.tscn" id="6_dev"]
+[ext_resource type="PackedScene" path="res://scenes/stations/release_station_visual.tscn" id="7_rel"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -81,17 +84,23 @@ station_id = "observability_wall"
 station_title = "1  OBSERVABILITY WALL"
 accent_color = Color(0.1, 0.78, 0.95, 1)
 
+[node name="Landmark" parent="ObservabilityWall" instance=ExtResource("5_obs")]
+
 [node name="DeveloperDesk" parent="." instance=ExtResource("2_station")]
 position = Vector3(4.8, 0, -3.4)
 station_id = "developer_desk"
 station_title = "2  DEVELOPER DESK"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
+[node name="Landmark" parent="DeveloperDesk" instance=ExtResource("6_dev")]
+
 [node name="ReleaseConsole" parent="." instance=ExtResource("2_station")]
 position = Vector3(4.9, 0, 3.1)
 station_id = "release_console"
 station_title = "3  RELEASE CONSOLE"
 accent_color = Color(0.24, 0.82, 0.49, 1)
+
+[node name="Landmark" parent="ReleaseConsole" instance=ExtResource("7_rel")]
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector3(-1.5, 0.05, 2.8)
