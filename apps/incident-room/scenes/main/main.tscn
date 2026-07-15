@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/room/incident_room.tscn" id="2_room"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hypothesis_panel.tscn" id="6_hypothesis"]
 [ext_resource type="PackedScene" path="res://scenes/ui/release_panel.tscn" id="7_release"]
 [ext_resource type="PackedScene" path="res://scenes/ui/unscored_summary.tscn" id="8_summary"]
+[ext_resource type="PackedScene" path="res://scenes/ui/browser_workspace.tscn" id="9_browser"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -55,6 +56,10 @@ autowrap_mode = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.42, 0.42, 1)
 autowrap_mode = 2
+
+[node name="BrowserWorkspace" parent="UI" instance=ExtResource("9_browser")]
+visible = false
+demo_mode = false
 
 [node name="TitleScreen" parent="UI" instance=ExtResource("3_title")]
 

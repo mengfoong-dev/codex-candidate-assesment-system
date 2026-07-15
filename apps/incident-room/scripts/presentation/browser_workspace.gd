@@ -20,15 +20,16 @@ const ACCENTS := {
 
 @export var demo_mode := true
 
-@onready var _tabs_box: HBoxContainer = $Window/Frame/TabStrip/Tabs
-@onready var _page: VBoxContainer = $Window/Frame/Content/Page
-@onready var _url: Label = $Window/Frame/Chrome/ChromeRow/Address/Url
+@onready var _tabs_box: HBoxContainer = $Frame/TabStrip/Tabs
+@onready var _host: Control = $Frame/Content/PanelHost
+@onready var _url: Label = $Frame/Chrome/ChromeRow/Address/Url
 
 var _tab_defs: Array = []
 var _active_key := ""
 var _buttons: Dictionary = {}
 
 func _ready() -> void:
+    _apply_page_theme()
     if demo_mode:
         set_tabs([
             {"key": "observability_wall", "label": "Observability"},
@@ -60,15 +61,48 @@ func set_active_tab(key: String) -> void:
     _active_key = key
     _restyle_tabs()
 
-func content_root() -> VBoxContainer:
-    return _page
+func content_root() -> Control:
+    return _host
 
 func clear_page() -> void:
-    for child: Node in _page.get_children():
+    for child: Node in _host.get_children():
         child.queue_free()
 
 func set_url(text: String) -> void:
     _url.text = text
+
+func _apply_page_theme() -> void:
+    # Light "web page" theme for hosted panels. The chrome's own nodes use explicit
+    # style overrides, which win over this theme, so only the tab pages are restyled.
+    var t := Theme.new()
+    t.set_color("font_color", "Label", INK)
+    t.set_color("default_color", "RichTextLabel", INK)
+    t.set_color("font_color", "Button", INK)
+    t.set_color("font_hover_color", "Button", INK)
+    t.set_color("font_pressed_color", "Button", INK)
+    t.set_color("font_disabled_color", "Button", MUTED)
+    t.set_color("font_color", "OptionButton", INK)
+    t.set_color("font_hover_color", "OptionButton", INK)
+    var card := StyleBoxFlat.new()
+    card.bg_color = Color(0.98, 0.96, 0.92, 1)
+    card.set_corner_radius_all(12)
+    card.set_content_margin_all(6)
+    t.set_stylebox("panel", "PanelContainer", card)
+    t.set_stylebox("panel", "Panel", card)
+    for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+        var box := StyleBoxFlat.new()
+        box.bg_color = Color(0.93, 0.9, 0.83, 1)
+        if state == "hover":
+            box.bg_color = Color(0.9, 0.86, 0.77, 1)
+        elif state == "disabled":
+            box.bg_color = Color(0.9, 0.88, 0.83, 0.6)
+        box.set_corner_radius_all(8)
+        box.set_content_margin_all(9)
+        box.set_border_width_all(1)
+        box.border_color = Color(0.82, 0.78, 0.7, 1)
+        t.set_stylebox(state, "Button", box)
+        t.set_stylebox(state, "OptionButton", box)
+    theme = t
 
 func _on_tab_pressed(key: String) -> void:
     set_active_tab(key)
@@ -132,11 +166,21 @@ func _heading(text: String, size: int, color: Color) -> Label:
 
 func _build_demo_page() -> void:
     clear_page()
-    _page.add_child(_heading("Observability Wall", 27, INK))
-    _page.add_child(_heading("Open evidence artifacts. Repeated views stay in the session timeline.", 15, MUTED))
-    _page.add_child(_card_button("📊  Latency dashboard — p99 spike at 14:02 UTC"))
-    _page.add_child(_card_button("📈  Error-rate panel — 4xx flat, 5xx climbing"))
-    _page.add_child(_card_button("🗒️  Deploy log — release r-2291 rolled out 13:58"))
-    _page.add_child(HSeparator.new())
-    _page.add_child(_heading("Scripted assistant", 18, ACCENTS["observability_wall"]))
-    _page.add_child(_heading("\"The p99 climb starts right after r-2291. Want me to pull the diff?\"", 15, INK))
+    var margin := MarginContainer.new()
+    margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    margin.add_theme_constant_override("margin_left", 30)
+    margin.add_theme_constant_override("margin_top", 26)
+    margin.add_theme_constant_override("margin_right", 30)
+    margin.add_theme_constant_override("margin_bottom", 26)
+    _host.add_child(margin)
+    var page := VBoxContainer.new()
+    page.add_theme_constant_override("separation", 12)
+    margin.add_child(page)
+    page.add_child(_heading("Observability Wall", 27, INK))
+    page.add_child(_heading("Open evidence artifacts. Repeated views stay in the session timeline.", 15, MUTED))
+    page.add_child(_card_button("📊  Latency dashboard — p99 spike at 14:02 UTC"))
+    page.add_child(_card_button("📈  Error-rate panel — 4xx flat, 5xx climbing"))
+    page.add_child(_card_button("🗒️  Deploy log — release r-2291 rolled out 13:58"))
+    page.add_child(HSeparator.new())
+    page.add_child(_heading("Scripted assistant", 18, ACCENTS["observability_wall"]))
+    page.add_child(_heading("\"The p99 climb starts right after r-2291. Want me to pull the diff?\"", 15, INK))

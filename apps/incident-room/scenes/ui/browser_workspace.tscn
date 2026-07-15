@@ -1,26 +1,12 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/browser_workspace.gd" id="1_browser"]
 
-[sub_resource type="StyleBoxFlat" id="Desktop"]
-bg_color = Color(0.07, 0.07, 0.12, 1)
-
-[sub_resource type="StyleBoxFlat" id="Window"]
-bg_color = Color(0.95, 0.92, 0.86, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-shadow_color = Color(0, 0, 0, 0.35)
-shadow_size = 18
-
 [sub_resource type="StyleBoxFlat" id="Chrome"]
 bg_color = Color(0.12, 0.16, 0.3, 1)
-corner_radius_top_left = 14
-corner_radius_top_right = 14
-content_margin_left = 16.0
+content_margin_left = 18.0
 content_margin_top = 12.0
-content_margin_right = 16.0
+content_margin_right = 18.0
 content_margin_bottom = 10.0
 
 [sub_resource type="StyleBoxFlat" id="AddressPill"]
@@ -57,19 +43,13 @@ corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="TabStrip"]
 bg_color = Color(0.09, 0.12, 0.24, 1)
-content_margin_left = 12.0
+content_margin_left = 14.0
 content_margin_top = 8.0
-content_margin_right = 12.0
+content_margin_right = 14.0
 content_margin_bottom = 0.0
 
 [sub_resource type="StyleBoxFlat" id="Content"]
 bg_color = Color(0.95, 0.92, 0.86, 1)
-corner_radius_bottom_right = 14
-corner_radius_bottom_left = 14
-content_margin_left = 30.0
-content_margin_top = 26.0
-content_margin_right = 30.0
-content_margin_bottom = 26.0
 
 [node name="BrowserWorkspace" type="Control"]
 layout_mode = 3
@@ -78,86 +58,66 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource("1_browser")
 
-[node name="Desktop" type="Panel" parent="."]
+[node name="Frame" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_styles/panel = SubResource("Desktop")
-
-[node name="Window" type="PanelContainer" parent="."]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -510.0
-offset_top = -320.0
-offset_right = 510.0
-offset_bottom = 320.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = SubResource("Window")
-
-[node name="Frame" type="VBoxContainer" parent="Window"]
-layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="Chrome" type="PanelContainer" parent="Window/Frame"]
+[node name="Chrome" type="PanelContainer" parent="Frame"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("Chrome")
 
-[node name="ChromeRow" type="HBoxContainer" parent="Window/Frame/Chrome"]
+[node name="ChromeRow" type="HBoxContainer" parent="Frame/Chrome"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 12
 
-[node name="Dots" type="HBoxContainer" parent="Window/Frame/Chrome/ChromeRow"]
+[node name="Dots" type="HBoxContainer" parent="Frame/Chrome/ChromeRow"]
 layout_mode = 2
 theme_override_constants/separation = 7
 
-[node name="Dot1" type="Panel" parent="Window/Frame/Chrome/ChromeRow/Dots"]
+[node name="Dot1" type="Panel" parent="Frame/Chrome/ChromeRow/Dots"]
 custom_minimum_size = Vector2(14, 14)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("DotCyan")
 
-[node name="Dot2" type="Panel" parent="Window/Frame/Chrome/ChromeRow/Dots"]
+[node name="Dot2" type="Panel" parent="Frame/Chrome/ChromeRow/Dots"]
 custom_minimum_size = Vector2(14, 14)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("DotViolet")
 
-[node name="Dot3" type="Panel" parent="Window/Frame/Chrome/ChromeRow/Dots"]
+[node name="Dot3" type="Panel" parent="Frame/Chrome/ChromeRow/Dots"]
 custom_minimum_size = Vector2(14, 14)
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("DotGreen")
 
-[node name="Address" type="PanelContainer" parent="Window/Frame/Chrome/ChromeRow"]
+[node name="Address" type="PanelContainer" parent="Frame/Chrome/ChromeRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("AddressPill")
 
-[node name="Url" type="Label" parent="Window/Frame/Chrome/ChromeRow/Address"]
+[node name="Url" type="Label" parent="Frame/Chrome/ChromeRow/Address"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.74, 0.82, 0.95, 1)
 theme_override_font_sizes/font_size = 14
 text = "🔒  vibeproof.app / incident / homepage-latency-spike"
 
-[node name="TabStrip" type="PanelContainer" parent="Window/Frame"]
+[node name="TabStrip" type="PanelContainer" parent="Frame"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("TabStrip")
 
-[node name="Tabs" type="HBoxContainer" parent="Window/Frame/TabStrip"]
+[node name="Tabs" type="HBoxContainer" parent="Frame/TabStrip"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Content" type="PanelContainer" parent="Window/Frame"]
+[node name="Content" type="PanelContainer" parent="Frame"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("Content")
 
-[node name="Page" type="VBoxContainer" parent="Window/Frame/Content"]
+[node name="PanelHost" type="Control" parent="Frame/Content"]
 layout_mode = 2
-theme_override_constants/separation = 12
