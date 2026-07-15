@@ -51,6 +51,7 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-162841` | Codex | 3.9 minutes | Free diorama art-direction specification |
 | `S-20260715-163403` | Codex | 171.1 minutes | Godot MVP implementation plan |
 | `S-20260715-194007` | Codex | 91.4 minutes | Godot scaffold and scenario-loader checkpoint |
+| `S-20260715-212631` | Codex | 3.6 minutes | Godot-first candidate-flow design |
 
 ## 14 July 2026 - Historical product discovery
 
