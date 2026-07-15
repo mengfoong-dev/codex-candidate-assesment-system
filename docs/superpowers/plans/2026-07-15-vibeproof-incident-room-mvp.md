@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- The project root is exactly `prototypes/godot-incident-room/`.
+- The project root is exactly `apps/incident-room/`.
 - Use Godot 4.7.1 Standard with GDScript and the Compatibility renderer.
 - Target Windows x86_64 first; web export remains a stretch goal after every desktop acceptance check passes.
 - The complete core flow must work offline with no backend, database, account, live LLM, arbitrary code execution, or candidate repository access.
@@ -41,7 +41,7 @@
 ## Planned File Structure
 
 ```text
-prototypes/godot-incident-room/
+apps/incident-room/
 |-- project.godot                         # Engine, renderer, window, and input settings
 |-- export_presets.cfg                    # Windows x86_64 release export
 |-- .gitignore                            # Godot cache, local test output, and packaged builds
@@ -203,20 +203,20 @@ Every event uses this envelope:
 ### Task 1: Pin the Toolchain, Scaffold the Project, and Load the Scenario
 
 **Files:**
-- Create: `prototypes/godot-incident-room/project.godot`
-- Create: `prototypes/godot-incident-room/export_presets.cfg`
-- Create: `prototypes/godot-incident-room/.gitignore`
-- Create: `prototypes/godot-incident-room/.gitattributes`
-- Create: `prototypes/godot-incident-room/README.md`
-- Create: `prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md`
-- Create: `prototypes/godot-incident-room/licenses/GODOT_LICENSE.txt`
-- Create: `prototypes/godot-incident-room/licenses/GODOT_COPYRIGHT.txt`
-- Create: `prototypes/godot-incident-room/data/scenarios/homepage_latency_v1.json`
-- Create: `prototypes/godot-incident-room/scripts/domain/scenario_loader.gd`
-- Create: `prototypes/godot-incident-room/scripts/development/verify_project.ps1`
-- Create: `prototypes/godot-incident-room/tests/test_support.gd`
-- Create: `prototypes/godot-incident-room/tests/run_tests.gd`
-- Create: `prototypes/godot-incident-room/tests/test_scenario_loader.gd`
+- Create: `apps/incident-room/project.godot`
+- Create: `apps/incident-room/export_presets.cfg`
+- Create: `apps/incident-room/.gitignore`
+- Create: `apps/incident-room/.gitattributes`
+- Create: `apps/incident-room/README.md`
+- Create: `apps/incident-room/THIRD_PARTY_NOTICES.md`
+- Create: `apps/incident-room/licenses/GODOT_LICENSE.txt`
+- Create: `apps/incident-room/licenses/GODOT_COPYRIGHT.txt`
+- Create: `apps/incident-room/data/scenarios/homepage_latency_v1.json`
+- Create: `apps/incident-room/scripts/domain/scenario_loader.gd`
+- Create: `apps/incident-room/scripts/development/verify_project.ps1`
+- Create: `apps/incident-room/tests/test_support.gd`
+- Create: `apps/incident-room/tests/run_tests.gd`
+- Create: `apps/incident-room/tests/test_scenario_loader.gd`
 
 **Interfaces:**
 - Consumes: Godot 4.7.1 executable and export templates installed outside the repository.
@@ -456,7 +456,7 @@ Run:
 ```powershell
 $godot = Join-Path $env:LOCALAPPDATA 'VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe'
 if (-not (Test-Path -LiteralPath $godot)) { throw "Godot executable not found: $godot" }
-& $godot --headless --path prototypes/godot-incident-room --script res://tests/run_tests.gd
+& $godot --headless --path apps/incident-room --script res://tests/run_tests.gd
 if ($LASTEXITCODE -eq 0) { throw 'Expected the missing scenario contract test to fail' }
 ```
 
@@ -647,7 +647,7 @@ Populate `submission_options.root_causes`, `remediations`, `expected_impacts`, `
 Run:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Project import, UID, or loader verification failed' }
 ```
 
@@ -656,16 +656,16 @@ Expected: both commands exit `0`; the test runner prints `TESTS PASSED: 1 suites
 - [ ] **Step 7: Commit the independently loadable project contract**
 
 ```powershell
-git add -- prototypes/godot-incident-room/project.godot prototypes/godot-incident-room/export_presets.cfg prototypes/godot-incident-room/.gitignore prototypes/godot-incident-room/.gitattributes prototypes/godot-incident-room/README.md prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md prototypes/godot-incident-room/licenses prototypes/godot-incident-room/data/scenarios/homepage_latency_v1.json prototypes/godot-incident-room/scripts/domain/scenario_loader.gd prototypes/godot-incident-room/scripts/domain/scenario_loader.gd.uid prototypes/godot-incident-room/scripts/development/verify_project.ps1 prototypes/godot-incident-room/tests
-git commit --only -m "chore: scaffold incident room scenario and tests" -- prototypes/godot-incident-room/project.godot prototypes/godot-incident-room/export_presets.cfg prototypes/godot-incident-room/.gitignore prototypes/godot-incident-room/.gitattributes prototypes/godot-incident-room/README.md prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md prototypes/godot-incident-room/licenses prototypes/godot-incident-room/data/scenarios/homepage_latency_v1.json prototypes/godot-incident-room/scripts/domain/scenario_loader.gd prototypes/godot-incident-room/scripts/domain/scenario_loader.gd.uid prototypes/godot-incident-room/scripts/development/verify_project.ps1 prototypes/godot-incident-room/tests
+git add -- apps/incident-room/project.godot apps/incident-room/export_presets.cfg apps/incident-room/.gitignore apps/incident-room/.gitattributes apps/incident-room/README.md apps/incident-room/THIRD_PARTY_NOTICES.md apps/incident-room/licenses apps/incident-room/data/scenarios/homepage_latency_v1.json apps/incident-room/scripts/domain/scenario_loader.gd apps/incident-room/scripts/domain/scenario_loader.gd.uid apps/incident-room/scripts/development/verify_project.ps1 apps/incident-room/tests
+git commit --only -m "chore: scaffold incident room scenario and tests" -- apps/incident-room/project.godot apps/incident-room/export_presets.cfg apps/incident-room/.gitignore apps/incident-room/.gitattributes apps/incident-room/README.md apps/incident-room/THIRD_PARTY_NOTICES.md apps/incident-room/licenses apps/incident-room/data/scenarios/homepage_latency_v1.json apps/incident-room/scripts/domain/scenario_loader.gd apps/incident-room/scripts/domain/scenario_loader.gd.uid apps/incident-room/scripts/development/verify_project.ps1 apps/incident-room/tests
 ```
 
 ### Task 2: Define and Validate Structured Assessment Events
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/event_schema.gd`
-- Create: `prototypes/godot-incident-room/tests/fixtures/assessment_fixtures.gd`
-- Create: `prototypes/godot-incident-room/tests/test_event_schema.gd`
+- Create: `apps/incident-room/scripts/domain/event_schema.gd`
+- Create: `apps/incident-room/tests/fixtures/assessment_fixtures.gd`
+- Create: `apps/incident-room/tests/test_event_schema.gd`
 
 **Interfaces:**
 - Consumes: Frozen scenario and event IDs from Task 1.
@@ -791,7 +791,7 @@ Create `assessment_fixtures.gd` as a `RefCounted` test helper exposing `event(ev
 - [ ] **Step 4: Run all tests and verify the new suite passes**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Event-schema import, UID, or test verification failed' }
 ```
 
@@ -800,17 +800,17 @@ Expected: `TESTS PASSED: 2 suites`.
 - [ ] **Step 5: Commit the event contract**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scripts/domain/event_schema.gd prototypes/godot-incident-room/scripts/domain/event_schema.gd.uid prototypes/godot-incident-room/tests/fixtures/assessment_fixtures.gd prototypes/godot-incident-room/tests/fixtures/assessment_fixtures.gd.uid prototypes/godot-incident-room/tests/test_event_schema.gd prototypes/godot-incident-room/tests/test_event_schema.gd.uid
-git commit --only -m "feat: define structured assessment events" -- prototypes/godot-incident-room/scripts/domain/event_schema.gd prototypes/godot-incident-room/scripts/domain/event_schema.gd.uid prototypes/godot-incident-room/tests/fixtures/assessment_fixtures.gd prototypes/godot-incident-room/tests/fixtures/assessment_fixtures.gd.uid prototypes/godot-incident-room/tests/test_event_schema.gd prototypes/godot-incident-room/tests/test_event_schema.gd.uid
+git add -- apps/incident-room/scripts/domain/event_schema.gd apps/incident-room/scripts/domain/event_schema.gd.uid apps/incident-room/tests/fixtures/assessment_fixtures.gd apps/incident-room/tests/fixtures/assessment_fixtures.gd.uid apps/incident-room/tests/test_event_schema.gd apps/incident-room/tests/test_event_schema.gd.uid
+git commit --only -m "feat: define structured assessment events" -- apps/incident-room/scripts/domain/event_schema.gd apps/incident-room/scripts/domain/event_schema.gd.uid apps/incident-room/tests/fixtures/assessment_fixtures.gd apps/incident-room/tests/fixtures/assessment_fixtures.gd.uid apps/incident-room/tests/test_event_schema.gd apps/incident-room/tests/test_event_schema.gd.uid
 ```
 
 ### Task 3: Persist Append-Only Sessions with an In-Memory Fallback
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/persistence/session_store.gd`
-- Create: `prototypes/godot-incident-room/scripts/persistence/event_logger.gd`
-- Create: `prototypes/godot-incident-room/tests/fakes/fake_session_store.gd`
-- Create: `prototypes/godot-incident-room/tests/test_event_logger.gd`
+- Create: `apps/incident-room/scripts/persistence/session_store.gd`
+- Create: `apps/incident-room/scripts/persistence/event_logger.gd`
+- Create: `apps/incident-room/tests/fakes/fake_session_store.gd`
+- Create: `apps/incident-room/tests/test_event_logger.gd`
 
 **Interfaces:**
 - Consumes: `EventSchema.build`, `EventSchema.validate`, and `EventSchema.to_json_line`.
@@ -939,7 +939,7 @@ Call `_is_valid_session_id` at the start of all three store operations, not only
 - [ ] **Step 4: Run all suites and inspect a real temporary JSONL file**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Persistence import, UID, or test verification failed' }
 ```
 
@@ -948,15 +948,15 @@ Use a real `SessionStore` rooted at `user://vibeproof-test/run-<ticks>-<16 rando
 - [ ] **Step 5: Commit persistence and its test fake**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scripts/persistence prototypes/godot-incident-room/tests/fakes prototypes/godot-incident-room/tests/test_event_logger.gd prototypes/godot-incident-room/tests/test_event_logger.gd.uid
-git commit --only -m "feat: persist append-only assessment sessions" -- prototypes/godot-incident-room/scripts/persistence prototypes/godot-incident-room/tests/fakes prototypes/godot-incident-room/tests/test_event_logger.gd prototypes/godot-incident-room/tests/test_event_logger.gd.uid
+git add -- apps/incident-room/scripts/persistence apps/incident-room/tests/fakes apps/incident-room/tests/test_event_logger.gd apps/incident-room/tests/test_event_logger.gd.uid
+git commit --only -m "feat: persist append-only assessment sessions" -- apps/incident-room/scripts/persistence apps/incident-room/tests/fakes apps/incident-room/tests/test_event_logger.gd apps/incident-room/tests/test_event_logger.gd.uid
 ```
 
 ### Task 4: Model Investigation State and Rebuild It from Events
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/scenario_state.gd`
-- Create: `prototypes/godot-incident-room/tests/test_scenario_state.gd`
+- Create: `apps/incident-room/scripts/domain/scenario_state.gd`
+- Create: `apps/incident-room/tests/test_scenario_state.gd`
 
 **Interfaces:**
 - Consumes: validated event dictionaries.
@@ -1094,7 +1094,7 @@ Add `validate_event(event)` to enforce phase order, exact hypothesis versions, e
 - [ ] **Step 4: Run all tests**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Scenario-state import, UID, or test verification failed' }
 ```
 
@@ -1103,15 +1103,15 @@ Expected: state tests pass and earlier suites remain green.
 - [ ] **Step 5: Commit the state model**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scripts/domain/scenario_state.gd prototypes/godot-incident-room/scripts/domain/scenario_state.gd.uid prototypes/godot-incident-room/tests/test_scenario_state.gd prototypes/godot-incident-room/tests/test_scenario_state.gd.uid
-git commit --only -m "feat: model incident investigation state" -- prototypes/godot-incident-room/scripts/domain/scenario_state.gd prototypes/godot-incident-room/scripts/domain/scenario_state.gd.uid prototypes/godot-incident-room/tests/test_scenario_state.gd prototypes/godot-incident-room/tests/test_scenario_state.gd.uid
+git add -- apps/incident-room/scripts/domain/scenario_state.gd apps/incident-room/scripts/domain/scenario_state.gd.uid apps/incident-room/tests/test_scenario_state.gd apps/incident-room/tests/test_scenario_state.gd.uid
+git commit --only -m "feat: model incident investigation state" -- apps/incident-room/scripts/domain/scenario_state.gd apps/incident-room/scripts/domain/scenario_state.gd.uid apps/incident-room/tests/test_scenario_state.gd apps/incident-room/tests/test_scenario_state.gd.uid
 ```
 
 ### Task 5: Evaluate Six Positive Criteria, Three Warnings, and Fair Exclusions
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/scoring_rules.gd`
-- Create: `prototypes/godot-incident-room/tests/test_scoring_rules.gd`
+- Create: `apps/incident-room/scripts/domain/scoring_rules.gd`
+- Create: `apps/incident-room/tests/test_scoring_rules.gd`
 
 **Interfaces:**
 - Consumes: scenario JSON plus ordered raw events.
@@ -1208,7 +1208,7 @@ Do not add a threshold, rank, grade, hiring recommendation, personality label, o
 - [ ] **Step 4: Run all suites and verify ordering invariance where rules permit it**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Scoring import, UID, or test verification failed' }
 ```
 
@@ -1217,15 +1217,15 @@ Expected: correct and plausible-incorrect paths pass; permutations of metrics/lo
 - [ ] **Step 5: Commit transparent deterministic scoring**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scripts/domain/scoring_rules.gd prototypes/godot-incident-room/scripts/domain/scoring_rules.gd.uid prototypes/godot-incident-room/tests/test_scoring_rules.gd prototypes/godot-incident-room/tests/test_scoring_rules.gd.uid
-git commit --only -m "feat: evaluate deterministic evidence criteria" -- prototypes/godot-incident-room/scripts/domain/scoring_rules.gd prototypes/godot-incident-room/scripts/domain/scoring_rules.gd.uid prototypes/godot-incident-room/tests/test_scoring_rules.gd prototypes/godot-incident-room/tests/test_scoring_rules.gd.uid
+git add -- apps/incident-room/scripts/domain/scoring_rules.gd apps/incident-room/scripts/domain/scoring_rules.gd.uid apps/incident-room/tests/test_scoring_rules.gd apps/incident-room/tests/test_scoring_rules.gd.uid
+git commit --only -m "feat: evaluate deterministic evidence criteria" -- apps/incident-room/scripts/domain/scoring_rules.gd apps/incident-room/scripts/domain/scoring_rules.gd.uid apps/incident-room/tests/test_scoring_rules.gd apps/incident-room/tests/test_scoring_rules.gd.uid
 ```
 
 ### Task 6: Build an Ordered and Evidence-Cited Proof Replay
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/replay_builder.gd`
-- Create: `prototypes/godot-incident-room/tests/test_replay_builder.gd`
+- Create: `apps/incident-room/scripts/domain/replay_builder.gd`
+- Create: `apps/incident-room/tests/test_replay_builder.gd`
 
 **Interfaces:**
 - Consumes: scenario, raw events, scoring report, and persistence status.
@@ -1293,7 +1293,7 @@ Create `capped_questions` by iterating deterministic static questions in criteri
 - [ ] **Step 4: Run all suites**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Replay import, UID, or test verification failed' }
 ```
 
@@ -1302,15 +1302,15 @@ Expected: every replay citation references a real event ID and all tests pass.
 - [ ] **Step 5: Commit the Proof Replay builder**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scripts/domain/replay_builder.gd prototypes/godot-incident-room/scripts/domain/replay_builder.gd.uid prototypes/godot-incident-room/tests/test_replay_builder.gd prototypes/godot-incident-room/tests/test_replay_builder.gd.uid
-git commit --only -m "feat: build proof replay view models" -- prototypes/godot-incident-room/scripts/domain/replay_builder.gd prototypes/godot-incident-room/scripts/domain/replay_builder.gd.uid prototypes/godot-incident-room/tests/test_replay_builder.gd prototypes/godot-incident-room/tests/test_replay_builder.gd.uid
+git add -- apps/incident-room/scripts/domain/replay_builder.gd apps/incident-room/scripts/domain/replay_builder.gd.uid apps/incident-room/tests/test_replay_builder.gd apps/incident-room/tests/test_replay_builder.gd.uid
+git commit --only -m "feat: build proof replay view models" -- apps/incident-room/scripts/domain/replay_builder.gd apps/incident-room/scripts/domain/replay_builder.gd.uid apps/incident-room/tests/test_replay_builder.gd apps/incident-room/tests/test_replay_builder.gd.uid
 ```
 
 ### Task 7: Orchestrate a Complete Incident Session Behind One Facade
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/presentation/session_controller.gd`
-- Create: `prototypes/godot-incident-room/tests/test_session_controller.gd`
+- Create: `apps/incident-room/scripts/presentation/session_controller.gd`
+- Create: `apps/incident-room/tests/test_session_controller.gd`
 
 **Interfaces:**
 - Consumes: scenario, `EventLogger`, `ScenarioState`, `ScoringRules`, and `ReplayBuilder`.
@@ -1408,7 +1408,7 @@ Freeze `summary.json` to exactly these top-level keys and add a schema/assertion
 - [ ] **Step 4: Run all domain and facade suites**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Facade import, UID, or test verification failed' }
 ```
 
@@ -1417,23 +1417,23 @@ Expected: one full correct path and one incorrect path complete without room or 
 - [ ] **Step 5: Commit the complete engine-light vertical slice**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scripts/presentation/session_controller.gd prototypes/godot-incident-room/scripts/presentation/session_controller.gd.uid prototypes/godot-incident-room/scripts/persistence/event_logger.gd prototypes/godot-incident-room/scripts/persistence/event_logger.gd.uid prototypes/godot-incident-room/tests/test_session_controller.gd prototypes/godot-incident-room/tests/test_session_controller.gd.uid
-git commit --only -m "feat: orchestrate complete incident sessions" -- prototypes/godot-incident-room/scripts/presentation/session_controller.gd prototypes/godot-incident-room/scripts/presentation/session_controller.gd.uid prototypes/godot-incident-room/scripts/persistence/event_logger.gd prototypes/godot-incident-room/scripts/persistence/event_logger.gd.uid prototypes/godot-incident-room/tests/test_session_controller.gd prototypes/godot-incident-room/tests/test_session_controller.gd.uid
+git add -- apps/incident-room/scripts/presentation/session_controller.gd apps/incident-room/scripts/presentation/session_controller.gd.uid apps/incident-room/scripts/persistence/event_logger.gd apps/incident-room/scripts/persistence/event_logger.gd.uid apps/incident-room/tests/test_session_controller.gd apps/incident-room/tests/test_session_controller.gd.uid
+git commit --only -m "feat: orchestrate complete incident sessions" -- apps/incident-room/scripts/presentation/session_controller.gd apps/incident-room/scripts/presentation/session_controller.gd.uid apps/incident-room/scripts/persistence/event_logger.gd apps/incident-room/scripts/persistence/event_logger.gd.uid apps/incident-room/tests/test_session_controller.gd apps/incident-room/tests/test_session_controller.gd.uid
 ```
 
 ### Task 8: Build the Primitive Office, Fixed Camera, Player, and Accessible Station Interaction
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scenes/player/player.tscn`
-- Create: `prototypes/godot-incident-room/scenes/room/incident_room.tscn`
-- Create: `prototypes/godot-incident-room/scenes/stations/station_trigger.tscn`
-- Create: `prototypes/godot-incident-room/scripts/presentation/input_setup.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/player_controller.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/station_trigger.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/interaction_controller.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/room_builder.gd`
-- Create: `prototypes/godot-incident-room/tests/test_player_controller.gd`
-- Create: `prototypes/godot-incident-room/tests/test_interaction_controller.gd`
+- Create: `apps/incident-room/scenes/player/player.tscn`
+- Create: `apps/incident-room/scenes/room/incident_room.tscn`
+- Create: `apps/incident-room/scenes/stations/station_trigger.tscn`
+- Create: `apps/incident-room/scripts/presentation/input_setup.gd`
+- Create: `apps/incident-room/scripts/presentation/player_controller.gd`
+- Create: `apps/incident-room/scripts/presentation/station_trigger.gd`
+- Create: `apps/incident-room/scripts/presentation/interaction_controller.gd`
+- Create: `apps/incident-room/scripts/presentation/room_builder.gd`
+- Create: `apps/incident-room/tests/test_player_controller.gd`
+- Create: `apps/incident-room/tests/test_interaction_controller.gd`
 
 **Interfaces:**
 - Consumes: no assessment-domain internals.
@@ -1520,7 +1520,7 @@ Use one cohesive first-party toy-diorama palette even before asset import: warm 
 - [ ] **Step 5: Run import and presentation tests**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Presentation import, UID, or test verification failed' }
 ```
 
@@ -1529,22 +1529,22 @@ Expected: all suites pass. The main-scene smoke test is added in Task 11, after 
 - [ ] **Step 6: Commit the independently playable greybox world**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scenes/player prototypes/godot-incident-room/scenes/room prototypes/godot-incident-room/scenes/stations prototypes/godot-incident-room/scripts/presentation/input_setup.gd prototypes/godot-incident-room/scripts/presentation/input_setup.gd.uid prototypes/godot-incident-room/scripts/presentation/player_controller.gd prototypes/godot-incident-room/scripts/presentation/player_controller.gd.uid prototypes/godot-incident-room/scripts/presentation/station_trigger.gd prototypes/godot-incident-room/scripts/presentation/station_trigger.gd.uid prototypes/godot-incident-room/scripts/presentation/interaction_controller.gd prototypes/godot-incident-room/scripts/presentation/interaction_controller.gd.uid prototypes/godot-incident-room/scripts/presentation/room_builder.gd prototypes/godot-incident-room/scripts/presentation/room_builder.gd.uid prototypes/godot-incident-room/tests/test_player_controller.gd prototypes/godot-incident-room/tests/test_player_controller.gd.uid prototypes/godot-incident-room/tests/test_interaction_controller.gd prototypes/godot-incident-room/tests/test_interaction_controller.gd.uid
-git commit --only -m "feat: add fixed-camera office exploration" -- prototypes/godot-incident-room/scenes/player prototypes/godot-incident-room/scenes/room prototypes/godot-incident-room/scenes/stations prototypes/godot-incident-room/scripts/presentation/input_setup.gd prototypes/godot-incident-room/scripts/presentation/input_setup.gd.uid prototypes/godot-incident-room/scripts/presentation/player_controller.gd prototypes/godot-incident-room/scripts/presentation/player_controller.gd.uid prototypes/godot-incident-room/scripts/presentation/station_trigger.gd prototypes/godot-incident-room/scripts/presentation/station_trigger.gd.uid prototypes/godot-incident-room/scripts/presentation/interaction_controller.gd prototypes/godot-incident-room/scripts/presentation/interaction_controller.gd.uid prototypes/godot-incident-room/scripts/presentation/room_builder.gd prototypes/godot-incident-room/scripts/presentation/room_builder.gd.uid prototypes/godot-incident-room/tests/test_player_controller.gd prototypes/godot-incident-room/tests/test_player_controller.gd.uid prototypes/godot-incident-room/tests/test_interaction_controller.gd prototypes/godot-incident-room/tests/test_interaction_controller.gd.uid
+git add -- apps/incident-room/scenes/player apps/incident-room/scenes/room apps/incident-room/scenes/stations apps/incident-room/scripts/presentation/input_setup.gd apps/incident-room/scripts/presentation/input_setup.gd.uid apps/incident-room/scripts/presentation/player_controller.gd apps/incident-room/scripts/presentation/player_controller.gd.uid apps/incident-room/scripts/presentation/station_trigger.gd apps/incident-room/scripts/presentation/station_trigger.gd.uid apps/incident-room/scripts/presentation/interaction_controller.gd apps/incident-room/scripts/presentation/interaction_controller.gd.uid apps/incident-room/scripts/presentation/room_builder.gd apps/incident-room/scripts/presentation/room_builder.gd.uid apps/incident-room/tests/test_player_controller.gd apps/incident-room/tests/test_player_controller.gd.uid apps/incident-room/tests/test_interaction_controller.gd apps/incident-room/tests/test_interaction_controller.gd.uid
+git commit --only -m "feat: add fixed-camera office exploration" -- apps/incident-room/scenes/player apps/incident-room/scenes/room apps/incident-room/scenes/stations apps/incident-room/scripts/presentation/input_setup.gd apps/incident-room/scripts/presentation/input_setup.gd.uid apps/incident-room/scripts/presentation/player_controller.gd apps/incident-room/scripts/presentation/player_controller.gd.uid apps/incident-room/scripts/presentation/station_trigger.gd apps/incident-room/scripts/presentation/station_trigger.gd.uid apps/incident-room/scripts/presentation/interaction_controller.gd apps/incident-room/scripts/presentation/interaction_controller.gd.uid apps/incident-room/scripts/presentation/room_builder.gd apps/incident-room/scripts/presentation/room_builder.gd.uid apps/incident-room/tests/test_player_controller.gd apps/incident-room/tests/test_player_controller.gd.uid apps/incident-room/tests/test_interaction_controller.gd apps/incident-room/tests/test_interaction_controller.gd.uid
 ```
 
 ### Task 9: Add the Notice, Briefing, HUD, and Hypothesis Flow
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scenes/ui/title_screen.tscn`
-- Create: `prototypes/godot-incident-room/scenes/ui/briefing_panel.tscn`
-- Create: `prototypes/godot-incident-room/scenes/ui/hud.tscn`
-- Create: `prototypes/godot-incident-room/scenes/ui/hypothesis_panel.tscn`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/title_screen.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/briefing_panel.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/hud.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/hypothesis_panel.gd`
-- Create: `prototypes/godot-incident-room/tests/test_briefing_hypothesis_ui.gd`
+- Create: `apps/incident-room/scenes/ui/title_screen.tscn`
+- Create: `apps/incident-room/scenes/ui/briefing_panel.tscn`
+- Create: `apps/incident-room/scenes/ui/hud.tscn`
+- Create: `apps/incident-room/scenes/ui/hypothesis_panel.tscn`
+- Create: `apps/incident-room/scripts/presentation/ui/title_screen.gd`
+- Create: `apps/incident-room/scripts/presentation/ui/briefing_panel.gd`
+- Create: `apps/incident-room/scripts/presentation/ui/hud.gd`
+- Create: `apps/incident-room/scripts/presentation/ui/hypothesis_panel.gd`
+- Create: `apps/incident-room/tests/test_briefing_hypothesis_ui.gd`
 
 **Interfaces:**
 - Consumes: scenario copy and state snapshots only.
@@ -1593,7 +1593,7 @@ HUD text always includes `WASD Move · E Interact · 1/2/3 Stations · H Hypothe
 - [ ] **Step 4: Run the UI suite**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Briefing UI import, UID, or test verification failed' }
 ```
 
@@ -1602,18 +1602,18 @@ Expected: keyboard focus, notice copy, option counts, and signal payloads pass.
 - [ ] **Step 5: Commit the accessible opening and hypothesis flow**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scenes/ui/title_screen.tscn prototypes/godot-incident-room/scenes/ui/briefing_panel.tscn prototypes/godot-incident-room/scenes/ui/hud.tscn prototypes/godot-incident-room/scenes/ui/hypothesis_panel.tscn prototypes/godot-incident-room/scripts/presentation/ui/title_screen.gd prototypes/godot-incident-room/scripts/presentation/ui/title_screen.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/briefing_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/briefing_panel.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/hud.gd prototypes/godot-incident-room/scripts/presentation/ui/hud.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/hypothesis_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/hypothesis_panel.gd.uid prototypes/godot-incident-room/tests/test_briefing_hypothesis_ui.gd prototypes/godot-incident-room/tests/test_briefing_hypothesis_ui.gd.uid
-git commit --only -m "feat: add accessible briefing and hypothesis flow" -- prototypes/godot-incident-room/scenes/ui/title_screen.tscn prototypes/godot-incident-room/scenes/ui/briefing_panel.tscn prototypes/godot-incident-room/scenes/ui/hud.tscn prototypes/godot-incident-room/scenes/ui/hypothesis_panel.tscn prototypes/godot-incident-room/scripts/presentation/ui/title_screen.gd prototypes/godot-incident-room/scripts/presentation/ui/title_screen.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/briefing_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/briefing_panel.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/hud.gd prototypes/godot-incident-room/scripts/presentation/ui/hud.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/hypothesis_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/hypothesis_panel.gd.uid prototypes/godot-incident-room/tests/test_briefing_hypothesis_ui.gd prototypes/godot-incident-room/tests/test_briefing_hypothesis_ui.gd.uid
+git add -- apps/incident-room/scenes/ui/title_screen.tscn apps/incident-room/scenes/ui/briefing_panel.tscn apps/incident-room/scenes/ui/hud.tscn apps/incident-room/scenes/ui/hypothesis_panel.tscn apps/incident-room/scripts/presentation/ui/title_screen.gd apps/incident-room/scripts/presentation/ui/title_screen.gd.uid apps/incident-room/scripts/presentation/ui/briefing_panel.gd apps/incident-room/scripts/presentation/ui/briefing_panel.gd.uid apps/incident-room/scripts/presentation/ui/hud.gd apps/incident-room/scripts/presentation/ui/hud.gd.uid apps/incident-room/scripts/presentation/ui/hypothesis_panel.gd apps/incident-room/scripts/presentation/ui/hypothesis_panel.gd.uid apps/incident-room/tests/test_briefing_hypothesis_ui.gd apps/incident-room/tests/test_briefing_hypothesis_ui.gd.uid
+git commit --only -m "feat: add accessible briefing and hypothesis flow" -- apps/incident-room/scenes/ui/title_screen.tscn apps/incident-room/scenes/ui/briefing_panel.tscn apps/incident-room/scenes/ui/hud.tscn apps/incident-room/scenes/ui/hypothesis_panel.tscn apps/incident-room/scripts/presentation/ui/title_screen.gd apps/incident-room/scripts/presentation/ui/title_screen.gd.uid apps/incident-room/scripts/presentation/ui/briefing_panel.gd apps/incident-room/scripts/presentation/ui/briefing_panel.gd.uid apps/incident-room/scripts/presentation/ui/hud.gd apps/incident-room/scripts/presentation/ui/hud.gd.uid apps/incident-room/scripts/presentation/ui/hypothesis_panel.gd apps/incident-room/scripts/presentation/ui/hypothesis_panel.gd.uid apps/incident-room/tests/test_briefing_hypothesis_ui.gd apps/incident-room/tests/test_briefing_hypothesis_ui.gd.uid
 ```
 
 ### Task 10: Add the Observability and Scripted-AI Investigation Panels
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scenes/ui/observability_panel.tscn`
-- Create: `prototypes/godot-incident-room/scenes/ui/developer_panel.tscn`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/observability_panel.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/developer_panel.gd`
-- Create: `prototypes/godot-incident-room/tests/test_station_panels.gd`
+- Create: `apps/incident-room/scenes/ui/observability_panel.tscn`
+- Create: `apps/incident-room/scenes/ui/developer_panel.tscn`
+- Create: `apps/incident-room/scripts/presentation/ui/observability_panel.gd`
+- Create: `apps/incident-room/scripts/presentation/ui/developer_panel.gd`
+- Create: `apps/incident-room/tests/test_station_panels.gd`
 
 **Interfaces:**
 - Consumes: the four scenario artifacts and scripted AI interaction.
@@ -1648,7 +1648,7 @@ The developer panel emits `evidence_selected("homepage_orchestrator", "source_co
 - [ ] **Step 4: Run all suites and manually inspect text wrapping at 1280×720**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Station UI import, UID, or test verification failed' }
 ```
 
@@ -1657,21 +1657,21 @@ Expected: headless tests pass; no content requires horizontal scrolling at the t
 - [ ] **Step 5: Commit the investigation surfaces**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scenes/ui/observability_panel.tscn prototypes/godot-incident-room/scenes/ui/developer_panel.tscn prototypes/godot-incident-room/scripts/presentation/ui/observability_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/observability_panel.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/developer_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/developer_panel.gd.uid prototypes/godot-incident-room/tests/test_station_panels.gd prototypes/godot-incident-room/tests/test_station_panels.gd.uid
-git commit --only -m "feat: add incident investigation stations" -- prototypes/godot-incident-room/scenes/ui/observability_panel.tscn prototypes/godot-incident-room/scenes/ui/developer_panel.tscn prototypes/godot-incident-room/scripts/presentation/ui/observability_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/observability_panel.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/developer_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/developer_panel.gd.uid prototypes/godot-incident-room/tests/test_station_panels.gd prototypes/godot-incident-room/tests/test_station_panels.gd.uid
+git add -- apps/incident-room/scenes/ui/observability_panel.tscn apps/incident-room/scenes/ui/developer_panel.tscn apps/incident-room/scripts/presentation/ui/observability_panel.gd apps/incident-room/scripts/presentation/ui/observability_panel.gd.uid apps/incident-room/scripts/presentation/ui/developer_panel.gd apps/incident-room/scripts/presentation/ui/developer_panel.gd.uid apps/incident-room/tests/test_station_panels.gd apps/incident-room/tests/test_station_panels.gd.uid
+git commit --only -m "feat: add incident investigation stations" -- apps/incident-room/scenes/ui/observability_panel.tscn apps/incident-room/scenes/ui/developer_panel.tscn apps/incident-room/scripts/presentation/ui/observability_panel.gd apps/incident-room/scripts/presentation/ui/observability_panel.gd.uid apps/incident-room/scripts/presentation/ui/developer_panel.gd apps/incident-room/scripts/presentation/ui/developer_panel.gd.uid apps/incident-room/tests/test_station_panels.gd apps/incident-room/tests/test_station_panels.gd.uid
 ```
 
 ### Task 11: Complete Release Submission, Proof Replay UI, and Main Scene Wiring
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scenes/ui/release_panel.tscn`
-- Create: `prototypes/godot-incident-room/scenes/ui/replay_panel.tscn`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/release_panel.gd`
-- Create: `prototypes/godot-incident-room/scripts/presentation/ui/replay_panel.gd`
-- Create: `prototypes/godot-incident-room/scenes/main/main.tscn`
-- Create: `prototypes/godot-incident-room/scripts/presentation/main.gd`
-- Create: `prototypes/godot-incident-room/tests/test_release_replay_ui.gd`
-- Create: `prototypes/godot-incident-room/tests/test_main_flow.gd`
+- Create: `apps/incident-room/scenes/ui/release_panel.tscn`
+- Create: `apps/incident-room/scenes/ui/replay_panel.tscn`
+- Create: `apps/incident-room/scripts/presentation/ui/release_panel.gd`
+- Create: `apps/incident-room/scripts/presentation/ui/replay_panel.gd`
+- Create: `apps/incident-room/scenes/main/main.tscn`
+- Create: `apps/incident-room/scripts/presentation/main.gd`
+- Create: `apps/incident-room/tests/test_release_replay_ui.gd`
+- Create: `apps/incident-room/tests/test_main_flow.gd`
 
 **Interfaces:**
 - Consumes: all facade commands/signals, room station requests, and UI intent signals.
@@ -1751,9 +1751,9 @@ Connect `1`/`2`/`3` through the same station-request handler. Connect `H` to the
 ```powershell
 $godot = Join-Path $env:LOCALAPPDATA 'VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe'
 if (-not (Test-Path -LiteralPath $godot)) { throw "Godot executable not found: $godot" }
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Vertical-slice import, UID, or test verification failed' }
-& $godot --headless --path prototypes/godot-incident-room --quit-after 3
+& $godot --headless --path apps/incident-room --quit-after 3
 if ($LASTEXITCODE -ne 0) { throw 'Godot vertical-slice smoke test failed' }
 ```
 
@@ -1762,22 +1762,22 @@ Expected: all commands exit `0`; the complete flow works with primitive visuals 
 - [ ] **Step 6: Commit the complete primitive vertical slice**
 
 ```powershell
-git add -- prototypes/godot-incident-room/scenes/main prototypes/godot-incident-room/scenes/ui/release_panel.tscn prototypes/godot-incident-room/scenes/ui/replay_panel.tscn prototypes/godot-incident-room/scripts/presentation/main.gd prototypes/godot-incident-room/scripts/presentation/main.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/release_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/release_panel.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/replay_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/replay_panel.gd.uid prototypes/godot-incident-room/tests/test_release_replay_ui.gd prototypes/godot-incident-room/tests/test_release_replay_ui.gd.uid prototypes/godot-incident-room/tests/test_main_flow.gd prototypes/godot-incident-room/tests/test_main_flow.gd.uid
-git commit --only -m "feat: complete submission and proof replay flow" -- prototypes/godot-incident-room/scenes/main prototypes/godot-incident-room/scenes/ui/release_panel.tscn prototypes/godot-incident-room/scenes/ui/replay_panel.tscn prototypes/godot-incident-room/scripts/presentation/main.gd prototypes/godot-incident-room/scripts/presentation/main.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/release_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/release_panel.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/replay_panel.gd prototypes/godot-incident-room/scripts/presentation/ui/replay_panel.gd.uid prototypes/godot-incident-room/tests/test_release_replay_ui.gd prototypes/godot-incident-room/tests/test_release_replay_ui.gd.uid prototypes/godot-incident-room/tests/test_main_flow.gd prototypes/godot-incident-room/tests/test_main_flow.gd.uid
+git add -- apps/incident-room/scenes/main apps/incident-room/scenes/ui/release_panel.tscn apps/incident-room/scenes/ui/replay_panel.tscn apps/incident-room/scripts/presentation/main.gd apps/incident-room/scripts/presentation/main.gd.uid apps/incident-room/scripts/presentation/ui/release_panel.gd apps/incident-room/scripts/presentation/ui/release_panel.gd.uid apps/incident-room/scripts/presentation/ui/replay_panel.gd apps/incident-room/scripts/presentation/ui/replay_panel.gd.uid apps/incident-room/tests/test_release_replay_ui.gd apps/incident-room/tests/test_release_replay_ui.gd.uid apps/incident-room/tests/test_main_flow.gd apps/incident-room/tests/test_main_flow.gd.uid
+git commit --only -m "feat: complete submission and proof replay flow" -- apps/incident-room/scenes/main apps/incident-room/scenes/ui/release_panel.tscn apps/incident-room/scenes/ui/replay_panel.tscn apps/incident-room/scripts/presentation/main.gd apps/incident-room/scripts/presentation/main.gd.uid apps/incident-room/scripts/presentation/ui/release_panel.gd apps/incident-room/scripts/presentation/ui/release_panel.gd.uid apps/incident-room/scripts/presentation/ui/replay_panel.gd apps/incident-room/scripts/presentation/ui/replay_panel.gd.uid apps/incident-room/tests/test_release_replay_ui.gd apps/incident-room/tests/test_release_replay_ui.gd.uid apps/incident-room/tests/test_main_flow.gd apps/incident-room/tests/test_main_flow.gd.uid
 ```
 
 ### Task 12: Fetch, Audit, Curate, and Apply the Free Diorama Assets
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/development/fetch_assets.ps1`
-- Create: `prototypes/godot-incident-room/assets/third_party/manifest.json`
-- Modify: `prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md`
-- Create: selected source/runtime files and their Godot-generated `*.import` metadata under `prototypes/godot-incident-room/assets/third_party/`
-- Create: `prototypes/godot-incident-room/scripts/presentation/asset_decorator.gd`
-- Create: `prototypes/godot-incident-room/tests/test_asset_manifest.gd`
-- Modify: `prototypes/godot-incident-room/scripts/presentation/room_builder.gd`
-- Modify: `prototypes/godot-incident-room/scripts/presentation/player_controller.gd`
-- Modify: `prototypes/godot-incident-room/scripts/presentation/ui/hud.gd`
+- Create: `apps/incident-room/scripts/development/fetch_assets.ps1`
+- Create: `apps/incident-room/assets/third_party/manifest.json`
+- Modify: `apps/incident-room/THIRD_PARTY_NOTICES.md`
+- Create: selected source/runtime files and their Godot-generated `*.import` metadata under `apps/incident-room/assets/third_party/`
+- Create: `apps/incident-room/scripts/presentation/asset_decorator.gd`
+- Create: `apps/incident-room/tests/test_asset_manifest.gd`
+- Modify: `apps/incident-room/scripts/presentation/room_builder.gd`
+- Modify: `apps/incident-room/scripts/presentation/player_controller.gd`
+- Modify: `apps/incident-room/scripts/presentation/ui/hud.gd`
 
 **Interfaces:**
 - Consumes: the fully working primitive room and original source URLs.
@@ -1835,9 +1835,9 @@ Append one provenance section per retained asset pack to `THIRD_PARTY_NOTICES.md
 - [ ] **Step 4: Run acquisition, import, and manifest tests**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/fetch_assets.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/fetch_assets.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Asset acquisition failed' }
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Asset import, metadata, UID, or test verification failed' }
 ```
 
@@ -1858,16 +1858,16 @@ HUD uses the ten selected keyboard glyphs; UI uses open, select, and confirmatio
 - [ ] **Step 7: Commit the curated asset set and polish**
 
 ```powershell
-git add -- prototypes/godot-incident-room/assets/third_party prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md prototypes/godot-incident-room/scripts/development/fetch_assets.ps1 prototypes/godot-incident-room/scripts/presentation/asset_decorator.gd prototypes/godot-incident-room/scripts/presentation/asset_decorator.gd.uid prototypes/godot-incident-room/scripts/presentation/room_builder.gd prototypes/godot-incident-room/scripts/presentation/room_builder.gd.uid prototypes/godot-incident-room/scripts/presentation/player_controller.gd prototypes/godot-incident-room/scripts/presentation/player_controller.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/hud.gd prototypes/godot-incident-room/scripts/presentation/ui/hud.gd.uid prototypes/godot-incident-room/tests/test_asset_manifest.gd prototypes/godot-incident-room/tests/test_asset_manifest.gd.uid
-git commit --only -m "feat: apply licensed diorama assets and polish" -- prototypes/godot-incident-room/assets/third_party prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md prototypes/godot-incident-room/scripts/development/fetch_assets.ps1 prototypes/godot-incident-room/scripts/presentation/asset_decorator.gd prototypes/godot-incident-room/scripts/presentation/asset_decorator.gd.uid prototypes/godot-incident-room/scripts/presentation/room_builder.gd prototypes/godot-incident-room/scripts/presentation/room_builder.gd.uid prototypes/godot-incident-room/scripts/presentation/player_controller.gd prototypes/godot-incident-room/scripts/presentation/player_controller.gd.uid prototypes/godot-incident-room/scripts/presentation/ui/hud.gd prototypes/godot-incident-room/scripts/presentation/ui/hud.gd.uid prototypes/godot-incident-room/tests/test_asset_manifest.gd prototypes/godot-incident-room/tests/test_asset_manifest.gd.uid
+git add -- apps/incident-room/assets/third_party apps/incident-room/THIRD_PARTY_NOTICES.md apps/incident-room/scripts/development/fetch_assets.ps1 apps/incident-room/scripts/presentation/asset_decorator.gd apps/incident-room/scripts/presentation/asset_decorator.gd.uid apps/incident-room/scripts/presentation/room_builder.gd apps/incident-room/scripts/presentation/room_builder.gd.uid apps/incident-room/scripts/presentation/player_controller.gd apps/incident-room/scripts/presentation/player_controller.gd.uid apps/incident-room/scripts/presentation/ui/hud.gd apps/incident-room/scripts/presentation/ui/hud.gd.uid apps/incident-room/tests/test_asset_manifest.gd apps/incident-room/tests/test_asset_manifest.gd.uid
+git commit --only -m "feat: apply licensed diorama assets and polish" -- apps/incident-room/assets/third_party apps/incident-room/THIRD_PARTY_NOTICES.md apps/incident-room/scripts/development/fetch_assets.ps1 apps/incident-room/scripts/presentation/asset_decorator.gd apps/incident-room/scripts/presentation/asset_decorator.gd.uid apps/incident-room/scripts/presentation/room_builder.gd apps/incident-room/scripts/presentation/room_builder.gd.uid apps/incident-room/scripts/presentation/player_controller.gd apps/incident-room/scripts/presentation/player_controller.gd.uid apps/incident-room/scripts/presentation/ui/hud.gd apps/incident-room/scripts/presentation/ui/hud.gd.uid apps/incident-room/tests/test_asset_manifest.gd apps/incident-room/tests/test_asset_manifest.gd.uid
 ```
 
 ### Task 13: Verify, Export, Document, and Smoke-Test the Windows MVP
 
 **Files:**
-- Modify: `prototypes/godot-incident-room/README.md`
+- Modify: `apps/incident-room/README.md`
 - Modify: `README.md`
-- Verify: `prototypes/godot-incident-room/export_presets.cfg`
+- Verify: `apps/incident-room/export_presets.cfg`
 - Verify: all project files and packaged build
 
 **Interfaces:**
@@ -1982,7 +1982,7 @@ Add this short root README section after `## MVP`:
 ```markdown
 ### Optional Incident Room prototype
 
-The [Godot Incident Room](prototypes/godot-incident-room/README.md) is an optional presentation experiment for the same controlled scenario and evidence model. It does not replace the baseline web workspace, and navigation performance is not scored.
+The [Godot Incident Room](apps/incident-room/README.md) is an optional presentation experiment for the same controlled scenario and evidence model. It does not replace the baseline web workspace, and navigation performance is not scored.
 ```
 
 - [ ] **Step 6: Re-run final verification, stage explicit handoff files, and inspect the exact staged diff**
@@ -2029,18 +2029,18 @@ if (-not $smoke.WaitForExit(15000)) {
     throw 'Final packaged scenario smoke test timed out after 15 seconds'
 }
 if ($smoke.ExitCode -ne 0) { throw "Final packaged scenario smoke test failed with code $($smoke.ExitCode)" }
-git diff --check -- README.md prototypes/godot-incident-room
+git diff --check -- README.md apps/incident-room
 if ($LASTEXITCODE -ne 0) { throw 'Working-tree diff check failed' }
 $alreadyStaged = @(git diff --cached --name-only)
 if ($LASTEXITCODE -ne 0) { throw 'Could not inspect existing staged changes' }
 if ($alreadyStaged.Count -gt 0) { throw "Unexpected pre-existing staged changes: $($alreadyStaged -join ', ')" }
-git add -- README.md prototypes/godot-incident-room/README.md prototypes/godot-incident-room/export_presets.cfg
+git add -- README.md apps/incident-room/README.md apps/incident-room/export_presets.cfg
 if ($LASTEXITCODE -ne 0) { throw 'Explicit staging failed' }
 git diff --cached --check
 if ($LASTEXITCODE -ne 0) { throw 'Cached diff check failed' }
 git diff --cached --stat
 if ($LASTEXITCODE -ne 0) { throw 'Cached diff stat failed' }
-git diff --cached -- README.md prototypes/godot-incident-room/README.md prototypes/godot-incident-room/export_presets.cfg
+git diff --cached -- README.md apps/incident-room/README.md apps/incident-room/export_presets.cfg
 if ($LASTEXITCODE -ne 0) { throw 'Cached diff inspection failed' }
 git status --short
 ```
@@ -2050,7 +2050,7 @@ Expected: the cached diff contains only the three intended handoff files; sessio
 - [ ] **Step 7: Commit the verified Windows prototype handoff**
 
 ```powershell
-git commit --only -m "build: verify Windows incident room prototype" -- README.md prototypes/godot-incident-room/README.md prototypes/godot-incident-room/export_presets.cfg
+git commit --only -m "build: verify Windows incident room prototype" -- README.md apps/incident-room/README.md apps/incident-room/export_presets.cfg
 ```
 
 ## Final Acceptance Evidence

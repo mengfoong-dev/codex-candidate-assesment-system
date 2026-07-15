@@ -64,17 +64,17 @@ Time, prompts, tokens, tool calls, files viewed, and iteration counts are contex
 
 ## Presentation-layer decision
 
-The baseline MVP is a focused web engineering workspace because code, logs, traces, tests, and AI conversations are the work surfaces being assessed.
+The first application is the Godot Incident Room. It presents the controlled evidence surfaces as a playable office investigation while preserving direct access to metrics, logs, traces, source code, verification, and scripted AI content.
 
-A Godot 3D office, Phaser 2D map, or other spatial interface is an optional engagement experiment. It may proceed only when it:
+The Godot application must:
 
 - uses the same scenario, event model, and rubric;
 - remains accessible without gaming experience;
 - does not score navigation speed or controls;
 - performs reliably on candidate hardware;
-- does not delay the complete assessment and Proof Replay flow.
+- completes the candidate flow and local evidence record before backend scoring is introduced.
 
-The presentation layer is replaceable and cannot become part of the engineering signal.
+The presentation layer remains replaceable and cannot become part of the engineering signal. A web client may be added later against the same scenario and event contract without changing the construct being assessed.
 
 ## Assessment boundaries
 

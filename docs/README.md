@@ -4,7 +4,7 @@ This is the canonical documentation index for VibeProof. Active product guidance
 
 ## Current direction
 
-VibeProof is an AI-allowed Ownership Challenge for software-engineering candidates. The baseline MVP uses a focused web workspace and the Homepage Latency Spike scenario, then produces a recruiter-facing Proof Replay. Start with the product documents below and use `decisions.md` to resolve any ambiguity.
+VibeProof is an AI-allowed Ownership Challenge for software-engineering candidates. The current application is the Godot Incident Room using the Homepage Latency Spike scenario. It completes the local candidate flow and evidence record first; backend scoring and recruiter-facing results follow later. Start with the product documents below and use `decisions.md` to resolve any ambiguity.
 
 ## Product
 
@@ -24,6 +24,13 @@ VibeProof is an AI-allowed Ownership Challenge for software-engineering candidat
 ## Operational records
 
 - [Agent usage records](hackathon/codex-usage/README.md) - generated session and outcome logs for the hackathon project.
+
+## Godot application
+
+- [Godot-first candidate-flow design](superpowers/specs/2026-07-15-vibeproof-godot-first-candidate-flow-design.md) - current implementation priority: complete local candidate flow and event logging before backend scoring.
+- [Godot Incident Room design](superpowers/specs/2026-07-15-vibeproof-incident-room-mvp-design.md) - room, interaction, visual, and responsible-assessment constraints.
+- [Godot-first implementation plan](superpowers/plans/2026-07-15-vibeproof-godot-first-candidate-flow.md) - current test-first delivery plan with scoring deferred.
+- [Godot application README](../apps/incident-room/README.md) - current status, pinned toolchain, controls, verification, and licensing.
 
 ## Historical material
 

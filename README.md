@@ -2,13 +2,23 @@
 
 > Build with AI. Prove you know why it works.
 
+## Team
+
+- Sebastian
+- Meng Foong
+- Howard
+- Hao Xuen
+- Keng Loon
+
 VibeProof is an AI-allowed engineering assessment that helps hiring teams verify whether a candidate can understand, investigate, test, adapt, and take responsibility for software work.
 
 ## Current status
 
-The product direction and documentation are consolidated around VibeProof. The baseline MVP is a focused web engineering workspace using the Homepage Latency Spike scenario. Earlier branding, game-engine, Miro, and debate material is preserved in the archive and is not active guidance.
+The product direction and documentation are consolidated around VibeProof. The primary application under active development is the Godot Incident Room using the Homepage Latency Spike scenario. Earlier branding, Miro, and product-debate material is preserved in the archive and is not active guidance.
 
-The next delivery goal is to implement the candidate investigation flow, structured event log, deterministic rubric, and recruiter Proof Replay described in the [MVP scope](docs/product/mvp-scope.md).
+The playable candidate investigation flow, structured local event log, persistence fallback, and unscored session summary are now implemented on `main` under `apps/incident-room`. The current delivery goal is acceptance and Windows export verification. Scoring and recruiter result processing remain a separate later backend milestone described outside the Godot runtime.
+
+The [Godot Incident Room application](apps/incident-room/README.md) contains the independently loadable game, scenario, local evidence contract, and tests.
 
 ## What we are building
 
@@ -24,7 +34,7 @@ The MVP uses a **Homepage Latency Spike**:
 2. The candidate inspects metrics, logs, traces, source code, and AI-assisted explanations.
 3. They record and revise hypotheses, verify assumptions, and identify sequential independent API calls as the root cause.
 4. They submit the diagnosis, supporting evidence, remediation, risks, and validation plan.
-5. A recruiter receives a chronological Proof Replay and rubric-linked evidence for human review.
+5. The current prototype shows the candidate an explicitly unscored chronological session summary; a recruiter-facing Proof Replay and rubric-linked backend evaluation are deferred milestones.
 
 See the complete [candidate and recruiter scenario](docs/product/user-scenario.md).
 
@@ -45,17 +55,17 @@ Time, prompt count, token count, and tool-call count are context. They are not d
 
 ## MVP
 
-The first complete vertical slice includes:
+The first complete application slice includes:
 
 - one controlled homepage-latency incident;
-- one focused engineering workspace;
+- one playable Godot Incident Room;
 - metrics, logs, traces, source code, and AI-assistant tools;
 - hypothesis capture and revision;
 - structured final submission;
-- deterministic scoring;
-- one recruiter Proof Replay.
+- an append-only local event record;
+- one explicitly unscored session summary.
 
-An immersive or spatial interface may be explored later, but it is not required for the MVP and cannot affect the engineering score.
+Backend scoring and the recruiter-facing Proof Replay are later milestones. Navigation speed, route choice, camera control, and gaming skill cannot affect the engineering evidence.
 
 ## Documentation
 
@@ -67,6 +77,8 @@ Start with the [documentation index](docs/README.md), then read:
 - [Evidence and scoring](docs/assessment/evidence-and-scoring.md)
 - [Research, validation, and market](docs/research/validation-and-market.md)
 - [Product decisions](docs/decisions.md)
+- [Godot-first candidate-flow design](docs/superpowers/specs/2026-07-15-vibeproof-godot-first-candidate-flow-design.md)
+- [Godot-first candidate-flow implementation plan](docs/superpowers/plans/2026-07-15-vibeproof-godot-first-candidate-flow.md)
 
 Historical product explorations and source material are preserved in the [archive](docs/archive/2026-07-pre-vibeproof/README.md).
 
