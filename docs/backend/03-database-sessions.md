@@ -52,7 +52,7 @@ Append-only. Columns mirror the envelope: `event_id` PK, `session_id` (indexed),
 
 Created by copying `scenario.definition.seeded_files` at session creation. Mutated only by the Simulation Engine's `write_file` tool (source `ai`) or an explicit candidate file-save endpoint if the frontend adds one (source `user`).
 
-### `grading_results`
+### `scoring_results`
 
 | Column | Type | Notes |
 |---|---|---|
@@ -81,6 +81,35 @@ POST /api/sessions ──► active ──(submit)──► submitted ──(gra
 
 - The session ID lives in frontend JS memory only (not localStorage) — that implements the agreed "flush" semantics.
 - `elapsed_active_ms` on events is reported by the frontend (its active-time clock); the backend stores it verbatim and never derives scores from it (D009).
+
+## Relationships & hierarchy
+
+```text
+scenarios  (scenario_id, version)          ← PRIMORDIAL ROOT — most upstream
+    │ 1:N
+    ▼
+sessions   (id UUID)                       ← aggregate root of one candidate attempt
+    │ 1:N                 │ 1:N                    │ 1:N
+    ▼                     ▼                        ▼
+events                session_files           scoring_results
+(session_id,          (session_id, path)      (id; session_id FK)
+ sequence)                                        │
+    ▲                                             │ cites, via evidence_refs JSON
+    └─────────────── soft N:M ────────────────────┘
+```
+
+| Relationship | Cardinality | Notes |
+|---|---|---|
+| scenarios → sessions | 1:N | each session pins exactly one `(scenario_id, version)` |
+| sessions → events | 1:N | unique `(session_id, sequence)` |
+| sessions → session_files | 1:N | PK is `(session_id, path)` |
+| sessions → scoring_results | 1:N | ~25 rows, written once at submit |
+| scoring_results ↔ events | soft N:M | `evidence_refs` is a JSON list of event IDs, not a join table — refs are read-only audit pointers, never queried in reverse in the MVP |
+
+- **Primordial primary key:** `scenarios (scenario_id, version)` — composite, because scenario versions must coexist without touching prior sessions' history. Everything descends from it.
+- **Aggregate root per attempt:** `sessions.id`. Every per-candidate row is reached only through its session. There is intentionally **no users table** (decision B6, no auth); `sessions.display_name` is a label, not an identity. If auth ever arrives, a `users` table slots in above sessions (`users 1:N sessions`) with no other change.
+- **Denormalization note:** events carry `scenario_id`/`scenario_version` copied onto every row. That is an audit stamp so the log is self-describing in isolation — not a hierarchy edge. Events belong to sessions only.
+- The model is a strict tree plus one soft citation link; no true N:M join table exists anywhere.
 
 ## Definition of done
 
