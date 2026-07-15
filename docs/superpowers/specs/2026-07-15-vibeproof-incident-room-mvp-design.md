@@ -4,6 +4,8 @@
 
 Approved for implementation on 2026-07-15 after final user review.
 
+Implementation priority was revised later on 2026-07-15. The [Godot-first candidate-flow design](2026-07-15-vibeproof-godot-first-candidate-flow-design.md) takes precedence for build order and defers scoring until after the complete unscored Godot journey is accepted.
+
 The user approved:
 
 - a single-player, stylized 3D role-playing experience;

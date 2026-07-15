@@ -27,6 +27,7 @@ VibeProof is an AI-allowed Ownership Challenge for software-engineering candidat
 
 ## Prototype experiment
 
+- [Godot-first candidate-flow design](superpowers/specs/2026-07-15-vibeproof-godot-first-candidate-flow-design.md) - current implementation priority: complete local candidate flow and event logging before backend scoring.
 - [Godot Incident Room design](superpowers/specs/2026-07-15-vibeproof-incident-room-mvp-design.md) - approved spatial-presentation experiment and responsible-assessment constraints.
 - [Godot Incident Room implementation plan](superpowers/plans/2026-07-15-vibeproof-incident-room-mvp.md) - test-first delivery plan for the optional prototype.
 - [Godot project README](../prototypes/godot-incident-room/README.md) - current scaffold status, pinned toolchain, controls, verification, and licensing.
