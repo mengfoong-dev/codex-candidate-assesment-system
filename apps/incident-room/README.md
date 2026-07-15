@@ -1,6 +1,6 @@
 # VibeProof Incident Room
 
-This Godot 4.7.1 Compatibility project is the independently loadable foundation for the VibeProof incident-room prototype.
+This Godot 4.7.1 Compatibility project is the primary candidate-facing application for the VibeProof Incident Room.
 
 ## Pinned toolchain
 
@@ -13,19 +13,19 @@ Use Godot 4.7.1 Standard from:
 Import project resources and generate stable script UID sidecars:
 
 ```powershell
-& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --headless --path prototypes/godot-incident-room --import
+& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --headless --path apps/incident-room --import
 ```
 
 Run the headless test suite:
 
 ```powershell
-& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --headless --path prototypes/godot-incident-room --script res://tests/run_tests.gd
+& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --headless --path apps/incident-room --script res://tests/run_tests.gd
 ```
 
 The fail-fast combined command is:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 ```
 
 ## Controls

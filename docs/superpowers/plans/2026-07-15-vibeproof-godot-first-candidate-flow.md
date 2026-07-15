@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Follow the approved [Godot-first candidate-flow design](../specs/2026-07-15-vibeproof-godot-first-candidate-flow-design.md).
-- Keep the project independently loadable under `prototypes/godot-incident-room/`.
+- Keep the project independently loadable under `apps/incident-room/`.
 - Run without a backend, account, network request, live model, or arbitrary code execution.
 - Do not calculate or display points, criteria, pass/fail status, rank, capability labels, or hiring recommendations.
 - Do not use movement speed, route, camera skill, station order, or interaction count as assessment evidence.
@@ -24,7 +24,7 @@
 ## Planned structure
 
 ```text
-prototypes/godot-incident-room/
+apps/incident-room/
 |-- scenes/{main,room,player,stations,ui}/
 |-- scripts/
 |   |-- domain/{event_schema,candidate_session,unscored_summary_builder}.gd
@@ -38,8 +38,8 @@ prototypes/godot-incident-room/
 ### Task 1: Define the unscored event contract
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/event_schema.gd`
-- Create: `prototypes/godot-incident-room/tests/test_event_schema.gd`
+- Create: `apps/incident-room/scripts/domain/event_schema.gd`
+- Create: `apps/incident-room/tests/test_event_schema.gd`
 
 **Interfaces:**
 - Consumes: stable scenario IDs.
@@ -90,7 +90,7 @@ Expected: successful import and `TESTS PASSED: 2 suites`.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/scripts/domain/event_schema.gd* prototypes/godot-incident-room/tests/test_event_schema.gd*
+git add apps/incident-room/scripts/domain/event_schema.gd* apps/incident-room/tests/test_event_schema.gd*
 git commit -m "feat: define unscored assessment events"
 ```
 
@@ -99,8 +99,8 @@ git commit -m "feat: define unscored assessment events"
 ### Task 2: Append events with an in-memory fallback
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/persistence/event_logger.gd`
-- Create: `prototypes/godot-incident-room/tests/test_event_logger.gd`
+- Create: `apps/incident-room/scripts/persistence/event_logger.gd`
+- Create: `apps/incident-room/tests/test_event_logger.gd`
 
 **Interfaces:**
 - Consumes: `EventSchema`.
@@ -139,7 +139,7 @@ Expected: all lines parse and sequences are monotonic.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/scripts/persistence/event_logger.gd* prototypes/godot-incident-room/tests/test_event_logger.gd*
+git add apps/incident-room/scripts/persistence/event_logger.gd* apps/incident-room/tests/test_event_logger.gd*
 git commit -m "feat: persist candidate events locally"
 ```
 
@@ -148,8 +148,8 @@ git commit -m "feat: persist candidate events locally"
 ### Task 3: Model the complete candidate session without scoring
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/candidate_session.gd`
-- Create: `prototypes/godot-incident-room/tests/test_candidate_session.gd`
+- Create: `apps/incident-room/scripts/domain/candidate_session.gd`
+- Create: `apps/incident-room/tests/test_candidate_session.gd`
 
 **Interfaces:**
 - Consumes: validated scenario and `EventLogger`.
@@ -203,7 +203,7 @@ Expected: all candidate-flow and negative fixtures pass.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/scripts/domain/candidate_session.gd* prototypes/godot-incident-room/tests/test_candidate_session.gd*
+git add apps/incident-room/scripts/domain/candidate_session.gd* apps/incident-room/tests/test_candidate_session.gd*
 git commit -m "feat: model the unscored candidate journey"
 ```
 
@@ -212,8 +212,8 @@ git commit -m "feat: model the unscored candidate journey"
 ### Task 4: Build the unscored summary
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/domain/unscored_summary_builder.gd`
-- Create: `prototypes/godot-incident-room/tests/test_unscored_summary_builder.gd`
+- Create: `apps/incident-room/scripts/domain/unscored_summary_builder.gd`
+- Create: `apps/incident-room/tests/test_unscored_summary_builder.gd`
 
 **Interfaces:**
 - Consumes: scenario, snapshot, ordered events, and persistence status.
@@ -244,7 +244,7 @@ Expected: correct, incorrect, and persistence-warning summaries pass.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/scripts/domain/unscored_summary_builder.gd* prototypes/godot-incident-room/tests/test_unscored_summary_builder.gd*
+git add apps/incident-room/scripts/domain/unscored_summary_builder.gd* apps/incident-room/tests/test_unscored_summary_builder.gd*
 git commit -m "feat: build unscored session summaries"
 ```
 
@@ -291,7 +291,7 @@ Run automated verification, then confirm `Tab`, arrows, `Enter`, and `Esc` work 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/scenes/ui prototypes/godot-incident-room/scripts/presentation prototypes/godot-incident-room/tests/test_panel_contracts.gd*
+git add apps/incident-room/scenes/ui apps/incident-room/scripts/presentation apps/incident-room/tests/test_panel_contracts.gd*
 git commit -m "feat: add the Godot candidate flow panels"
 ```
 
@@ -328,7 +328,7 @@ Confirm player visibility, room boundaries, and access through both input paths.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/project.godot prototypes/godot-incident-room/scenes/room prototypes/godot-incident-room/scenes/player prototypes/godot-incident-room/scenes/stations prototypes/godot-incident-room/scripts/presentation/player_controller.gd* prototypes/godot-incident-room/scripts/presentation/station_trigger.gd* prototypes/godot-incident-room/tests/test_room_contracts.gd*
+git add apps/incident-room/project.godot apps/incident-room/scenes/room apps/incident-room/scenes/player apps/incident-room/scenes/stations apps/incident-room/scripts/presentation/player_controller.gd* apps/incident-room/scripts/presentation/station_trigger.gd* apps/incident-room/tests/test_room_contracts.gd*
 git commit -m "feat: build the playable Incident Room greybox"
 ```
 
@@ -337,9 +337,9 @@ git commit -m "feat: build the playable Incident Room greybox"
 ### Task 7: Wire the complete candidate flow
 
 **Files:**
-- Create: `prototypes/godot-incident-room/scripts/presentation/main.gd`
-- Modify: `prototypes/godot-incident-room/scenes/main/main.tscn`
-- Create: `prototypes/godot-incident-room/tests/test_main_flow.gd`
+- Create: `apps/incident-room/scripts/presentation/main.gd`
+- Modify: `apps/incident-room/scenes/main/main.tscn`
+- Create: `apps/incident-room/tests/test_main_flow.gd`
 
 **Interfaces:**
 - Consumes: Tasks 1-6.
@@ -377,7 +377,7 @@ Expected: all suites pass and `main.tscn` loads headlessly.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/scenes/main/main.tscn prototypes/godot-incident-room/scripts/presentation/main.gd* prototypes/godot-incident-room/tests/test_main_flow.gd*
+git add apps/incident-room/scenes/main/main.tscn apps/incident-room/scripts/presentation/main.gd* apps/incident-room/tests/test_main_flow.gd*
 git commit -m "feat: connect the complete Godot candidate flow"
 ```
 
@@ -386,8 +386,8 @@ git commit -m "feat: connect the complete Godot candidate flow"
 ### Task 8: Verify acceptance paths and documentation
 
 **Files:**
-- Create: `prototypes/godot-incident-room/tests/test_acceptance_paths.gd`
-- Modify: `prototypes/godot-incident-room/README.md`
+- Create: `apps/incident-room/tests/test_acceptance_paths.gd`
+- Modify: `apps/incident-room/README.md`
 
 **Interfaces:**
 - Consumes: integrated flow.
@@ -408,8 +408,8 @@ Add the exact unscored statement, controls, event/summary paths, limitations, ve
 - [ ] **Step 4: Run GREEN and prohibited-language scan**
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
-rg -n -i "score|points|pass/fail|rank|recommendation" prototypes/godot-incident-room/scripts prototypes/godot-incident-room/scenes
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
+rg -n -i "score|points|pass/fail|rank|recommendation" apps/incident-room/scripts apps/incident-room/scenes
 ```
 
 Expected: tests pass; runtime has only explicit unscored notices and no result calculation.
@@ -417,7 +417,7 @@ Expected: tests pass; runtime has only explicit unscored notices and no result c
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add prototypes/godot-incident-room/README.md prototypes/godot-incident-room/tests/test_acceptance_paths.gd*
+git add apps/incident-room/README.md apps/incident-room/tests/test_acceptance_paths.gd*
 git commit -m "test: verify unscored candidate paths"
 ```
 
@@ -426,8 +426,8 @@ git commit -m "test: verify unscored candidate paths"
 ### Task 9: Export and smoke-test Windows
 
 **Files:**
-- Modify: `prototypes/godot-incident-room/export_presets.cfg` only if required.
-- Modify: `prototypes/godot-incident-room/README.md` with build evidence.
+- Modify: `apps/incident-room/export_presets.cfg` only if required.
+- Modify: `apps/incident-room/README.md` with build evidence.
 - Preserve: `THIRD_PARTY_NOTICES.md`, `licenses/GODOT_LICENSE.txt`, `licenses/GODOT_COPYRIGHT.txt`.
 
 **Interfaces:**
@@ -442,7 +442,7 @@ Resolve `.godot/`, verify it is inside the prototype, remove it, and run combine
 
 ```powershell
 $godot = Join-Path $env:LOCALAPPDATA 'VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe'
-& $godot --headless --path prototypes/godot-incident-room --export-release 'Windows Desktop' dist/VibeProof-Incident-Room.exe
+& $godot --headless --path apps/incident-room --export-release 'Windows Desktop' dist/VibeProof-Incident-Room.exe
 if ($LASTEXITCODE -ne 0) { throw 'Windows export failed' }
 ```
 
@@ -457,7 +457,7 @@ Launch the executable, complete one path, confirm `events.jsonl` and `summary.js
 - [ ] **Step 5: Commit handoff documentation**
 
 ```powershell
-git add prototypes/godot-incident-room/README.md prototypes/godot-incident-room/export_presets.cfg prototypes/godot-incident-room/THIRD_PARTY_NOTICES.md prototypes/godot-incident-room/licenses
+git add apps/incident-room/README.md apps/incident-room/export_presets.cfg apps/incident-room/THIRD_PARTY_NOTICES.md apps/incident-room/licenses
 git diff --cached --check
 git commit -m "docs: verify the Godot candidate-flow build"
 ```
@@ -465,7 +465,7 @@ git commit -m "docs: verify the Godot candidate-flow build"
 ## Final verification gate
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File prototypes/godot-incident-room/scripts/development/verify_project.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File apps/incident-room/scripts/development/verify_project.ps1
 git diff --check
 git status --short
 ```
