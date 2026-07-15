@@ -8,6 +8,8 @@ signal hypothesis_requested
 @export var movement_speed := 4.5
 @export var camera_path: NodePath
 
+@onready var player_visual: PlayerVisual = $Visual
+
 var input_enabled := true
 var _nearby_stations: Array[Area3D] = []
 var _nearest_station_id := ""
@@ -16,6 +18,7 @@ func _physics_process(_delta: float) -> void:
     if not input_enabled:
         velocity = Vector3.ZERO
         move_and_slide()
+        player_visual.set_moving(false)
         return
 
     var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
@@ -29,6 +32,7 @@ func _physics_process(_delta: float) -> void:
     move_and_slide()
     if direction.length_squared() > 0.01:
         rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 0.2)
+    player_visual.set_moving(input_enabled and Vector2(velocity.x, velocity.z).length_squared() > 0.04)
 
     if Input.is_action_just_pressed("interact"):
         _request_nearest_station()
