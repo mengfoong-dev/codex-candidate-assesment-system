@@ -37,12 +37,14 @@ if (-not (Test-Path -LiteralPath $deploymentSource -PathType Container)) {
     throw "Railway deployment source is missing: $deploymentSource"
 }
 
+New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $distRoot '.gdignore') -Value '' -NoNewline
+
 & powershell -NoProfile -ExecutionPolicy Bypass -File $verificationScript
 if ($LASTEXITCODE -ne 0) {
     throw 'Godot verification failed before Web export'
 }
 
-New-Item -ItemType Directory -Path $distRoot -Force | Out-Null
 Reset-GeneratedDirectory -Path $webOutput -AllowedRoot $distRoot
 Reset-GeneratedDirectory -Path $railwayStage -AllowedRoot $distRoot
 
