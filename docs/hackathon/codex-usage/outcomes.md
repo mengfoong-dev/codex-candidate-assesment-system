@@ -54,6 +54,7 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-212631` | Codex | 3.6 minutes | Godot-first candidate-flow design |
 | `S-20260715-213054` | Codex | 7.9 minutes | Godot-first candidate-flow implementation plan |
 | `S-20260715-214140` | Codex | 6.7 minutes | Godot event, persistence, and session-state implementation |
+| `S-20260715-215438` | Codex | 0.9 minutes | Godot app repository-layout decision |
 
 ## 14 July 2026 - Historical product discovery
 
