@@ -8,6 +8,8 @@
 
 **Tech Stack:** Godot 4.7.1 Compatibility renderer, WebAssembly/WebGL 2.0, PowerShell, Caddy 2 Alpine, Railway CLI 4.44.0, first-party Godot tests.
 
+**Outcome:** Implemented on `main` and deployed on 2026-07-16 at [vibeproof-web-production.up.railway.app](https://vibeproof-web-production.up.railway.app). Automated local and public HTTP checks passed; a human browser visual/control pass remains appropriate before a judged demo.
+
 ## Global Constraints
 
 - Keep Windows and Web exports sourced from `apps/incident-room`.
