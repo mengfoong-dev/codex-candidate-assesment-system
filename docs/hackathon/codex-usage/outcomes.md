@@ -58,6 +58,7 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-215815` | Codex | 61.5 minutes | Promote Godot project to primary application path |
 | `S-20260715-230038` | Codex | 1.1 minutes | Reconcile concurrent README changes with the migration |
 | `S-20260715-230327` | Codex | 25.5 minutes | Complete, test, and export the unscored Godot candidate flow |
+| `S-20260715-233700` | Codex | 1.1 minutes | Design the Godot Web deployment for Railway |
 
 ## 14 July 2026 - Historical product discovery
 
