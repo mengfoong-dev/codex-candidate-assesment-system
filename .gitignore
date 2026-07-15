@@ -6,3 +6,6 @@ docs/hackathon/codex-usage/active-session.json
 
 # Generated Superpowers brainstorming companion state and temporary screens.
 .superpowers/
+
+# Personal Claude Code context for the backend engineer (not team-shared).
+CLAUDE.local.md
