@@ -126,6 +126,18 @@ func _assert_negative_contracts(t: RefCounted, scenario: Dictionary) -> void:
     negative_latency.ai_interaction.response.latency_ms = -1
     _assert_invalid(t, negative_latency, "AI response latency must be non-negative", "negative AI latency")
 
+    var malformed_ai: Dictionary = scenario.duplicate(true)
+    malformed_ai.ai_interaction = "invalid"
+    var malformed_ai_result := _load_fixture(malformed_ai)
+    t.assert_false(malformed_ai_result.ok, "non-object AI interaction fixture should fail")
+    t.assert_true(_errors_contain(malformed_ai_result.errors, "AI interaction must be an object"), "non-object AI interaction error: %s" % malformed_ai_result.errors)
+
+    var malformed_ai_response: Dictionary = scenario.duplicate(true)
+    malformed_ai_response.ai_interaction.response = "invalid"
+    var malformed_ai_response_result := _load_fixture(malformed_ai_response)
+    t.assert_false(malformed_ai_response_result.ok, "non-object AI response fixture should fail")
+    t.assert_true(_errors_contain(malformed_ai_response_result.errors, "AI response must be an object"), "non-object AI response error: %s" % malformed_ai_response_result.errors)
+
     var wrong_points: Dictionary = scenario.duplicate(true)
     wrong_points.scoring.criteria[0].configured_points = 11
     _assert_invalid(t, wrong_points, "Configured points mismatch for trace_before_change", "mismatched criterion points")

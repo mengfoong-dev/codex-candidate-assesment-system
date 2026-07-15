@@ -112,10 +112,14 @@ static func _validate_normalized_integer_fields(scenario: Dictionary) -> PackedS
         errors.append("Station quick keys must be exactly 1, 2, and 3")
 
     var ai_value: Variant = scenario.get("ai_interaction", {})
-    if typeof(ai_value) == TYPE_DICTIONARY:
+    if typeof(ai_value) != TYPE_DICTIONARY:
+        errors.append("AI interaction must be an object")
+    else:
         var ai: Dictionary = ai_value
         var response_value: Variant = ai.get("response", {})
-        if typeof(response_value) == TYPE_DICTIONARY:
+        if typeof(response_value) != TYPE_DICTIONARY:
+            errors.append("AI response must be an object")
+        else:
             var response: Dictionary = response_value
             var latency: Variant = response.get("latency_ms", null)
             if typeof(latency) != TYPE_INT:
