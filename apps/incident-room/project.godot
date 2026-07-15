@@ -14,6 +14,45 @@ window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 
+[input]
+
+move_forward={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":87,"unicode":119)]
+}
+move_backward={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":83,"unicode":115)]
+}
+move_left={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":65,"unicode":97)]
+}
+move_right={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":68,"unicode":100)]
+}
+interact={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":69,"unicode":101)]
+}
+quick_station_1={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":49,"unicode":49)]
+}
+quick_station_2={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":50,"unicode":50)]
+}
+quick_station_3={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":51,"unicode":51)]
+}
+open_hypothesis={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":72,"unicode":104)]
+}
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
