@@ -2,6 +2,14 @@
 
 > Build with AI. Prove you know why it works.
 
+## Team
+
+- Sebastian
+- Meng Foong
+- Howard
+- Hao Xuen
+- Keng Loon
+
 VibeProof is an AI-allowed engineering assessment that helps hiring teams verify whether a candidate can understand, investigate, test, adapt, and take responsibility for software work.
 
 ## Current status
