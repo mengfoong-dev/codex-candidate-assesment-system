@@ -56,6 +56,7 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-214140` | Codex | 6.7 minutes | Godot event, persistence, and session-state implementation |
 | `S-20260715-215438` | Codex | 0.9 minutes | Godot app repository-layout decision |
 | `S-20260715-215815` | Codex | 61.5 minutes | Promote Godot project to primary application path |
+| `S-20260715-230038` | Codex | 1.1 minutes | Reconcile concurrent README changes with the migration |
 
 ## 14 July 2026 - Historical product discovery
 
