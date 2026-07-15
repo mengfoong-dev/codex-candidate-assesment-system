@@ -6,13 +6,19 @@ Draft implementation specification. The core design direction is approved; the c
 
 The user approved:
 
-- a single-player, third-person experience;
+- a single-player, stylized 3D role-playing experience;
 - one hybrid software-office and diagnostics-lab room;
 - three investigation stations;
-- a fixed behind-and-above follow camera with minimal controls;
+- a fixed elevated three-quarter camera with minimal controls;
 - automatic structured event capture and an end-of-session Proof Replay;
 - Godot as the engine;
 - a two-day focused implementation window.
+
+During written-spec review, the user also approved:
+
+- a zero-cost runtime-asset plan;
+- a colorful toy-diorama presentation inspired by the general readability of cooperative cooking games and chibi exploration RPGs;
+- an orthographic three-quarter room camera instead of a behind-player camera.
 
 The user then requested implementation with suitable online resources gathered for the project.
 
@@ -39,20 +45,23 @@ The prototype must therefore:
 
 Create a standalone Godot 4.7.1 Standard project using GDScript and the Compatibility renderer. The primary target is a Windows x86_64 desktop build. A browser build is a stretch goal only after the desktop flow passes all acceptance tests.
 
-The selected visual direction is a low-poly hybrid incident room:
+The selected visual direction is an original, colorful low-poly toy diorama:
 
-- normal software-office desks, chairs, cabinets, plants, and monitors;
-- a large observability wall showing metrics, logs, and traces;
-- one small server rack to suggest diagnostics infrastructure;
-- one developer desk for code and the scripted AI assistant;
-- one release console for verification and final submission;
-- open ceiling, low partitions, and wide paths to prevent camera obstruction.
+- one compact, office-first cutaway room with a smaller playful diagnostics corner;
+- chunky desks, chairs, cabinets, plants, computers, consoles, and technical props;
+- a bright but accessible palette with strong station colors and readable silhouettes;
+- one small chibi employee character with idle, walk, and run animation;
+- a large observability wall, developer desk, and release console that remain legible from the elevated view;
+- an open ceiling, omitted front walls, low partitions, and wide paths that keep the player visible.
+
+Colorful cooperative cooking games and chibi exploration RPGs are visual references only. The prototype must not use extracted assets, copied characters, franchise names in product branding, recognizable maps, proprietary UI, audio, logos, or other protected material from Overcooked, Pokémon, or any other commercial game.
 
 This was selected over:
 
-- Phaser 2D, which is safer for the schedule but does not provide the requested third-person RPG presentation;
+- Phaser 2D, which is safer for the schedule but does not provide the requested 3D diorama RPG presentation;
 - a conventional web-only workspace, which remains the canonical product but does not test the engagement experiment;
-- an orbiting or over-the-shoulder action camera, which adds unnecessary input, clipping, and accessibility risk;
+- a behind-player, orbiting, or over-the-shoulder camera, which adds unnecessary input, clipping, and accessibility risk;
+- a realistic office assembled from unrelated asset packs, which would reduce visual coherence and increase import work;
 - a multi-room office, which adds level-design work without improving the evidence chain.
 
 ## MVP scope
@@ -62,7 +71,7 @@ This was selected over:
 - One Windows desktop Godot project.
 - One hybrid incident room.
 - One controllable employee character.
-- Fixed third-person follow camera.
+- Fixed elevated three-quarter orthographic camera.
 - Mission briefing and initial-hypothesis capture.
 - Observability wall with metrics, logs, and traces.
 - Developer desk with source code and a scripted AI interaction.
@@ -197,13 +206,15 @@ The console permits incomplete or incorrect submissions so the deterministic rul
 
 ## Controls and camera
 
-- `W`, `A`, `S`, `D`: move relative to the fixed camera heading.
+- `W`, `A`, `S`, `D`: move along the camera-aligned screen axes.
 - `E`: interact with the nearest active station.
 - `1`, `2`, `3`: open each station directly.
 - `H`: open or revise the current hypothesis.
 - `Esc`: close the current panel or pause.
 
-The camera uses `Node3D -> SpringArm3D -> Camera3D` with a fixed yaw, pitch, and distance. It follows the player's position but has no mouse-look or orbit control. The SpringArm provides a simple obstruction fallback; the open-ceiling room and low furniture are the primary clipping prevention.
+The room uses one orthographic `Camera3D` at a fixed elevated position and three-quarter rotation. It frames the complete playable room and does not follow the player, orbit, zoom, or accept mouse-look. Its orthographic size remains constant across normal window sizes; the viewport adds letterboxing when needed rather than revealing unintended space.
+
+The environment uses a cutaway shell with no front walls, low furniture, and no tall objects in the room center. Interactive stations use floor rings, emissive accents, and floating prompts so they remain recognizable from the fixed view.
 
 The character rotates toward movement. Jumping, sprinting, crouching, aiming, and physics interactions are absent.
 
@@ -273,7 +284,7 @@ If disk writing fails, the session continues using the in-memory event list and 
 
 `scripts/presentation/` and `scenes/` contain:
 
-- player movement and camera follow;
+- player movement and fixed-camera presentation;
 - reusable station trigger behavior;
 - interaction prompts;
 - modal evidence panels;
@@ -333,24 +344,29 @@ Only zero-cost resources with a clear license and a direct original source may e
 | Resource | Use | License | Source |
 |---|---|---|---|
 | Godot 4.7.1 Standard | Engine and matching Windows export templates | MIT | [Official release](https://godotengine.org/article/maintenance-release-godot-4-7-1/) |
-| Kenney Furniture Kit | Low-poly desks, chairs, cabinets, sofas, and plants | CC0 | [Original pack](https://kenney.nl/assets/furniture-kit) |
+| KayKit Furniture Bits, free tier | 50+ colorful low-poly office and interior props in glTF, FBX, and OBJ formats | CC0 | [Original pack](https://kaylousberg.itch.io/furniture-bits) |
+| KayKit Space Base Bits, free tier | 48+ matching technical props used to dress the diagnostics-lab area | CC0 | [Original pack](https://kaylousberg.itch.io/space-base-bits) |
+| Chibi Characters v1.0 | Godot-ready student-character trial with idle, walk, and run animations | CC0 | [Godot Asset Store](https://store.godotengine.org/asset/styloo/chibi/) |
 | Kenney Input Prompts | Keyboard interaction icons | CC0 | [Original pack and guide](https://kenney.nl/knowledge-base/game-assets-2d/using-input-prompts) |
 | Kenney Interface Sounds | Button, panel, and confirmation sounds | CC0 | [Original pack](https://kenney.nl/assets/interface-sounds) |
 
-Monitors, the observability wall, server rack, release console, room shell, floor markers, and simple warning lights are constructed from Godot primitives and first-party materials. This avoids mixing incompatible visual packs for the most important scenario objects.
+The two KayKit packs are the primary environment source because they share a creator, gradient-atlas construction, scale family, and colorful low-poly language. Only the free tiers are in scope. Import the smallest useful selection rather than the complete packs.
+
+The observability wall, screen content, server-rack details, release-console controls, room shell, floor markers, and warning lights are constructed from Godot primitives and first-party materials. This keeps the scenario-specific objects original and readable while avoiding a third environment style.
+
+### Optional office gap-fill
+
+If the free KayKit tier lacks a necessary computer, monitor, keyboard, printer, or related workstation prop, use at most five models from the CC0 [Office Low Poly Pack](https://mreliptik.itch.io/office-low-poly-pack). Match their scale and material colors to the room. Do not use this secondary pack for general furniture or room construction, and skip it entirely when KayKit already covers the need.
 
 ### Character resource trial
 
-The preferred character trial is Quaternius's Universal Base Characters with the compatible Universal Animation Library. Both are CC0 and provide glTF/GLB or FBX assets tested with Godot.
+The preferred player trial uses the `student` model from the CC0 Chibi Characters pack. Only idle, walk, and run animations are needed. The character receives a simple first-party color adjustment or removable accessory only if the supplied files permit it without source-art repair.
 
-- [Universal Base Characters](https://quaternius.com/packs/universalbasecharacters.html)
-- [Universal Animation Library 2](https://quaternius.com/packs/universalanimationlibrary2.html)
-
-The trial receives at most 45 minutes. If import, retargeting, materials, or animation blending does not work cleanly, the MVP uses a simple first-party low-poly employee assembled from primitive meshes with no skeletal animation. Character polish must not block the investigation flow.
+The trial receives at most 30 minutes. If the add-on structure, scale, materials, collision, or animation playback does not work cleanly in Godot 4.7.1, the MVP uses a first-party chibi employee assembled from capsule and sphere meshes with a procedural walking bob. Character polish must not block the investigation flow.
 
 ### Reference resources only
 
-The official [first 3D game tutorial](https://docs.godotengine.org/en/stable/getting_started/first_3d_game/index.html), [CharacterBody3D documentation](https://docs.godotengine.org/en/stable/classes/class_characterbody3d.html), [Area3D documentation](https://docs.godotengine.org/en/stable/classes/class_area3d.html), [SpringArm3D camera guide](https://docs.godotengine.org/en/stable/tutorials/3d/spring_arm.html), and [3D format guide](https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/available_formats.html) are implementation references.
+The official [first 3D game tutorial](https://docs.godotengine.org/en/stable/getting_started/first_3d_game/index.html), [CharacterBody3D documentation](https://docs.godotengine.org/en/stable/classes/class_characterbody3d.html), [Area3D documentation](https://docs.godotengine.org/en/stable/classes/class_area3d.html), [Camera3D documentation](https://docs.godotengine.org/en/stable/classes/class_camera3d.html), and [3D format guide](https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/available_formats.html) are implementation references.
 
 The official Third Person Shooter demo is not used as a project foundation because it is substantially larger and more complex than this prototype.
 
@@ -364,11 +380,11 @@ If an external model has broken materials, scaling, pivots, or collisions and ca
 
 ### Character or animation failure
 
-Use a primitive employee character. Preserve collision, movement, and camera behavior. Animation is cosmetic.
+Use a primitive chibi employee character. Preserve collision, movement, and camera behavior. Animation is cosmetic.
 
-### Camera obstruction
+### Camera framing failure
 
-Lower or remove the obstructing prop, shorten the SpringArm, or use a fixed elevated camera. Do not add a general-purpose camera-collision system beyond SpringArm behavior.
+Adjust the orthographic size or camera height, or lower or remove the obstructing prop. Do not add camera collision, player-controlled camera motion, dynamic zoom, or per-station camera transitions.
 
 ### Persistence failure
 
@@ -394,7 +410,7 @@ Do not cut the briefing, three evidence surfaces, hypothesis capture and revisio
 1. Download Godot and verified resources; create the Compatibility project and local ignore rules.
 2. Add the headless test runner and write failing domain tests.
 3. Implement scenario state, event schema, event logger, and deterministic rules.
-4. Build the primitive room, player controller, fixed SpringArm camera, and interaction triggers.
+4. Build the primitive room, player controller, fixed orthographic camera, and interaction triggers.
 5. Connect mission briefing and all three station shells.
 6. End the day with a complete greybox walk from title screen to an unpolished final submission.
 
@@ -402,7 +418,7 @@ Do not cut the briefing, three evidence surfaces, hypothesis capture and revisio
 
 1. Add the canonical metrics, logs, trace, code, scripted AI, and submission choices.
 2. Complete hypothesis revision, persistence, scoring evidence, and Proof Replay.
-3. Import the Kenney assets and attempt the time-boxed Quaternius character integration.
+3. Import the selected KayKit props and attempt the time-boxed Chibi Characters integration.
 4. Add prompts, minimal sounds, lighting, station highlights, and visual status changes.
 5. Run automated tests, headless import validation, and the manual playthrough matrix.
 6. Export and smoke-test the Windows build; attempt web export only if all desktop criteria pass.
@@ -431,7 +447,7 @@ godot --headless --path prototypes/godot-incident-room --script res://tests/run_
 
 Manual checks cover:
 
-- movement, rotation, camera follow, and no blocking clipping;
+- movement, rotation, fixed-camera framing, and continuous player visibility;
 - `E` interaction and `1`/`2`/`3` quick access;
 - modal focus, keyboard navigation, and escape behavior;
 - evidence available in any investigation order;
@@ -462,4 +478,4 @@ The Incident Room MVP is complete when:
 
 ## Completion outcome
 
-A stakeholder should be able to launch a small, visually coherent third-person incident room, investigate the documented latency problem, make technically meaningful decisions, and immediately view a transparent Proof Replay. The prototype should demonstrate whether a spatial presentation can add engagement while leaving VibeProof's underlying evidence model and responsible-assessment boundaries intact.
+A stakeholder should be able to launch a small, visually coherent three-quarter-view incident room, guide a chibi employee through the documented latency problem, make technically meaningful decisions, and immediately view a transparent Proof Replay. The prototype should demonstrate whether a playful spatial presentation can add engagement while leaving VibeProof's underlying evidence model and responsible-assessment boundaries intact.
