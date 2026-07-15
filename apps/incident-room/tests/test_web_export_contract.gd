@@ -23,6 +23,15 @@ const DEPLOYMENT_CONTRACTS := {
         "\"builder\": \"DOCKERFILE\"",
         "\"healthcheckPath\": \"/\"",
     ],
+    "res://scripts/development/serve_web.mjs": [
+        "createServer",
+        "application/wasm",
+        "process.env.PORT",
+    ],
+    "res://scripts/development/build_web.ps1": [
+        ".gdignore",
+        "Set-Content",
+    ],
 }
 
 func run(_tree: SceneTree) -> Array[String]:
