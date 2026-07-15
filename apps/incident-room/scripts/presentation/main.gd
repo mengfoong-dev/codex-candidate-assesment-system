@@ -17,6 +17,16 @@ const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summ
 @onready var hypothesis_panel: Control = $UI/HypothesisPanel
 @onready var release_panel: Control = $UI/ReleasePanel
 @onready var summary_panel: Control = $UI/UnscoredSummary
+@onready var browser: BrowserWorkspace = $UI/BrowserWorkspace
+
+const ROOM_TABS := [
+    {"key": "observability_wall", "label": "Observability"},
+    {"key": "developer_desk", "label": "Developer"},
+    {"key": "release_console", "label": "Release"},
+    {"key": "hypothesis", "label": "Hypothesis"},
+]
+const BRIEF_TABS := [{"key": "brief", "label": "Brief"}]
+const REPORT_TABS := [{"key": "report", "label": "Report"}]
 
 var _scenario: Dictionary = {}
 var _logger_factory := Callable()
@@ -31,6 +41,7 @@ var _session_id := ""
 
 func _ready() -> void:
     _connect_signals()
+    _setup_browser()
     if _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
         if not loaded.ok:
@@ -110,7 +121,8 @@ func submit_revision(hypothesis_id: String, confidence: int, fact_ids: Array) ->
         return _reject("Hypothesis revision is only available inside the Incident Room")
     var result: Dictionary = _session.revise_hypothesis(hypothesis_id, confidence, fact_ids)
     if result.ok:
-        _close_modals()
+        # Stay on the Hypothesis tab and reflect the revised state.
+        hypothesis_panel.configure(_scenario, _session.snapshot())
     return _finish_intent(result)
 
 func request_verification(test_id: String, remediation_id: String) -> Dictionary:
@@ -201,6 +213,22 @@ func _connect_signals() -> void:
     for panel: Control in [investigation_panel, hypothesis_panel, release_panel]:
         panel.visibility_changed.connect(_sync_player_input)
 
+func _setup_browser() -> void:
+    # Host the existing assessment panels inside the browser so the desktop reads
+    # like a candidate opening tabs in a web app. Reparenting keeps the cached
+    # references and the coordinator's existing show/hide logic intact.
+    var host := browser.content_root()
+    for panel: Control in [briefing_panel, investigation_panel, hypothesis_panel, release_panel, summary_panel]:
+        panel.reparent(host, false)
+    browser.tab_activated.connect(_on_tab_activated)
+
+func _on_tab_activated(key: String) -> void:
+    match key:
+        "observability_wall", "developer_desk", "release_console":
+            open_station(key)
+        "hypothesis":
+            open_hypothesis_panel()
+
 func _configure_static_ui() -> void:
     if _scenario.is_empty():
         return
@@ -208,18 +236,33 @@ func _configure_static_ui() -> void:
     persistence_warning.text = ""
     message_label.text = ""
     station_hint.text = "E interact • 1/2/3 stations • H revise hypothesis"
+    browser.set_url("🔒  vibeproof.app / incident / %s" % str(_scenario.get("scenario_id", "session")))
 
 func _show_phase(next_phase: String) -> void:
     _phase = next_phase
     title_screen.visible = next_phase == "title"
+    # The 3D office is the sit-down backdrop behind the title; the browser fills
+    # the screen once the candidate is working.
+    room.visible = next_phase == "title"
+    browser.visible = next_phase == "briefing" or next_phase == "room" or next_phase == "summary"
+    hud.visible = false
     briefing_panel.visible = next_phase == "briefing"
-    room.visible = next_phase == "room"
-    hud.visible = next_phase == "room"
     summary_panel.visible = next_phase == "summary"
     if next_phase != "room":
         investigation_panel.hide()
         hypothesis_panel.hide()
         release_panel.hide()
+    match next_phase:
+        "briefing":
+            browser.set_tabs(BRIEF_TABS)
+            browser.set_active_tab("brief")
+        "room":
+            browser.set_tabs(ROOM_TABS)
+            open_station("observability_wall")
+            browser.set_active_tab("observability_wall")
+        "summary":
+            browser.set_tabs(REPORT_TABS)
+            browser.set_active_tab("report")
     _sync_player_input()
 
 func _show_modal(panel: Control) -> void:
