@@ -16,7 +16,11 @@ VibeProof is an AI-allowed engineering assessment that helps hiring teams verify
 
 The product direction and documentation are consolidated around VibeProof. The primary application under active development is the Godot Incident Room using the Homepage Latency Spike scenario. Earlier branding, Miro, and product-debate material is preserved in the archive and is not active guidance.
 
-The playable candidate investigation flow, structured local event log, persistence fallback, and unscored session summary are now implemented on `main` under `apps/incident-room`. The current delivery goal is acceptance and Windows export verification. Scoring and recruiter result processing remain a separate later backend milestone described outside the Godot runtime.
+The playable candidate investigation flow, structured local event log, persistence fallback, and unscored session summary are implemented on `main` under `apps/incident-room`. The Godot 4.7.1 project now has verified Windows and single-threaded Web exports. Scoring and recruiter result processing remain a separate later backend milestone outside the Godot runtime.
+
+**Play the current Godot Web build:** [vibeproof-web-production.up.railway.app](https://vibeproof-web-production.up.railway.app)
+
+The Railway deployment is a static browser build. Candidate evidence remains in that browser's site storage and is not sent to a scoring backend.
 
 The [Godot Incident Room application](apps/incident-room/README.md) contains the independently loadable game, scenario, local evidence contract, and tests.
 
