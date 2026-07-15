@@ -1,18 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/station_trigger.gd" id="1"]
 
 [sub_resource type="BoxShape3D" id="StationShape"]
 size = Vector3(3.2, 2.0, 2.0)
-
-[sub_resource type="BoxMesh" id="StationMesh"]
-size = Vector3(2.8, 1.25, 1.4)
-
-[sub_resource type="StandardMaterial3D" id="StationMaterial"]
-resource_local_to_scene = true
-albedo_color = Color(0.2, 0.75, 0.95, 1)
-metallic = 0.1
-roughness = 0.6
 
 [node name="StationTrigger" type="Area3D"]
 collision_layer = 0
@@ -24,15 +15,9 @@ script = ExtResource("1")
 position = Vector3(0, 1, 0)
 shape = SubResource("StationShape")
 
-[node name="StationMesh" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0.625, 0)
-mesh = SubResource("StationMesh")
-material_override = SubResource("StationMaterial")
-
 [node name="StationLabel" type="Label3D" parent="."]
-position = Vector3(0, 1.65, 0)
+position = Vector3(0, 2.35, 0)
 font_size = 42
 outline_size = 8
 text = "Station"
 billboard = 1
-

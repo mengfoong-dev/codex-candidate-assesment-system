@@ -66,5 +66,18 @@ func run(tree: SceneTree) -> Array[String]:
         var dressing_nodes := dressing.find_children("*", "Node3D", true, false)
         t.assert_true(dressing_nodes.size() >= 18, "dressing composes at least 18 furniture nodes")
 
+    for node_name: String in ["ObservabilityWall", "DeveloperDesk", "ReleaseConsole"]:
+        var station := room.get_node_or_null(node_name)
+        t.assert_true(station is Area3D, "station present: %s" % node_name)
+        if station == null:
+            continue
+        var landmark := station.get_node_or_null("Landmark")
+        t.assert_true(landmark != null, "%s has a Landmark" % node_name)
+        if landmark == null:
+            continue
+        t.assert_true(landmark.has_method("set_active"), "%s landmark exposes set_active" % node_name)
+        for light: Node in landmark.find_children("*", "Light3D", true, false):
+            t.assert_false((light as Light3D).shadow_enabled, "%s landmark light casts no shadow" % node_name)
+
     room.queue_free()
     return t.failures

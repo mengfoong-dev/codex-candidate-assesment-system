@@ -1,0 +1,76 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/station_visual.gd" id="1_visual"]
+[ext_resource type="Material" path="res://resources/materials/warm_wood.tres" id="2_wood"]
+
+[sub_resource type="BoxMesh" id="ConsoleMesh"]
+size = Vector3(1.3, 1, 0.5)
+
+[sub_resource type="BoxMesh" id="ScreenMesh"]
+size = Vector3(1, 0.6, 0.05)
+
+[sub_resource type="BoxMesh" id="CubeMesh"]
+size = Vector3(0.3, 0.3, 0.3)
+
+[sub_resource type="TorusMesh" id="RingMesh"]
+inner_radius = 0.5
+outer_radius = 0.64
+
+[sub_resource type="StandardMaterial3D" id="ScreenGreen"]
+shading_mode = 0
+albedo_color = Color(0.24, 0.82, 0.49, 1)
+emission_enabled = true
+emission = Color(0.24, 0.82, 0.49, 1)
+emission_energy_multiplier = 0.45
+
+[sub_resource type="StandardMaterial3D" id="AccentAmber"]
+shading_mode = 0
+albedo_color = Color(0.98, 0.7, 0.25, 1)
+emission_enabled = true
+emission = Color(0.98, 0.7, 0.25, 1)
+emission_energy_multiplier = 0.45
+
+[node name="ReleaseLandmark" type="Node3D"]
+script = ExtResource("1_visual")
+
+[node name="Console" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0.3)
+mesh = SubResource("ConsoleMesh")
+surface_material_override/0 = ExtResource("2_wood")
+
+[node name="StatusScreen" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 1.35, 0.12)
+mesh = SubResource("ScreenMesh")
+surface_material_override/0 = SubResource("ScreenGreen")
+
+[node name="TowerLow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 0.4, 0.15)
+mesh = SubResource("CubeMesh")
+surface_material_override/0 = SubResource("ScreenGreen")
+
+[node name="TowerMid" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 0.72, 0.15)
+mesh = SubResource("CubeMesh")
+surface_material_override/0 = SubResource("AccentAmber")
+
+[node name="TowerHigh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 1.04, 0.15)
+mesh = SubResource("CubeMesh")
+surface_material_override/0 = SubResource("ScreenGreen")
+
+[node name="AmberAccent" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, -0.85, 0.95, 0.15)
+mesh = SubResource("CubeMesh")
+surface_material_override/0 = SubResource("AccentAmber")
+
+[node name="PromptRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, -0.65)
+mesh = SubResource("RingMesh")
+surface_material_override/0 = SubResource("ScreenGreen")
+
+[node name="AccentLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.1)
+light_color = Color(0.24, 0.82, 0.49, 1)
+light_energy = 0.5
+omni_range = 3.0
+shadow_enabled = false
