@@ -2,7 +2,9 @@
 
 **Date:** 2026-07-15
 
-**Status:** Approved direction; awaiting written-spec review
+**Status:** Implemented and deployed on 2026-07-16
+
+**Production:** [vibeproof-web-production.up.railway.app](https://vibeproof-web-production.up.railway.app) (`vibeproof-web` Railway service)
 
 ## Goal
 
