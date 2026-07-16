@@ -15,7 +15,15 @@ param(
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $logDirectory = Join-Path $repoRoot 'docs\hackathon\codex-usage'
 $sessionFile = Join-Path $logDirectory 'active-session.json'
-$csvFile = Join-Path $logDirectory 'sessions.csv'
+
+# Each teammate logs to their own CSV keyed by their git account, so concurrent
+# sessions never collide in one shared file. Falls back to the OS user, then 'shared'.
+$gitUser = ''
+try { $gitUser = (& git -C $repoRoot config user.name 2>$null) } catch { $gitUser = '' }
+if ([string]::IsNullOrWhiteSpace($gitUser)) { $gitUser = $env:USERNAME }
+$accountSlug = ($gitUser.ToLower() -replace '[^a-z0-9]+', '-').Trim('-')
+if ([string]::IsNullOrWhiteSpace($accountSlug)) { $accountSlug = 'shared' }
+$csvFile = Join-Path $logDirectory ("sessions-" + $accountSlug + ".csv")
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 

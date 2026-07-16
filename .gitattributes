@@ -1,0 +1,3 @@
+# Session logs are append-only. Auto-union on merge so concurrent teammates' rows
+# never produce conflict markers (belt-and-suspenders alongside per-account files).
+docs/hackathon/codex-usage/sessions*.csv merge=union
