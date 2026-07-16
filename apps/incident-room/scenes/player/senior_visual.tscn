@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/player_visual.gd" id="1_visual"]
+[ext_resource type="PackedScene" uid="uid://tm2knt3rdu1j" path="res://assets/third_party/kenney-mini-characters/character-male-b.glb" id="2_character"]
+
+[sub_resource type="CylinderMesh" id="BlobMesh"]
+top_radius = 0.4
+bottom_radius = 0.4
+height = 0.02
+radial_segments = 24
+rings = 0
+
+[sub_resource type="StandardMaterial3D" id="BlobMaterial"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.02, 0.03, 0.06, 0.35)
+
+[node name="SeniorVisual" type="Node3D"]
+script = ExtResource("1_visual")
+start_animation = "sit"
+
+[node name="Character" parent="." instance=ExtResource("2_character")]
+transform = Transform3D(2.19, 0, 0, 0, 2.19, 0, 0, 0, 2.19, 0, 0, 0)
+
+[node name="BlobShadow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+cast_shadow = 0
+mesh = SubResource("BlobMesh")
+material_override = SubResource("BlobMaterial")
