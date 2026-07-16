@@ -1,0 +1,4 @@
+interface:
+  display_name: "Commit and Push"
+  short_description: "Safely commit selected changes and push upstream"
+  default_prompt: "Use $commits-push to review pending changes, commit the intended files, and push to the correct upstream branch."
