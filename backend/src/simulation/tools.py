@@ -31,7 +31,7 @@ TOOL_SCHEMAS: list[dict] = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "File path, e.g. src/homepage_orchestrator.ts"}
+                "path": {"type": "string", "description": "The exact path of a workspace file as listed in the workspace file manifest in the system prompt."}
             },
             "required": ["path"],
             "additionalProperties": False,

@@ -7,7 +7,11 @@ async def test_create_session_seeds_files_and_returns_candidate_safe_scenario(cl
     body = resp.json()
 
     assert body["session_id"]
-    assert body["files"] == [{"path": "src/homepage_orchestrator.ts", "source": "seeded"}]
+    # Membership, not exact-list equality: the seed is now a multi-file app, so pin only that the
+    # canonical orchestrator is present and every seeded file is tagged source=seeded. The exact
+    # file set is frozen by the snapshot in test_seed_guard.py.
+    assert {"path": "src/homepage_orchestrator.ts", "source": "seeded"} in body["files"]
+    assert all(f["source"] == "seeded" for f in body["files"])
     assert body["scenario"]["scenario_id"] == "homepage_latency"
 
 
@@ -33,7 +37,7 @@ async def test_get_session_snapshot_of_fresh_session(new_session, client):
     assert body["current_hypothesis"] is None
     assert body["viewed_artifact_ids"] == []
     assert body["chat_history"] == []
-    assert body["files"][0]["path"] == "src/homepage_orchestrator.ts"
+    assert any(f["path"] == "src/homepage_orchestrator.ts" for f in body["files"])
 
 
 async def test_get_session_unknown_id_404(client):

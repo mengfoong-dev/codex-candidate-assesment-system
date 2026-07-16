@@ -13,6 +13,11 @@ _UNAVAILABLE_MESSAGE = (
     "validation plan."
 )
 
+# Write->validate loop: the file whose rewritten content the two required tests grade against, and
+# the tests that support content-aware validation. Scoped to the homepage_latency scenario.
+_ORCHESTRATOR_PATH = "src/homepage_orchestrator.ts"
+_CONTENT_VALIDATED_TESTS = {"correctness_regression", "p95_latency"}
+
 
 async def list_files(db, session_id: str) -> list[dict]:
     result = await db.execute(select(SessionFile).where(SessionFile.session_id == session_id))
@@ -45,6 +50,18 @@ async def run_scripted_test(
         status, actual_result = "unavailable", _UNAVAILABLE_MESSAGE
     else:
         status, actual_result = result["status"], result["actual_result"]
+
+    # Write->validate loop (D006-safe, static): if the candidate/AI actually rewrote the orchestrator,
+    # grade the two required validation tests against the FILE CONTENT instead of the remediation-id
+    # table, so a genuine written fix is what earns the pass. Nothing executes — see rewrite_check.
+    if scenario.scenario_id == "homepage_latency" and test_id in _CONTENT_VALIDATED_TESTS:
+        orchestrator = await db.get(SessionFile, (session_id, _ORCHESTRATOR_PATH))
+        if orchestrator is not None and orchestrator.source in ("ai", "user"):
+            from src.evaluation.rewrite_check import evaluate_orchestrator_rewrite
+
+            verdict = evaluate_orchestrator_rewrite(orchestrator.content)
+            status = "passed" if verdict["passed"] else "failed"
+            actual_result = f"Validated against your edited {_ORCHESTRATOR_PATH}: {verdict['reason']}"
 
     await append_event(
         db,
