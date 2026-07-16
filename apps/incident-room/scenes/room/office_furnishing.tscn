@@ -1,140 +1,115 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=16 format=3]
 
-[ext_resource type="PackedScene" uid="uid://bvo4lptnqfnyu" path="res://assets/third_party/kaykit-furniture-bits/table_medium_long.gltf" id="1_desk"]
-[ext_resource type="PackedScene" uid="uid://b0rd0g2itixlf" path="res://assets/third_party/kaykit-furniture-bits/chair_C.gltf" id="2_chair"]
-[ext_resource type="PackedScene" uid="uid://dftbal53enpyk" path="res://assets/third_party/kaykit-furniture-bits/shelf_B_large_decorated.gltf" id="3_shelf"]
-[ext_resource type="PackedScene" uid="uid://dvvboq02sbsrc" path="res://assets/third_party/kaykit-furniture-bits/cabinet_medium_decorated.gltf" id="4_cabinet"]
-[ext_resource type="PackedScene" uid="uid://6o2lbfhxdml3" path="res://assets/third_party/kaykit-furniture-bits/couch_pillows.gltf" id="5_couch"]
-[ext_resource type="PackedScene" uid="uid://b7r0vmbgt1njd" path="res://assets/third_party/kaykit-furniture-bits/cactus_medium_A.gltf" id="6_plant"]
-[ext_resource type="PackedScene" uid="uid://cwsxjfoyf4x4l" path="res://assets/third_party/kaykit-furniture-bits/lamp_standing.gltf" id="7_lamp"]
-[ext_resource type="PackedScene" uid="uid://xi51dex3u827" path="res://assets/third_party/kaykit-furniture-bits/rug_rectangle_stripes_A.gltf" id="8_rug"]
-[ext_resource type="PackedScene" uid="uid://btik1erslnfu1" path="res://assets/third_party/kaykit-furniture-bits/table_small.gltf" id="9_tablesmall"]
-[ext_resource type="PackedScene" uid="uid://bikdehp58x47n" path="res://assets/third_party/kaykit-furniture-bits/book_set.gltf" id="10_books"]
-
-[sub_resource type="BoxMesh" id="MonBody"]
-size = Vector3(0.52, 0.34, 0.05)
-
-[sub_resource type="BoxMesh" id="MonScreen"]
-size = Vector3(0.46, 0.28, 0.012)
-
-[sub_resource type="BoxMesh" id="MonStand"]
-size = Vector3(0.05, 0.16, 0.05)
-
-[sub_resource type="BoxMesh" id="MonBase"]
-size = Vector3(0.22, 0.02, 0.14)
-
-[sub_resource type="StandardMaterial3D" id="MatDark"]
-albedo_color = Color(0.11, 0.11, 0.14, 1)
-roughness = 0.6
-
-[sub_resource type="StandardMaterial3D" id="MatViolet"]
-shading_mode = 0
-albedo_color = Color(0.66, 0.42, 0.94, 1)
-emission_enabled = true
-emission = Color(0.66, 0.42, 0.94, 1)
-emission_energy_multiplier = 0.7
-
-[sub_resource type="StandardMaterial3D" id="MatGreen"]
-shading_mode = 0
-albedo_color = Color(0.24, 0.82, 0.49, 1)
-emission_enabled = true
-emission = Color(0.24, 0.82, 0.49, 1)
-emission_energy_multiplier = 0.7
-
-[sub_resource type="StandardMaterial3D" id="MatAmber"]
-shading_mode = 0
-albedo_color = Color(0.98, 0.7, 0.25, 1)
-emission_enabled = true
-emission = Color(0.98, 0.7, 0.25, 1)
-emission_energy_multiplier = 0.7
+[ext_resource type="Mesh" uid="uid://ct0wwua8701fu" path="res://assets/third_party/vnb-office-set/Office_Desk_1.obj" id="1_desk"]
+[ext_resource type="Mesh" uid="uid://cegvvfbyb7qsr" path="res://assets/third_party/vnb-office-set/Computer_Monitor.obj" id="2_mon"]
+[ext_resource type="Mesh" uid="uid://duc4pwb5u6sv0" path="res://assets/third_party/vnb-office-set/Computer_Keyboard.obj" id="3_key"]
+[ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="4_chair"]
+[ext_resource type="Mesh" uid="uid://hhqqgqk3rtpo" path="res://assets/third_party/vnb-office-set/Bookshelf.obj" id="5_shelf"]
+[ext_resource type="Mesh" uid="uid://cwhgclgyoiigd" path="res://assets/third_party/vnb-office-set/FileCabinet_Standard.obj" id="6_cab"]
+[ext_resource type="Mesh" uid="uid://bwg61eh3mv3p7" path="res://assets/third_party/vnb-office-set/WallShelf_Rect.obj" id="7_wshelf"]
+[ext_resource type="Mesh" uid="uid://dym43oyp1kwoe" path="res://assets/third_party/vnb-office-set/CoffeeTable.obj" id="8_coffee"]
+[ext_resource type="Mesh" uid="uid://cdggsnh2bukgy" path="res://assets/third_party/vnb-office-set/Stool_A.obj" id="9_stool"]
+[ext_resource type="Mesh" uid="uid://dkh7nu2l36rq0" path="res://assets/third_party/vnb-office-set/Rug_A.obj" id="10_rug"]
+[ext_resource type="Mesh" uid="uid://c5hb2b8thixgk" path="res://assets/third_party/vnb-office-set/Nature_Deco.obj" id="11_plant"]
+[ext_resource type="Mesh" uid="uid://c21f1wmmeet1m" path="res://assets/third_party/vnb-office-set/Nature_Deco_Bamboo1.obj" id="12_bamboo"]
+[ext_resource type="Mesh" uid="uid://g6aqjypg4alt" path="res://assets/third_party/vnb-office-set/TrashBin.obj" id="13_trash"]
+[ext_resource type="Mesh" uid="uid://c8067alib4hi5" path="res://assets/third_party/vnb-office-set/Clock.obj" id="14_clock"]
+[ext_resource type="Mesh" uid="uid://bnfu8fkrcat0" path="res://assets/third_party/vnb-office-set/Painting.obj" id="15_paint"]
 
 [node name="OfficeFurnishing" type="Node3D"]
 
 [node name="WorkstationLeft" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0, -3.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0, -3.9)
 
-[node name="Desk" parent="WorkstationLeft" instance=ExtResource("1_desk")]
+[node name="Desk" type="MeshInstance3D" parent="WorkstationLeft"]
+mesh = ExtResource("1_desk")
 
-[node name="Chair" parent="WorkstationLeft" instance=ExtResource("2_chair")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.3)
+[node name="Monitor" type="MeshInstance3D" parent="WorkstationLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -0.18)
+mesh = ExtResource("2_mon")
 
-[node name="MonBase" type="MeshInstance3D" parent="WorkstationLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.02, 0.3)
-mesh = SubResource("MonBase")
-surface_material_override/0 = SubResource("MatDark")
+[node name="Keyboard" type="MeshInstance3D" parent="WorkstationLeft"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0.12)
+mesh = ExtResource("3_key")
 
-[node name="MonStand" type="MeshInstance3D" parent="WorkstationLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.12, 0.3)
-mesh = SubResource("MonStand")
-surface_material_override/0 = SubResource("MatDark")
-
-[node name="MonBody" type="MeshInstance3D" parent="WorkstationLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.34, 0.3)
-mesh = SubResource("MonBody")
-surface_material_override/0 = SubResource("MatDark")
-
-[node name="MonScreen" type="MeshInstance3D" parent="WorkstationLeft"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.34, 0.33)
-mesh = SubResource("MonScreen")
-surface_material_override/0 = SubResource("MatViolet")
-
-[node name="Books" parent="WorkstationLeft" instance=ExtResource("10_books")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 1.28, 0.1)
+[node name="Chair" type="MeshInstance3D" parent="WorkstationLeft"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0.7)
+mesh = ExtResource("4_chair")
 
 [node name="WorkstationRight" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.2, 0, -3.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, -3.9)
 
-[node name="Desk" parent="WorkstationRight" instance=ExtResource("1_desk")]
+[node name="Desk" type="MeshInstance3D" parent="WorkstationRight"]
+mesh = ExtResource("1_desk")
 
-[node name="Chair" parent="WorkstationRight" instance=ExtResource("2_chair")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.3)
+[node name="Monitor" type="MeshInstance3D" parent="WorkstationRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -0.18)
+mesh = ExtResource("2_mon")
 
-[node name="MonBase" type="MeshInstance3D" parent="WorkstationRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.02, 0.3)
-mesh = SubResource("MonBase")
-surface_material_override/0 = SubResource("MatDark")
+[node name="Keyboard" type="MeshInstance3D" parent="WorkstationRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0.12)
+mesh = ExtResource("3_key")
 
-[node name="MonStand" type="MeshInstance3D" parent="WorkstationRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.12, 0.3)
-mesh = SubResource("MonStand")
-surface_material_override/0 = SubResource("MatDark")
+[node name="Chair" type="MeshInstance3D" parent="WorkstationRight"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0.7)
+mesh = ExtResource("4_chair")
 
-[node name="MonBody" type="MeshInstance3D" parent="WorkstationRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.34, 0.3)
-mesh = SubResource("MonBody")
-surface_material_override/0 = SubResource("MatDark")
+[node name="Bookshelf" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -7.4, 0, -1.5)
+mesh = ExtResource("5_shelf")
 
-[node name="MonScreen" type="MeshInstance3D" parent="WorkstationRight"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.34, 0.33)
-mesh = SubResource("MonScreen")
-surface_material_override/0 = SubResource("MatGreen")
+[node name="FileCabinet" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -7.6, 0, 0.6)
+mesh = ExtResource("6_cab")
 
-[node name="ShelfLeft" parent="." instance=ExtResource("3_shelf")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -7.5, 0.1, -0.8)
+[node name="WallShelf" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 1.6, -4.78)
+mesh = ExtResource("7_wshelf")
 
-[node name="Cabinet" parent="." instance=ExtResource("4_cabinet")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -7.3, 0, 1.6)
+[node name="LoungeRug" type="MeshInstance3D" parent="."]
+transform = Transform3D(3, 0, 0, 0, 1, 0, 0, 0, 3, 5.8, 0.02, 2.6)
+mesh = ExtResource("10_rug")
 
-[node name="LoungeRug" parent="." instance=ExtResource("8_rug")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6, 0.02, 2.6)
+[node name="CoffeeTable" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0, 2.6)
+mesh = ExtResource("8_coffee")
 
-[node name="Couch" parent="." instance=ExtResource("5_couch")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.7, 0, 2.6)
+[node name="StoolA" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 0, 2.4)
+mesh = ExtResource("9_stool")
 
-[node name="CoffeeTable" parent="." instance=ExtResource("9_tablesmall")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 0, 2.6)
+[node name="StoolB" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.7, 0, 2.9)
+mesh = ExtResource("9_stool")
 
-[node name="LoungeLamp" parent="." instance=ExtResource("7_lamp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.3, 0, 0.7)
+[node name="PlantLounge" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.3, 0, 0.6)
+mesh = ExtResource("11_plant")
 
-[node name="PlantLounge" parent="." instance=ExtResource("6_plant")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.9, 0, 4.1)
+[node name="BambooLounge" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2, 0, 4.0)
+mesh = ExtResource("12_bamboo")
 
-[node name="PlantLeft" parent="." instance=ExtResource("6_plant")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.2, 0, 3.9)
+[node name="PlantLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.3, 0, 2.2)
+mesh = ExtResource("11_plant")
 
-[node name="PlantRearLeft" parent="." instance=ExtResource("6_plant")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -4.3)
+[node name="BambooRearLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.4, 0, -3.6)
+mesh = ExtResource("12_bamboo")
 
-[node name="PlantRearRight" parent="." instance=ExtResource("6_plant")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, -4.3)
+[node name="TrashBin" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.4, 0, -3.2)
+mesh = ExtResource("13_trash")
+
+[node name="Clock" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, -4.82)
+mesh = ExtResource("14_clock")
+
+[node name="PaintingLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 1.85, -4.82)
+mesh = ExtResource("15_paint")
+
+[node name="PaintingRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 1.85, -4.82)
+mesh = ExtResource("15_paint")
