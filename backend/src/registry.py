@@ -12,7 +12,7 @@ Layer-2 rubric — lives here as code, layered on top.
 import hashlib
 import json
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from src.config import get_settings
 from src.models import Scenario as ScenarioRow
@@ -28,24 +28,25 @@ RELEVANT_ARTIFACT_IDS: dict[str, list[str]] = {
     _KEY: ["metrics_overview", "homepage_trace", "homepage_orchestrator"],
 }
 
-# Virtual Workspace seed (decision B4): the faulty source the candidate/AI investigates. Content
-# mirrors the homepage_orchestrator artifact (sequential awaits of independent lookups).
-SEEDED_FILES: dict[str, list[dict]] = {
-    _KEY: [
-        {
-            "path": "src/homepage_orchestrator.ts",
-            "content": (
-                "export async function renderHomepageForUser(userId: string) {\n"
-                "  await requireAuthenticatedUser(userId);\n"
-                "  const profile = await getProfile(userId);\n"
-                "  const recommendations = await getRecommendations(userId);\n"
-                "  const notices = await getNotices(userId);\n"
-                "  return renderHomepage({ profile, recommendations, notices });\n"
-                "}\n"
-            ),
-        }
-    ],
-}
+# Virtual Workspace seed (decision B4): the faulty app the candidate/AI investigates. Stored on
+# disk under workspace_data_dir/<scenario_id>/ with a _manifest.json declaring each file's POSIX
+# path + a neutral role label. We LOAD the manifest-declared paths (never os.walk), so DB keys stay
+# forward-slash on any OS — a raw walk on Windows would seed backslash keys and re-break read_file's
+# exact-match (session_id, path) lookup. The manifest's role labels feed the system-prompt file
+# manifest (the model's only discovery channel, since Cohere is not given list_files).
+@lru_cache
+def _load_workspace(scenario_id: str) -> tuple[dict, ...]:
+    base = settings.workspace_data_dir / scenario_id
+    manifest_path = base / "_manifest.json"
+    if not manifest_path.exists():
+        return ()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    files: list[dict] = []
+    for entry in manifest["files"]:
+        rel = PurePosixPath(entry["path"]).as_posix()
+        content = (base / rel).read_text(encoding="utf-8")
+        files.append({"path": rel, "content": content, "role": entry["role"]})
+    return tuple(files)
 
 DURATION_MINUTES: dict[str, int] = {_KEY: 30}
 
@@ -141,7 +142,8 @@ class Scenario:
 
     @property
     def seeded_files(self) -> list[dict]:
-        return SEEDED_FILES.get(self.key, [])
+        # Fresh dict copies so callers never mutate the lru_cache'd tuple. Each item: path, content, role.
+        return [dict(f) for f in _load_workspace(self.scenario_id)]
 
     def results_by_remediation(self, test_id: str, remediation_id: str) -> dict | None:
         for t in self.definition["tests"]:

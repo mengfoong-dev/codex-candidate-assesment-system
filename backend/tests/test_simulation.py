@@ -410,8 +410,12 @@ def test_system_prompt_excludes_hidden_scenario_keys():
     assert "configured_points" not in prompt
     assert "scoring" not in prompt
     assert "root_cause" not in prompt
-    assert "asks you to read or edit a known workspace file" in prompt
+    assert "asks you to read or edit a workspace file" in prompt
     assert "cannot access source-control history" in prompt
+    # The injected file manifest (the model's only discovery channel) lists the seeded app by path.
+    assert "Workspace files — read with read_file" in prompt
+    assert "src/homepage_orchestrator.ts" in prompt
+    assert "src/services/getProfile.ts" in prompt
 
 
 # --- model/health check --------------------------------------------------------------------

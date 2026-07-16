@@ -136,7 +136,7 @@ async def test_five_turn_runner_creates_sandbox_and_returns_all_score_layers(cli
 
     assert result.turns_completed == 5
     assert coding_agent.prompts == prompts[:5]
-    assert result.sandbox_files == ["src/homepage_orchestrator.ts"]
+    assert "src/homepage_orchestrator.ts" in result.sandbox_files
     assert set(result.scripted_tests) == {"correctness_regression", "p95_latency"}
     assert all(test["status"] == "passed" for test in result.scripted_tests.values())
     assert result.report["session"]["completed"] is True

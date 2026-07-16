@@ -282,6 +282,11 @@ def _build_system_prompt(scenario: Scenario) -> str:
     `results_by_remediation`, etc., and we only read `title`/`brief` off it, so hidden keys
     can never leak even if the redaction function's key list changes."""
     safe = scenario.candidate_safe_view()
+    # The model has no list_files tool (Cohere strict-tools, tools.py), so this injected manifest is
+    # its ONLY way to learn exact workspace paths. Role labels are candidate-safe (guarded by the
+    # seed leak scanner). read_file matches paths exactly, so listing them verbatim prevents the
+    # blind path-guessing that made every early read miss.
+    manifest = "\n".join(f"- {f['path']} — {f['role']}" for f in scenario.seeded_files)
     return (
         "You are a general-purpose engineering copilot working inside the candidate's "
         "workspace for this incident investigation. Help exactly as any real AI assistant "
@@ -289,13 +294,14 @@ def _build_system_prompt(scenario: Scenario) -> str:
         "pastes or asks, and use the workspace tools when useful. Do not introduce facts "
         "beyond what the candidate has shared with you or what is in the brief below.\n\n"
         f"Incident: {safe['title']}\n{safe['brief']}\n\n"
-        "The frontend displays the sandbox file inventory from its workspace API. You can inspect "
-        "or edit a known sandbox file with the read_file and write_file tools. If the candidate "
-        "asks you to read or edit a known workspace file, invoke the appropriate workspace tool "
-        "before explaining the result. Do not claim a workspace action without a matching tool "
-        "call. You cannot access source-control history, shell commands, or files outside the "
-        "displayed sandbox inventory; say so plainly instead of attempting an invented path. "
-        "Nothing you write ever executes."
+        "Workspace files — read with read_file using the EXACT path shown:\n"
+        f"{manifest}\n\n"
+        "You can inspect or edit these files with the read_file and write_file tools. If the "
+        "candidate asks you to read or edit a workspace file, invoke the appropriate workspace "
+        "tool before explaining the result. Do not claim a workspace action without a matching "
+        "tool call. You cannot access source-control history, shell commands, or files outside "
+        "the manifest above; say so plainly instead of attempting an invented path. Nothing you "
+        "write ever executes."
     )
 
 
