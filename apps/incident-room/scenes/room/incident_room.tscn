@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
@@ -6,7 +6,6 @@
 [ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
 [ext_resource type="Script" path="res://scripts/presentation/mesh_collider.gd" id="21_collider"]
 [ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
-[ext_resource type="PackedScene" path="res://scenes/room/workstation.tscn" id="25_workstation"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -84,11 +83,8 @@ station_id = "senior"
 station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
-[node name="Workstation" parent="." instance=ExtResource("25_workstation")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 1.4)
-
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 2.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, -0.2)
 
 [node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
 station_id = "my_desk"
@@ -96,6 +92,6 @@ station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
-position = Vector3(-0.8, 0.05, 2.2)
+position = Vector3(1.0, 0.05, 1.7)
 camera_path = NodePath("../Camera3D")
 movement_speed = 2.8
