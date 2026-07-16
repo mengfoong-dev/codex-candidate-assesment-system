@@ -56,7 +56,7 @@ func run(tree: SceneTree) -> Array[String]:
     t.assert_false(controller_source.contains("EventLogger"), "movement does not call event logger")
 
     # Office Room 15 environment plus the player's desk-interaction and the senior NPC.
-    t.assert_true(room.get_node_or_null("Office") is Node3D, "room has the office environment")
+    t.assert_true(room.get_node_or_null("OfficeRoom15") is Node3D, "room has the office environment")
     t.assert_true(room.get_node_or_null("MyDesk") is Node3D, "room has the player's desk interaction")
     t.assert_true(room.get_node_or_null("Senior") is Node3D, "room has the senior NPC")
 
