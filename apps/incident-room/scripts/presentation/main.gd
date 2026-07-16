@@ -28,9 +28,12 @@ var _session_id := ""
 
 # Where the player sits at the desk (facing the monitor, legs under the desk) and the
 # seated first-person camera framing the desktop. The built-in desk sits at ~(1.75, -0.5).
-const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(1.75, 0.45, 0.5))
-const DESK_CAM_POS := Vector3(1.75, 2.5, 3.4)
-const DESK_CAM_LOOK := Vector3(1.75, 0.95, -0.4)
+# Player sits behind the workstation (at +Z) facing -Z toward the monitor and the open
+# room beyond. Over-the-shoulder desk framing (from outside the cutaway looking in) —
+# a true in-room first-person view sees the diorama's open void, so we frame from behind.
+const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(0.3, 0.45, 2.0))
+const DESK_CAM_POS := Vector3(0.3, 2.3, 4.3)
+const DESK_CAM_LOOK := Vector3(0.3, 0.9, 1.1)
 
 var _desk_hud: Control
 
