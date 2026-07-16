@@ -14,6 +14,7 @@ signal revision_submitted(hypothesis_id: String, confidence: int, fact_ids: Arra
 signal final_submission_requested(submission: Dictionary)
 signal restart_requested
 signal leave_requested
+signal notepad_requested
 
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
@@ -103,12 +104,19 @@ func _ready() -> void:
     _assistant_http = HTTPRequest.new()
     add_child(_assistant_http)
     _assistant_http.request_completed.connect(_on_assistant_response)
+    var chrome_row := $Frame/Chrome/ChromeRow as HBoxContainer
+    var notepad := Button.new()
+    notepad.text = "📝 Notepad"
+    notepad.focus_mode = Control.FOCUS_ALL
+    notepad.add_theme_font_size_override("font_size", 13)
+    notepad.pressed.connect(func() -> void: notepad_requested.emit())
+    chrome_row.add_child(notepad)
     var leave := Button.new()
     leave.text = "⟵ Leave desk"
     leave.focus_mode = Control.FOCUS_ALL
     leave.add_theme_font_size_override("font_size", 13)
     leave.pressed.connect(func() -> void: leave_requested.emit())
-    ($Frame/Chrome/ChromeRow as HBoxContainer).add_child(leave)
+    chrome_row.add_child(leave)
     if demo_mode and _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
         if loaded.ok:
