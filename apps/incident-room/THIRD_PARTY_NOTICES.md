@@ -25,3 +25,13 @@ The animated employee uses `character-female-a.glb` from Kenney Mini Characters 
 - Selected files only: `character-female-a.glb` under `assets/third_party/kenney-mini-characters/`; the full download is verified against a pinned SHA-256 but not vendored.
 - Local license copy: `assets/third_party/kenney-mini-characters/LICENSE.txt`.
 - Regenerate with `scripts/development/acquire_art_assets.ps1`.
+
+## Low Poly 3D Office Set [VNB]
+
+The office furniture (desks, computer, chairs, shelves, cabinet, lounge, plants, wall
+deco) uses models from "Low Poly 3D Office Set [VNB]" by VNB, licensed **CC-BY 4.0**.
+
+- Canonical source: <https://vnbp.itch.io/low-poly-3d-office-set-vnb> (VNB Low Poly Office Set V1.1.0).
+- Attribution: **"Low Poly 3D Office Set [VNB]" by VNB — https://vnbp.itch.io/low-poly-3d-office-set-vnb — CC-BY 4.0.**
+- Selected files only: a subset of the separated OBJ models plus their palette/screen textures under `assets/third_party/vnb-office-set/`; the full pack and the source `.zip` are not vendored.
+- Used as in-game props only; the models are not re-sold as an asset pack, per the pack's terms.
