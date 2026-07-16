@@ -26,16 +26,14 @@ var _current_summary: Dictionary = {}
 var _session_serial := 0
 var _session_id := ""
 
-# Where the player sits at the desk (facing the monitor, legs under the desk) and the
-# seated first-person camera framing the desktop. The built-in desk sits at ~(1.75, -0.5).
-# Player sits behind the workstation (at +Z) facing -Z toward the monitor and the open
-# room beyond. Over-the-shoulder desk framing (from outside the cutaway looking in) —
-# a true in-room first-person view sees the diorama's open void, so we frame from behind.
-const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(0.3, 0.45, 2.0))
-# Over-the-shoulder desk framing. (True first-person is not viable in this cutaway
-# diorama — an eye-level view either fills with the monitor or shows the open void.)
-const DESK_CAM_POS := Vector3(0.3, 2.3, 4.3)
-const DESK_CAM_LOOK := Vector3(0.3, 0.9, 1.1)
+# Where the player sits at the desk (facing the monitor) and the seated camera framing.
+# The desk is the diorama's big built-in white desk (~x=1.6..1.75) against the bookshelf
+# (-Z) wall, monitor facing +Z. The player sits in its chair on the +Z side facing -Z.
+# Over-the-shoulder framing from behind (the open +Z side, looking toward the -Z wall) —
+# the bookshelf wall backs the shot, so it never shows the diorama's open void.
+const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(1.6, 0.45, 0.5))
+const DESK_CAM_POS := Vector3(1.75, 2.6, 4.0)
+const DESK_CAM_LOOK := Vector3(1.6, 0.9, -0.2)
 
 var _desk_hud: Control
 
