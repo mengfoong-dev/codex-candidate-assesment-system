@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
@@ -10,6 +10,7 @@
 [ext_resource type="Mesh" uid="uid://duc4pwb5u6sv0" path="res://assets/third_party/vnb-office-set/Computer_Keyboard.obj" id="14_vkey"]
 [ext_resource type="Mesh" uid="uid://du4oyj80psivy" path="res://assets/third_party/vnb-office-set/Computer_Mouse.obj" id="15_vmouse"]
 [ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="16_vchair"]
+[ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -45,11 +46,11 @@ light_energy = 1.15
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-position = Vector3(0, 11.5, 11.5)
-rotation_degrees = Vector3(-43, 0, 0)
-projection = 1
-size = 17.0
+transform = Transform3D(1, 0, 0, 0, 0.83, 0.56, 0, -0.56, 0.83, -1.5, 5.55, 9.3)
+fov = 55.0
 current = true
+script = ExtResource("17_cam")
+target_path = NodePath("../Player")
 
 [node name="Architecture" type="Node3D" parent="."]
 
