@@ -2,9 +2,8 @@
 
 ## Status
 
-PASS - executed locally on 2026-07-16, Asia/Singapore. All provider keys were
-explicitly blanked for the test processes, so neither run could make a Cohere,
-Groq, or NVIDIA NIM request.
+PASS - executed locally on 2026-07-16, Asia/Singapore. The automated suite uses
+provider-boundary doubles, so it does not expose credentials or depend on provider quota.
 
 ## Simulation endpoint contract
 
@@ -18,7 +17,7 @@ $env:NIM_API_KEY = ''
 python -m pytest tests/test_simulation.py -q
 ```
 
-Observed output: **11 passed, 1 warning in 5.85s**.
+Observed output after the interactive-flow hardening: **59 passed in 18.65s**.
 
 | Coverage group | Observed result |
 | --- | --- |
@@ -27,11 +26,26 @@ Observed output: **11 passed, 1 warning in 5.85s**.
 | Cohere failure paths | Pass: both provider failure and missing key produce `llm_unavailable` without a fabricated AI response. |
 | Session and prompt safeguards | Pass: submitted/unknown session guards and hidden-scenario redaction are preserved. |
 | Command A+ configuration | Pass: `command-a-plus-05-2026` is accepted; legacy and blank identifiers are rejected. |
-| Cohere V2 adapter | Pass: streamed text, split JSON arguments, tool calls, token usage, `strict_tools`, assistant turn, and tool document round trip are reconstructed correctly. |
+| Cohere V2 adapter | Pass: streamed text, split JSON arguments, tool calls, token usage, strict read/write workspace tools, disabled thinking, assistant turn, and tool document round trip are reconstructed correctly. The frontend lists sandbox files through its deterministic files API. |
+| Interactive five-turn flow | Pass: scenario renders before prompt one, prompts and agent SSE replies alternate, a streamed sandbox edit persists, and scoring completes. |
+| Server cutoff and proxy streaming | Pass: a sixth prompt cannot reach the model; SSE exposes no-cache/no-buffering headers. |
+| Cohere failure containment | Pass: raw provider details cannot reach the SSE error or technical-error event. |
 
-The warning is the existing Pydantic notice that `model_label` overlaps the
-protected `model_` namespace. It did not fail a test or change the observed
-endpoint behavior.
+## Live Cohere observation
+
+An initial five-turn live run reached `POST /v2/chat` successfully after the
+strict-tool correction, but exposed two provider-compatibility defects: Command A+ consumed the
+bounded response in default thinking blocks, and the rubric sent `json_schema` plus unsupported
+numeric ranges. Those findings are now covered and fixed by the automated suite: both flows send
+`thinking={"type":"disabled"}`, and the rubric uses valid JSON object mode with application-level
+shape/range validation. Further live diagnosis isolated Command A+ `INVALID_TOOL_GENERATION` to the
+zero-input `list_files` function: Cohere now receives strict required-argument read/write tools, while
+the frontend lists sandbox files through its deterministic files API. The adapter also treats streamed
+tool calls as authoritative because Command A+ can label their terminal event `COMPLETE`; a final live
+probe returned `tool_use` for `read_file` with `src/homepage_orchestrator.ts`. The stream retries one
+pre-output provider failure and still preserves the sanitized SSE error if it cannot recover. A complete
+five-turn live acceptance plus panel run remains to be captured when sufficient Cohere trial quota is
+available.
 
 ## Final-state candidate scenario
 
