@@ -1,12 +1,8 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="PackedScene" path="res://scenes/room/cozy_office_shell.tscn" id="3_shell"]
-[ext_resource type="PackedScene" path="res://scenes/room/cozy_office_dressing.tscn" id="4_dressing"]
-[ext_resource type="PackedScene" path="res://scenes/stations/observability_station_visual.tscn" id="5_obs"]
-[ext_resource type="PackedScene" path="res://scenes/stations/developer_station_visual.tscn" id="6_dev"]
-[ext_resource type="PackedScene" path="res://scenes/stations/release_station_visual.tscn" id="7_rel"]
 [ext_resource type="PackedScene" path="res://scenes/player/player_visual.tscn" id="8_senior"]
 [ext_resource type="PackedScene" uid="uid://bvo4lptnqfnyu" path="res://assets/third_party/kaykit-furniture-bits/table_medium_long.gltf" id="9_desk"]
 
@@ -88,32 +84,6 @@ shape = SubResource("FrontBoundaryShape")
 position = Vector3(8, 0.5, 0)
 shape = SubResource("RightBoundaryShape")
 
-[node name="Dressing" parent="." instance=ExtResource("4_dressing")]
-
-[node name="ObservabilityWall" parent="." instance=ExtResource("2_station")]
-position = Vector3(-5.6, 0, -3.6)
-station_id = "observability_wall"
-station_title = "1  OBSERVABILITY WALL"
-accent_color = Color(0.1, 0.78, 0.95, 1)
-
-[node name="Landmark" parent="ObservabilityWall" instance=ExtResource("5_obs")]
-
-[node name="DeveloperDesk" parent="." instance=ExtResource("2_station")]
-position = Vector3(4.8, 0, -3.4)
-station_id = "developer_desk"
-station_title = "2  DEVELOPER DESK"
-accent_color = Color(0.66, 0.42, 0.94, 1)
-
-[node name="Landmark" parent="DeveloperDesk" instance=ExtResource("6_dev")]
-
-[node name="ReleaseConsole" parent="." instance=ExtResource("2_station")]
-position = Vector3(4.9, 0, 3.1)
-station_id = "release_console"
-station_title = "3  RELEASE CONSOLE"
-accent_color = Color(0.24, 0.82, 0.49, 1)
-
-[node name="Landmark" parent="ReleaseConsole" instance=ExtResource("7_rel")]
-
 [node name="Senior" type="Node3D" parent="."]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.9, 0.05, 2.1)
 
@@ -125,7 +95,7 @@ station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 2.6)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.6, 0, 2.6)
 
 [node name="Table" parent="MyDesk" instance=ExtResource("9_desk")]
 

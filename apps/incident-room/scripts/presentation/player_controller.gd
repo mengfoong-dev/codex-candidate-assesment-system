@@ -13,6 +13,30 @@ signal hypothesis_requested
 var input_enabled := true
 var _nearby_stations: Array[Area3D] = []
 var _nearest_station_id := ""
+# Click-to-walk target (point-and-click movement); WASD overrides it.
+var _click_target := Vector3.ZERO
+var _has_click_target := false
+var _click_wants_interact := false
+
+func _unhandled_input(event: InputEvent) -> void:
+    if not input_enabled:
+        return
+    if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+        var camera := get_node_or_null(camera_path) as Camera3D
+        if camera == null:
+            return
+        var origin := camera.project_ray_origin(event.position)
+        var dir := camera.project_ray_normal(event.position)
+        if absf(dir.y) < 0.0001:
+            return
+        var t := -origin.y / dir.y
+        if t < 0.0:
+            return
+        var hit := origin + dir * t
+        _click_target = Vector3(hit.x, 0.0, hit.z)
+        _has_click_target = true
+        # Walk to the click, then try to interact with whatever's there.
+        _click_wants_interact = true
 
 func _physics_process(_delta: float) -> void:
     if not input_enabled:
@@ -22,7 +46,20 @@ func _physics_process(_delta: float) -> void:
         return
 
     var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
-    var direction := _camera_aligned_direction(input_vector)
+    var direction := Vector3.ZERO
+    if not input_vector.is_zero_approx():
+        _has_click_target = false  # manual movement cancels a pending click
+        direction = _camera_aligned_direction(input_vector)
+    elif _has_click_target:
+        var to_target := _click_target - global_position
+        to_target.y = 0.0
+        if to_target.length() > 0.3:
+            direction = to_target.normalized()
+        else:
+            _has_click_target = false
+            if _click_wants_interact:
+                _click_wants_interact = false
+                _request_nearest_station()
     velocity.x = direction.x * movement_speed
     velocity.z = direction.z * movement_speed
     if not is_on_floor():

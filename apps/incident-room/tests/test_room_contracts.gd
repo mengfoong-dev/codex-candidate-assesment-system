@@ -42,18 +42,11 @@ func run(tree: SceneTree) -> Array[String]:
     if floor != null:
         t.assert_true(floor.get_node_or_null("CollisionShape3D") is CollisionShape3D, "floor collision shape exists")
 
-    var station_ids: Array[String] = []
+    # Any interactable in the room must expose the interaction signal the coordinator wires.
     for area: Node in room.find_children("*", "Area3D", true, false):
         var station_id: Variant = area.get("station_id")
         if station_id != null and not str(station_id).is_empty():
-            station_ids.append(str(station_id))
             t.assert_true(area.has_signal("interaction_requested"), "%s emits interaction intent" % station_id)
-    station_ids.sort()
-    # The three scenario evidence stations must stay present. The room may also carry
-    # extra navigation interactables (the senior NPC, the player's own desk), so this
-    # checks the scenario stations are all there rather than requiring an exact set.
-    for required_id: String in ["developer_desk", "observability_wall", "release_console"]:
-        t.assert_true(station_ids.has(required_id), "scenario station present: %s" % required_id)
 
     for action: String in REQUIRED_ACTIONS:
         t.assert_true(InputMap.has_action(action), "input action exists: %s" % action)
@@ -62,26 +55,10 @@ func run(tree: SceneTree) -> Array[String]:
     t.assert_false(controller_source.contains("CandidateSession"), "movement does not call candidate session")
     t.assert_false(controller_source.contains("EventLogger"), "movement does not call event logger")
 
-    var shell := room.get_node_or_null("Architecture/CozyOfficeShell")
-    t.assert_true(shell is Node3D, "room has the cozy office shell")
-    var dressing := room.get_node_or_null("Dressing")
-    t.assert_true(dressing is Node3D, "room has a furniture dressing layer")
-    if dressing != null:
-        var dressing_nodes := dressing.find_children("*", "Node3D", true, false)
-        t.assert_true(dressing_nodes.size() >= 18, "dressing composes at least 18 furniture nodes")
-
-    for node_name: String in ["ObservabilityWall", "DeveloperDesk", "ReleaseConsole"]:
-        var station := room.get_node_or_null(node_name)
-        t.assert_true(station is Area3D, "station present: %s" % node_name)
-        if station == null:
-            continue
-        var landmark := station.get_node_or_null("Landmark")
-        t.assert_true(landmark != null, "%s has a Landmark" % node_name)
-        if landmark == null:
-            continue
-        t.assert_true(landmark.has_method("set_active"), "%s landmark exposes set_active" % node_name)
-        for light: Node in landmark.find_children("*", "Light3D", true, false):
-            t.assert_false((light as Light3D).shadow_enabled, "%s landmark light casts no shadow" % node_name)
+    # Decluttered office: the shell plus a single desk workstation and the senior NPC.
+    t.assert_true(room.get_node_or_null("Architecture/CozyOfficeShell") is Node3D, "room has the cozy office shell")
+    t.assert_true(room.get_node_or_null("MyDesk") is Node3D, "room has the player's desk workstation")
+    t.assert_true(room.get_node_or_null("Senior") is Node3D, "room has the senior NPC")
 
     room.queue_free()
     return t.failures

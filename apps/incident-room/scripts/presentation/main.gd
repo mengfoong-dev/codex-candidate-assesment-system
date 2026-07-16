@@ -226,7 +226,7 @@ func _stand() -> void:
 func _prompt_for(station_id: String) -> String:
     match station_id:
         "":
-            return "WASD / arrows to move  ·  walk up to someone or something and press E"
+            return "Click to walk, or WASD  ·  click / press E to interact"
         "my_desk":
             return "Press E — sit at your laptop 💻"
         "senior":

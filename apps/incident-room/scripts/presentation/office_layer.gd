@@ -34,6 +34,9 @@ var _history: Array = []
 var _sending := false
 
 func _ready() -> void:
+    # Let clicks fall through to the 3D game for click-to-walk; the modal scrim below
+    # re-captures them while a panel is open.
+    mouse_filter = Control.MOUSE_FILTER_IGNORE
     _build_hint()
     _build_modal()
     _http = HTTPRequest.new()
