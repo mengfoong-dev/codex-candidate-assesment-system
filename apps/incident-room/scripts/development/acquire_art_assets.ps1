@@ -3,48 +3,25 @@ $project = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $target = Join-Path $project 'assets\third_party'
 $tempRoot = [IO.Path]::GetTempPath()
 $temp = Join-Path $tempRoot ('vibeproof-art-' + [guid]::NewGuid().ToString('N'))
-$kayTarget = Join-Path $target 'kaykit-furniture-bits'
 $kenneyTarget = Join-Path $target 'kenney-mini-characters'
-$kayRevision = '96d5930a8dbdb363409bbc2d3341718b00e17c9c'
 $kenneyUrl = 'https://kenney.nl/media/pages/assets/mini-characters/bfc7e272b4-1774770718/kenney_mini-characters.zip'
 $kenneyHash = '9E1D48E6D7B8479EBBE84DF71EB5BD8E1B3F0DA546DEA641890DCCC8A02D0999'
-$models = @(
-  'armchair_pillows','book_set','cabinet_medium_decorated','cactus_medium_A',
-  'chair_C','couch_pillows','lamp_standing','rug_rectangle_stripes_A',
-  'shelf_B_large_decorated','table_medium_long','table_small'
-)
 
-New-Item -ItemType Directory -Path $temp,$kayTarget,$kenneyTarget -Force | Out-Null
+# Regenerates the Kenney Mini Characters (CC0). The isometric office environment is
+# user-provided (Sketchfab, login-gated) and vendored by hand, so it is not scripted here.
+New-Item -ItemType Directory -Path $temp, $kenneyTarget -Force | Out-Null
 try {
-  $kaySource = Join-Path $temp 'kaykit'
-  git clone --quiet https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0.git $kaySource
-  git -C $kaySource checkout --quiet $kayRevision
-  if ((git -C $kaySource rev-parse HEAD).Trim() -ne $kayRevision) { throw 'KayKit revision mismatch.' }
-  $gltf = Join-Path $kaySource 'addons\kaykit_furniture_bits\Assets\gltf'
-  foreach ($model in $models) {
-    Copy-Item -LiteralPath (Join-Path $gltf "$model.gltf") -Destination $kayTarget -Force
-    Copy-Item -LiteralPath (Join-Path $gltf "$model.bin") -Destination $kayTarget -Force
-  }
-  Copy-Item -LiteralPath (Join-Path $gltf 'furniturebits_texture.png') -Destination $kayTarget -Force
-  Copy-Item -LiteralPath (Join-Path $kaySource 'LICENSE.txt') -Destination $kayTarget -Force
-
   $zip = Join-Path $temp 'mini.zip'
   $expanded = Join-Path $temp 'mini'
   Invoke-WebRequest -Uri $kenneyUrl -OutFile $zip -UseBasicParsing
   if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne $kenneyHash) { throw 'Kenney archive hash mismatch.' }
   Expand-Archive -LiteralPath $zip -DestinationPath $expanded
   $glbDir = Join-Path $expanded 'Models\GLB format'
-  Copy-Item -LiteralPath (Join-Path $glbDir 'character-female-a.glb') -Destination $kenneyTarget -Force
-  # A visually distinct second character for the senior NPC (shares the same colormap atlas).
-  $seniorGlb = Join-Path $glbDir 'character-male-b.glb'
-  if (-not (Test-Path -LiteralPath $seniorGlb)) {
-    $seniorGlb = (Get-ChildItem -LiteralPath $glbDir -Filter 'character-male-*.glb' | Select-Object -First 1).FullName
+  # Vendor all 12 character variants (player, senior NPC, and the seated coworkers).
+  Get-ChildItem -LiteralPath $glbDir -Filter 'character-*.glb' | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination $kenneyTarget -Force
   }
-  if ($null -eq $seniorGlb -or -not (Test-Path -LiteralPath $seniorGlb)) {
-    $seniorGlb = (Get-ChildItem -LiteralPath $glbDir -Filter 'character-female-b*.glb' | Select-Object -First 1).FullName
-  }
-  Copy-Item -LiteralPath $seniorGlb -Destination $kenneyTarget -Force
-  # The GLB references its shared atlas at the relative path 'Textures/colormap.png'; preserve that layout.
+  # The GLBs reference their shared atlas at the relative path 'Textures/colormap.png'.
   $colormap = Get-ChildItem -LiteralPath $glbDir -Recurse -Filter 'colormap.png' | Select-Object -First 1
   if ($null -eq $colormap) { throw 'Kenney colormap.png not found in GLB format folder.' }
   $texTarget = Join-Path $kenneyTarget 'Textures'
