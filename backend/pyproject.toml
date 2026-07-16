@@ -10,8 +10,8 @@ dependencies = [
     "aiosqlite>=0.20",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
-    "anthropic>=0.39",
-    "openai>=1.40",
+    "cohere>=5.20",             # Simulation Engine + primary grading panel
+    "openai>=1.40",             # Grading panel — Groq + NVIDIA NIM via base-URL swap
 ]
 
 [project.optional-dependencies]
