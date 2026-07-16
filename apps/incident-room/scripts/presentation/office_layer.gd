@@ -8,6 +8,7 @@ extends Control
 
 signal evidence_view_requested(artifact_id: String)
 signal modal_changed(open: bool)
+signal view_toggle_requested
 
 ## Where the senior's live voice comes from. Overridable per build/deploy.
 @export var senior_proxy_url := "http://localhost:8080/api/senior/chat"
@@ -38,11 +39,32 @@ func _ready() -> void:
     # re-captures them while a panel is open.
     mouse_filter = Control.MOUSE_FILTER_IGNORE
     _build_hint()
+    _build_view_toggle()
     _build_modal()
     _http = HTTPRequest.new()
     add_child(_http)
     _http.request_completed.connect(_on_senior_response)
     _close()
+
+func _build_view_toggle() -> void:
+    var button := Button.new()
+    button.text = "👁 View"
+    button.focus_mode = Control.FOCUS_ALL
+    button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+    button.offset_left = -128
+    button.offset_top = 16
+    button.offset_right = -16
+    button.offset_bottom = 52
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.09, 0.12, 0.24, 0.92)
+    style.set_corner_radius_all(9)
+    style.set_content_margin_all(8)
+    button.add_theme_stylebox_override("normal", style)
+    button.add_theme_stylebox_override("hover", style)
+    button.add_theme_stylebox_override("pressed", style)
+    button.add_theme_color_override("font_color", CREAM)
+    button.pressed.connect(func() -> void: view_toggle_requested.emit())
+    add_child(button)
 
 func configure(scenario: Dictionary) -> void:
     _scenario = scenario

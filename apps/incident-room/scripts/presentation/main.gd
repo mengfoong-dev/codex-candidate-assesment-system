@@ -186,6 +186,12 @@ func _connect_signals() -> void:
         player.hypothesis_requested.connect(open_hypothesis_panel)
     office.evidence_view_requested.connect(view_artifact)
     office.modal_changed.connect(func(_open: bool) -> void: _update_player_input())
+    office.view_toggle_requested.connect(_toggle_view)
+
+func _toggle_view() -> void:
+    var cam := room.get_node_or_null("Camera3D")
+    if cam != null and cam.has_method("toggle_mode"):
+        cam.toggle_mode()
 
 func _configure_static_ui() -> void:
     if _scenario.is_empty():
