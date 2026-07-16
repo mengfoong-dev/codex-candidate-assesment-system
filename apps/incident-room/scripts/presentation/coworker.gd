@@ -5,7 +5,7 @@ extends Node3D
 ## to room size, and holds a fixed pose (default "sit"). Lets one script drive every desk with
 ## a different Kenney character, so the office reads as a diverse, populated workspace.
 @export var character: PackedScene
-@export var character_scale := 2.19
+@export var character_scale := 1.6
 @export var pose := "sit"
 
 func _ready() -> void:
