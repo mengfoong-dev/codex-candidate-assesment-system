@@ -1,12 +1,10 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="PackedScene" path="res://scenes/player/player_visual.tscn" id="8_senior"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
 [ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
-[ext_resource type="Mesh" uid="uid://ct0wwua8701fu" path="res://assets/third_party/vnb-office-set/Office_Desk_1.obj" id="19_sdesk"]
-[ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="20_schair"]
 [ext_resource type="Script" path="res://scripts/presentation/mesh_collider.gd" id="21_collider"]
 
 [sub_resource type="Environment" id="Environment_room"]
@@ -22,9 +20,6 @@ size = Vector3(12, 0.2, 12)
 [sub_resource type="BoxShape3D" id="WallShape"]
 size = Vector3(6, 3, 0.4)
 
-[sub_resource type="BoxShape3D" id="SamDeskShape"]
-size = Vector3(1.5, 0.95, 0.75)
-
 [node name="IncidentRoom" type="Node3D"]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -37,12 +32,12 @@ light_energy = 1.2
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.77, 0.64, 0, -0.64, 0.77, -0.9, 3.25, 5.4)
-fov = 55.0
+transform = Transform3D(1, 0, 0, 0, 0.8, 0.6, 0, -0.6, 0.8, -0.3, 4.55, 6.8)
+fov = 60.0
 current = true
 script = ExtResource("17_cam")
 target_path = NodePath("../Player")
-offset = Vector3(0, 3.2, 3.8)
+offset = Vector3(0, 4.5, 6.0)
 look_height = 1.0
 
 [node name="OfficeRoom15" parent="." instance=ExtResource("18_room")]
@@ -79,7 +74,7 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 2.65, 1.5, 0)
 shape = SubResource("WallShape")
 
 [node name="Senior" type="Node3D" parent="."]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.5, 0.05, 1.75)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1.15, 0.05, 0.0)
 
 [node name="Body" parent="Senior" instance=ExtResource("8_senior")]
 start_animation = "sit"
@@ -88,22 +83,6 @@ start_animation = "sit"
 station_id = "senior"
 station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
-
-[node name="SamDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, 1.0)
-
-[node name="Desk" type="MeshInstance3D" parent="SamDesk"]
-mesh = ExtResource("19_sdesk")
-
-[node name="Chair" type="MeshInstance3D" parent="SamDesk"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0.75)
-mesh = ExtResource("20_schair")
-
-[node name="Body" type="StaticBody3D" parent="SamDesk"]
-
-[node name="Collision" type="CollisionShape3D" parent="SamDesk/Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.475, 0)
-shape = SubResource("SamDeskShape")
 
 [node name="MyDesk" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 0, -0.7)
@@ -114,6 +93,6 @@ station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
-position = Vector3(1.2, 0.05, 2.0)
+position = Vector3(-0.3, 0.05, 1.0)
 camera_path = NodePath("../Camera3D")
 movement_speed = 2.8
