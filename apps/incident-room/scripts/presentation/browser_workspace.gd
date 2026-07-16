@@ -34,9 +34,8 @@ const ACCENT := {
 const TAB_DEFS := [
     {"key": "home", "label": "Home"},
     {"key": "brief", "label": "Brief"},
-    {"key": "prompting", "label": "Candidate Prompting"},
     {"key": "evidence", "label": "Evidence"},
-    {"key": "assistant", "label": "Assistant"},
+    {"key": "assistant", "label": "Codex"},
     {"key": "tests", "label": "Files & Tests"},
     {"key": "submit", "label": "Submit"},
 ]
@@ -138,7 +137,6 @@ func configure(scenario: Dictionary) -> void:
     _build_tabs()
     _build_home_page()
     _build_brief_page()
-    _build_prompting_page()
     _build_evidence_page()
     _build_assistant_page()
     _build_tests_page()
@@ -451,8 +449,9 @@ func _refresh_evidence(snapshot: Dictionary) -> void:
 func _build_assistant_page() -> void:
     var body := _page_body("assistant")
     var interaction: Dictionary = _scenario.get("ai_interaction", {})
-    body.add_child(_heading("AI Assistant", 27, INK))
-    body.add_child(_heading("Live copilot — recorded. It reasons about the code/evidence; it won't hand you the answer.", 14, MUTED))
+    body.add_child(_heading("Codex", 27, INK))
+    body.add_child(_heading("Prompt Codex to help you resolve the incident. It reasons over the code and evidence and proposes fixes — it won't hand you the answer. Every prompt is recorded.", 14, MUTED))
+    _add_code_panel(body)
     _assistant_log = RichTextLabel.new()
     _assistant_log.bbcode_enabled = true
     _assistant_log.fit_content = true
@@ -461,12 +460,12 @@ func _build_assistant_page() -> void:
     _assistant_log.add_theme_color_override("default_color", INK)
     body.add_child(_assistant_log)
     _assistant_history.clear()
-    _assistant_say("Assistant", "Hi — I'm your workspace copilot. Ask me about the trace, the logs, or the orchestrator code and I'll help you reason it through.", ACCENT["assistant"])
+    _assistant_say("Codex", "Ready. I can see src/homepage_orchestrator.ts and the incident evidence. Tell me what to investigate or ask me how to resolve the latency — I'll walk the reasoning with you.", ACCENT["assistant"])
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 8)
     body.add_child(row)
     _assistant_input = LineEdit.new()
-    _assistant_input.placeholder_text = "Ask the assistant about the incident or the code…"
+    _assistant_input.placeholder_text = "Ask Codex to find or resolve the bottleneck…"
     _assistant_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _assistant_input.focus_mode = Control.FOCUS_ALL
     row.add_child(_assistant_input)
@@ -500,7 +499,7 @@ func _send_assistant() -> void:
     _assistant_history.append({"role": "user", "content": text})
     _assistant_sending = true
     _assistant_send.disabled = true
-    _assistant_say("Assistant", "…", MUTED)
+    _assistant_say("Codex", "…", MUTED)
     var payload := {"messages": _assistant_history, "task": _assistant_context()}
     var headers := PackedStringArray(["Content-Type: application/json"])
     var err := _assistant_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
@@ -527,7 +526,7 @@ func _finish_assistant(reply: String) -> void:
         if lines.size() > 0 and lines[lines.size() - 1].contains("…"):
             lines.remove_at(lines.size() - 1)
         _assistant_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
-    _assistant_say("Assistant", reply, ACCENT["assistant"])
+    _assistant_say("Codex", reply, ACCENT["assistant"])
 
 func _assistant_context() -> String:
     var parts := PackedStringArray([str(_scenario.get("brief", ""))])
@@ -542,6 +541,48 @@ func _assistant_say(speaker: String, text: String, color: Color) -> void:
     if _assistant_log == null:
         return
     _assistant_log.text += "[color=#%s][b]%s[/b][/color]  %s\n" % [color.to_html(false), speaker, text]
+
+## A dark, IDE-style read-out of the orchestrator source so prompt and code sit together.
+func _add_code_panel(parent: Control) -> void:
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    if orchestrator.is_empty():
+        return
+    var panel := PanelContainer.new()
+    var sb := StyleBoxFlat.new()
+    sb.bg_color = Color(0.09, 0.11, 0.16, 1)
+    sb.border_color = Color(0.22, 0.5, 0.55, 0.6)
+    sb.set_border_width_all(1)
+    sb.set_corner_radius_all(8)
+    sb.content_margin_left = 14
+    sb.content_margin_top = 10
+    sb.content_margin_right = 14
+    sb.content_margin_bottom = 10
+    panel.add_theme_stylebox_override("panel", sb)
+    parent.add_child(panel)
+    var col := VBoxContainer.new()
+    col.add_theme_constant_override("separation", 3)
+    panel.add_child(col)
+    var header := Label.new()
+    header.text = "src/homepage_orchestrator.ts"
+    header.add_theme_color_override("font_color", Color(0.5, 0.82, 0.88, 1))
+    header.add_theme_font_size_override("font_size", 13)
+    col.add_child(header)
+    var scroll := ScrollContainer.new()
+    scroll.custom_minimum_size = Vector2(0, 168)
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    col.add_child(scroll)
+    var code := VBoxContainer.new()
+    code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    code.add_theme_constant_override("separation", 0)
+    scroll.add_child(code)
+    var n := 1
+    for line: Variant in orchestrator.get("content", []):
+        var row := Label.new()
+        row.text = "%2d  %s" % [n, str(line)]
+        row.add_theme_color_override("font_color", Color(0.8, 0.86, 0.92, 1))
+        row.add_theme_font_size_override("font_size", 13)
+        code.add_child(row)
+        n += 1
 
 func _refresh_assistant(snapshot: Dictionary) -> void:
     if _disposition_status == null:
