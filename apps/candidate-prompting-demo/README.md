@@ -1,6 +1,6 @@
 # Candidate Prompting Demo
 
-A React + TypeScript mock of the VibeProof candidate workspace. It uses fixed Homepage Latency Spike data, a scripted assistant response, and an explicitly unscored mock validation flow.
+A React + TypeScript candidate prompting screen for VibeProof. It renders the incident brief, evidence workspace, and copilot conversation, then relays prompts to the backend chat endpoint.
 
 ## View locally
 
@@ -14,6 +14,16 @@ npm.cmd run dev
 
 Open the localhost address Vite prints in the terminal (normally `http://localhost:5173`).
 
+## Backend
+
+The screen calls `POST /api/chat` on `http://localhost:8000` by default.
+
+If the backend runs elsewhere, create `apps/candidate-prompting-demo/.env` and set:
+
+```text
+VITE_API_BASE_URL=http://localhost:8000
+```
+
 ## Boundary
 
-This is a presentation-only mock. It does not call a model, persist candidate data, calculate a score, or make a hiring recommendation.
+This screen does not implement authentication, scoring, persistence, replay, or analytics.

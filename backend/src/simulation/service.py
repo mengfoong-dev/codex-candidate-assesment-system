@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Protocol
 from uuid import uuid4
 
-import anthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
@@ -82,6 +81,8 @@ class AnthropicLLM:
     """
 
     def __init__(self, *, api_key: str, model: str, max_tokens: int):
+        import anthropic
+
         self._client = anthropic.AsyncAnthropic(api_key=api_key)
         self._model = model
         self._max_tokens = max_tokens
