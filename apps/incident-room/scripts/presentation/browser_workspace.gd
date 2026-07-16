@@ -23,6 +23,7 @@ const MUTED := Color(0.4, 0.38, 0.44, 1)
 const CARD := Color(0.99, 0.97, 0.93, 1)
 const CARD_BORDER := Color(0.82, 0.78, 0.7, 1)
 const ACCENT := {
+    "home": Color(0.08, 0.5, 0.46, 1),
     "brief": Color(0.98, 0.7, 0.25, 1),
     "evidence": Color(0.1, 0.78, 0.95, 1),
     "assistant": Color(0.66, 0.42, 0.94, 1),
@@ -31,6 +32,7 @@ const ACCENT := {
     "report": Color(0.98, 0.7, 0.25, 1),
 }
 const TAB_DEFS := [
+    {"key": "home", "label": "Home"},
     {"key": "brief", "label": "Brief"},
     {"key": "prompting", "label": "Candidate Prompting"},
     {"key": "evidence", "label": "Evidence"},
@@ -134,6 +136,7 @@ func configure(scenario: Dictionary) -> void:
         child.queue_free()
     _pages.clear()
     _build_tabs()
+    _build_home_page()
     _build_brief_page()
     _build_prompting_page()
     _build_evidence_page()
@@ -142,7 +145,7 @@ func configure(scenario: Dictionary) -> void:
     _build_submit_page()
     _build_report_page()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
-    set_active_tab("brief")
+    set_active_tab("home")
 
 func set_started(started: bool) -> void:
     _started = started
@@ -196,7 +199,7 @@ func _add_tab_button(key: String, label: String) -> void:
 func _on_tab_pressed(key: String) -> void:
     if key == "report" and not _report_available:
         return
-    if key != "brief" and key != "report" and not _started:
+    if key != "home" and key != "brief" and key != "report" and not _started:
         # These tabs unlock once the candidate records an initial hypothesis; send them
         # to the Brief tab (where that happens) instead of a dead tap.
         set_active_tab("brief")
@@ -215,7 +218,7 @@ func _restyle_tabs() -> void:
         var button: Button = _buttons[key]
         var accent: Color = ACCENT.get(key, NAVY)
         var active := key == _active
-        var locked := (key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
+        var locked := (key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
         button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
         button.add_theme_stylebox_override("hover", _tab_style(active, accent, true))
@@ -264,6 +267,38 @@ func _page_body(key: String) -> VBoxContainer:
     return body
 
 # --- Brief -------------------------------------------------------------------
+
+func _build_home_page() -> void:
+    var body := _page_body("home")
+    body.add_child(_heading("Welcome to VibeProof", 31, NAVY))
+    body.add_child(_heading("Build with AI. Prove you know why it works. This short, AI-allowed engineering Ownership Challenge lets you show how you investigate, verify, and explain technical work.", 17, MUTED))
+
+    var start := _flat_button("Begin incident briefing  →")
+    start.custom_minimum_size = Vector2(0, 46)
+    start.pressed.connect(func() -> void: set_active_tab("brief"))
+    body.add_child(start)
+
+    body.add_child(HSeparator.new())
+    body.add_child(_heading("What you will do", 21, INK))
+    var journey := HBoxContainer.new()
+    journey.add_theme_constant_override("separation", 12)
+    journey.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_child(journey)
+    _add_home_step(journey, "01", "Investigate", "Read the incident brief, inspect the available evidence, and record a working hypothesis.", ACCENT["evidence"])
+    _add_home_step(journey, "02", "Use AI responsibly", "Ask focused questions, then check assumptions before relying on an AI suggestion.", ACCENT["assistant"])
+    _add_home_step(journey, "03", "Explain your decision", "Submit an evidence-backed recommendation with validation steps and known risks.", ACCENT["submit"])
+
+    body.add_child(HSeparator.new())
+    body.add_child(_heading("What VibeProof records", 21, INK))
+    body.add_child(_heading("The session records evidence you inspect, hypotheses you record or revise, AI prompts and responses, verification choices, and your final recommendation. A human reviewer receives a chronological Proof Replay.", 15, MUTED))
+    body.add_child(_heading("What does not affect your result", 17, ACCENT["home"]))
+    body.add_child(_heading("Navigation speed, gaming experience, typing speed, and whether you use AI are not scored. This prototype does not make an employment decision.", 15, MUTED))
+
+func _add_home_step(parent: Container, number: String, title: String, description: String, accent: Color) -> void:
+    var card := _add_workspace_card(parent, number, accent)
+    (card.get_parent() as PanelContainer).custom_minimum_size = Vector2(235, 0)
+    card.add_child(_heading(title, 17, INK))
+    card.add_child(_heading(description, 14, MUTED))
 
 func _build_brief_page() -> void:
     var body := _page_body("brief")
