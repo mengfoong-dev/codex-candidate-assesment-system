@@ -348,7 +348,30 @@ func _refresh_assistant(snapshot: Dictionary) -> void:
 func _build_tests_page() -> void:
     var body := _page_body("tests")
     body.add_child(_heading("Files & Tests", 27, INK))
-    body.add_child(_heading("No candidate files are attached to this scenario. Run the validation tests against a remediation.", 15, MUTED))
+    # Seeded workspace file: the faulty homepage orchestrator the candidate is debugging.
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    if not orchestrator.is_empty():
+        body.add_child(_heading("📄  src/homepage_orchestrator.ts", 16, INK))
+        var code_panel := PanelContainer.new()
+        var code_style := StyleBoxFlat.new()
+        code_style.bg_color = Color(0.16, 0.18, 0.26, 1)
+        code_style.set_corner_radius_all(8)
+        code_style.set_content_margin_all(14)
+        code_panel.add_theme_stylebox_override("panel", code_style)
+        var code := Label.new()
+        code.add_theme_color_override("font_color", Color(0.85, 0.9, 0.82, 1))
+        code.add_theme_font_size_override("font_size", 14)
+        var numbered := PackedStringArray()
+        var line_no := 1
+        for line: Variant in orchestrator.get("content", []):
+            numbered.append("%2d   %s" % [line_no, str(line)])
+            line_no += 1
+        code.text = "\n".join(numbered)
+        code_panel.add_child(code)
+        body.add_child(code_panel)
+        body.add_child(_heading("The homepage lookups run one after another (await … await …). Read the trace on the Evidence tab.", 13, MUTED))
+        body.add_child(HSeparator.new())
+    body.add_child(_heading("Validation tests — run against a remediation to see the scripted result.", 15, MUTED))
     body.add_child(_heading("Remediation to validate", 15, INK))
     _tests_remediation = _option(_scenario.get("submission_options", {}).get("remediations", []), "option_id", "label")
     body.add_child(_tests_remediation)
