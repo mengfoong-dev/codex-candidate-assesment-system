@@ -20,5 +20,6 @@ demo_mode = false
 
 [node name="OfficeLayer" parent="UI" instance=ExtResource("5_office")]
 visible = false
+senior_proxy_url = "https://senior-proxy-production.up.railway.app/api/senior/chat"
 
 [node name="TitleScreen" parent="UI" instance=ExtResource("3_title")]
