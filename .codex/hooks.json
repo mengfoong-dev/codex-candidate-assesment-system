@@ -13,32 +13,6 @@
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& (Join-Path ((git rev-parse --show-toplevel).Trim()) '.codex/hooks/session-tracking.ps1')\"",
-            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& (Join-Path ((git rev-parse --show-toplevel).Trim()) '.codex/hooks/session-tracking.ps1')\"",
-            "timeout": 15,
-            "statusMessage": "Starting agent usage session"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& (Join-Path ((git rev-parse --show-toplevel).Trim()) '.codex/hooks/session-tracking.ps1')\"",
-            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& (Join-Path ((git rev-parse --show-toplevel).Trim()) '.codex/hooks/session-tracking.ps1')\"",
-            "timeout": 15,
-            "statusMessage": "Checking agent usage session"
-          }
-        ]
-      }
     ]
   }
 }
