@@ -1,25 +1,36 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
-[ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
-[ext_resource type="Script" path="res://scripts/presentation/mesh_collider.gd" id="21_collider"]
+[ext_resource type="PackedScene" uid="uid://0kp8u6bcrofs" path="res://assets/third_party/isometric-office/isometric_office.glb" id="18_room"]
 [ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
-[ext_resource type="PackedScene" path="res://scenes/room/workstation.tscn" id="25_workstation"]
+[ext_resource type="Script" path="res://scripts/presentation/coworker.gd" id="30_cw"]
+[ext_resource type="PackedScene" uid="uid://b1wrut1yffp7p" path="res://assets/third_party/kenney-mini-characters/character-female-b.glb" id="31_fb"]
+[ext_resource type="PackedScene" uid="uid://ba8n3pm1bxnlo" path="res://assets/third_party/kenney-mini-characters/character-female-d.glb" id="33_fd"]
+[ext_resource type="PackedScene" uid="uid://bhe17bc6tw56f" path="res://assets/third_party/kenney-mini-characters/character-female-f.glb" id="35_ff"]
+[ext_resource type="PackedScene" uid="uid://eylufjqhqhlb" path="res://assets/third_party/kenney-mini-characters/character-male-a.glb" id="36_ma"]
+[ext_resource type="PackedScene" uid="uid://dlu5sywmgp2cc" path="res://assets/third_party/kenney-mini-characters/character-male-c.glb" id="37_mc"]
+[ext_resource type="PackedScene" uid="uid://b0107ws8ssbj5" path="res://assets/third_party/kenney-mini-characters/character-male-e.glb" id="39_me"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
 background_color = Color(0.55, 0.6, 0.68, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.72, 0.7, 0.74, 1)
-ambient_light_energy = 0.7
+ambient_light_color = Color(0.78, 0.78, 0.82, 1)
+ambient_light_energy = 0.95
 
 [sub_resource type="BoxShape3D" id="FloorShape"]
-size = Vector3(12, 0.2, 12)
+size = Vector3(14, 0.2, 14)
 
-[sub_resource type="BoxShape3D" id="WallShape"]
-size = Vector3(6, 3, 0.4)
+[sub_resource type="BoxShape3D" id="WallNS"]
+size = Vector3(10.4, 2.6, 0.4)
+
+[sub_resource type="BoxShape3D" id="WallEW"]
+size = Vector3(0.4, 2.6, 10.4)
+
+[sub_resource type="BoxShape3D" id="DeskBox"]
+size = Vector3(1.5, 1.4, 1.5)
 
 [node name="IncidentRoom" type="Node3D"]
 
@@ -33,7 +44,7 @@ light_energy = 1.2
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.8, 0.6, 0, -0.6, 0.8, -0.3, 4.55, 6.8)
+transform = Transform3D(1, 0, 0, 0, 0.9, 0.44, 0, -0.44, 0.9, -3, 3, 8)
 fov = 60.0
 current = true
 script = ExtResource("17_cam")
@@ -41,41 +52,80 @@ target_path = NodePath("../Player")
 offset = Vector3(0, 4.5, 6.0)
 look_height = 1.0
 
-[node name="OfficeRoom15" parent="." instance=ExtResource("18_room")]
-transform = Transform3D(0.011, 0, 0, 0, 0.011, 0, 0, 0, 0.011, 0, 0, 0)
-
-[node name="RoomCollision" type="Node" parent="."]
-script = ExtResource("21_collider")
-target_path = NodePath("../OfficeRoom15")
+[node name="Office" parent="." instance=ExtResource("18_room")]
 
 [node name="Architecture" type="Node3D" parent="."]
 
 [node name="Floor" type="StaticBody3D" parent="Architecture"]
-position = Vector3(0, -0.1, 0)
+position = Vector3(-5, -0.1, 5)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Floor"]
 shape = SubResource("FloorShape")
 
-[node name="Walls" type="StaticBody3D" parent="Architecture"]
+[node name="Obstacles" type="StaticBody3D" parent="Architecture"]
 
-[node name="RearCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(0, 1.5, -2.65)
-shape = SubResource("WallShape")
+[node name="WallW" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1.3, 5)
+shape = SubResource("WallEW")
 
-[node name="FrontCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(0, 1.5, 2.65)
-shape = SubResource("WallShape")
+[node name="WallE" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 5)
+shape = SubResource("WallEW")
 
-[node name="LeftCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.65, 1.5, 0)
-shape = SubResource("WallShape")
+[node name="WallS" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1.3, 0)
+shape = SubResource("WallNS")
 
-[node name="RightCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 2.65, 1.5, 0)
-shape = SubResource("WallShape")
+[node name="WallN" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1.3, 10)
+shape = SubResource("WallNS")
+
+[node name="Desk1" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.27, 0.6, 4.64)
+shape = SubResource("DeskBox")
+
+[node name="Desk2" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.28, 0.6, 4.64)
+shape = SubResource("DeskBox")
+
+[node name="Desk3" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.53, 0.6, 3.61)
+shape = SubResource("DeskBox")
+
+[node name="Desk4" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.03, 0.6, 3.61)
+shape = SubResource("DeskBox")
+
+[node name="Desk5" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.58, 0.6, 0.79)
+shape = SubResource("DeskBox")
+
+[node name="Desk6" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.08, 0.6, 0.79)
+shape = SubResource("DeskBox")
+
+[node name="Desk7" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.86, 0.6, 1.7)
+shape = SubResource("DeskBox")
+
+[node name="Desk8" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.6, 1.7)
+shape = SubResource("DeskBox")
+
+[node name="Desk9" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.57, 0.6, 0.84)
+shape = SubResource("DeskBox")
+
+[node name="MeetingArea" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(2.2, 0, 0, 0, 1, 0, 0, 0, 2.6, -6.5, 0.6, 8.5)
+shape = SubResource("DeskBox")
+
+[node name="PrivateDesk" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1.4, 0, 0, 0, 1, 0, 0, 0, 1.4, -3.64, 0.6, 8.56)
+shape = SubResource("DeskBox")
 
 [node name="Senior" type="Node3D" parent="."]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.8, 0.82, 0.5)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -2, 0.2, 6.4)
 
 [node name="Body" parent="Senior" instance=ExtResource("24_senior")]
 
@@ -84,18 +134,50 @@ station_id = "senior"
 station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
-[node name="Workstation" parent="." instance=ExtResource("25_workstation")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 1.4)
-
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 2.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1, 0, 3.37)
 
 [node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
 station_id = "my_desk"
 station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
 
+[node name="Coworkers" type="Node3D" parent="."]
+
+[node name="CW1" type="Node3D" parent="Coworkers"]
+transform = Transform3D(-0.891, 0, 0.454, 0, 1, 0, -0.454, 0, -0.891, -4.11, 0.42, 5.4)
+script = ExtResource("30_cw")
+character = ExtResource("36_ma")
+
+[node name="CW2" type="Node3D" parent="Coworkers"]
+transform = Transform3D(-0.239, 0, -0.971, 0, 1, 0, 0.971, 0, -0.239, -8.18, 0.42, 3.43)
+script = ExtResource("30_cw")
+character = ExtResource("33_fd")
+extra_yaw = 3.14159
+
+[node name="CW3" type="Node3D" parent="Coworkers"]
+transform = Transform3D(0.53, 0, -0.848, 0, 1, 0, 0.848, 0, 0.53, -5.02, 0.42, 0.46)
+script = ExtResource("30_cw")
+character = ExtResource("37_mc")
+extra_yaw = 3.14159
+
+[node name="CW4" type="Node3D" parent="Coworkers"]
+transform = Transform3D(0.148, 0, -0.989, 0, 1, 0, 0.989, 0, 0.148, -2.29, 0.42, 1.38)
+script = ExtResource("30_cw")
+character = ExtResource("35_ff")
+extra_yaw = 3.14159
+
+[node name="CW5" type="Node3D" parent="Coworkers"]
+transform = Transform3D(-0.99, 0, -0.144, 0, 1, 0, 0.144, 0, -0.99, -1.16, 0.42, 2.39)
+script = ExtResource("30_cw")
+character = ExtResource("39_me")
+
+[node name="CW6" type="Node3D" parent="Coworkers"]
+transform = Transform3D(0.997, 0, -0.08, 0, 1, 0, 0.08, 0, 0.997, -8.35, 0.42, 0.37)
+script = ExtResource("30_cw")
+character = ExtResource("31_fb")
+
 [node name="Player" parent="." instance=ExtResource("1_player")]
-position = Vector3(-0.8, 0.05, 2.2)
+position = Vector3(-3.0, 0.05, 6.2)
 camera_path = NodePath("../Camera3D")
 movement_speed = 2.8

@@ -10,6 +10,11 @@ The logger is local and manual: it does not observe agent activity, infer comple
 read account billing data. Run the commands explicitly and only claim a session was logged
 after the command succeeds.
 
+Each teammate's sessions are appended to their own `docs/hackathon/codex-usage/sessions-<git-account>.csv`,
+keyed by `git config user.name`, so concurrent contributors never collide in a shared file.
+The legacy `sessions.csv` is kept as history. As a safety net, `.gitattributes` marks these
+logs `merge=union`, so any residual overlap auto-concatenates instead of conflicting.
+
 Codex also has a project hook at `.codex/hooks.json`. It starts a session when a prompt is
 submitted and blocks the final response until an active session is stopped. Review and trust
 the hook with `/hooks` in Codex before relying on it. The manual workflow below remains the
