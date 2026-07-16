@@ -1,7 +1,7 @@
 # Final-State Backend Simulation Flow
 
 > **Current handoff:** The complete backend state is summarized in
-> [FINAL-STATE.md](FINAL-STATE.md). This document is the repeatable offline/API verification flow;
+> [FINAL-STATE.md](FINAL-STATE.md). This document is the repeatable isolated-database/API verification flow;
 > `FINAL-STATE-TEST-RESULT.md` records its observed outcome and the separate live-provider probe.
 
 ## Purpose
@@ -13,30 +13,41 @@ This repeatable validation has three layers:
    Workspace, and scoring-facing records. It uses a complete Cohere V2 stream
    double only at the external provider boundary.
 2. `backend/scripts/run_final_state_simulation.py` drives a candidate's full
-   evidence-to-submission-to-report scenario through HTTPX ASGI transport.
+   evidence-to-submission-to-report scenario through HTTPX ASGI transport and a temporary SQLite
+   database. Submission invokes the configured rubric panel, so this driver can make live Cohere
+   requests when `backend/.env` contains a key.
 3. `backend/tests/test_interactive_session.py` drives the five-turn terminal runner through the
    same session, SSE, workspace, scoring, and report endpoints consumed by the TSX frontend.
 
-Neither layer starts a server, accesses a production database, executes
-candidate code, or requires an LLM credential.
+Neither test path starts a server, accesses a production database, or executes candidate code.
+The endpoint tests use a provider-boundary double. The final-state driver does not require an LLM
+credential to complete, but it is not an offline command when a local Cohere key is configured.
 
 ## Commands
 
-Run from the repository root in PowerShell. Explicitly blank all provider keys
-for the process so a developer's local `.env` cannot cause a live request.
+Run from the repository root in PowerShell. The endpoint suite uses its external-provider double
+and is the provider-isolated verification path:
 
 ```powershell
 cd backend
-$env:COHERE_API_KEY = ''
-$env:GROQ_API_KEY = ''
-$env:NIM_API_KEY = ''
-python -m pytest tests/test_simulation.py -q
-python scripts/run_final_state_simulation.py
+uv run python -m pytest tests/test_simulation.py -q
 ```
 
 For the complete backend suite, use `uv run pytest -q`; the current observed result is 60 passing
-tests. The interactive human runner is intentionally a separate live command because it reads the
-ignored local `COHERE_API_KEY`:
+tests. Run the final-state scenario separately:
+
+```powershell
+uv run python scripts/run_final_state_simulation.py
+```
+
+It creates an isolated temporary database but reads `backend/.env` through application Settings.
+Empty provider variables in the process are treated as absent, so they do not override configured
+`.env` keys. The observed 2026-07-16 run therefore called Cohere and returned three AI analysis
+dimensions. Treat the command as a live-panel scenario until an explicit panel-disable switch is
+implemented.
+
+The interactive human runner is intentionally a separate live command because it reads the ignored
+local `COHERE_API_KEY`:
 
 ```powershell
 .\tools\run-interactive-simulation.ps1
@@ -47,10 +58,6 @@ For a live provider smoke check, ask the coding agent to read the seeded
 then `tool_use`, then terminal `done`. Command A+ tool results are returned as serialized JSON
 documents; if strict generation returns `INVALID_TOOL_GENERATION` before output, the backend retries
 the same request once with non-strict tools.
-
-The final-state driver also clears Groq/NIM for its process. Cohere is the
-primary provider after this milestone, so the invoking command must explicitly
-leave `COHERE_API_KEY` blank as shown above.
 
 ## Simulation endpoint contract: `tests/test_simulation.py`
 
@@ -64,7 +71,7 @@ leave `COHERE_API_KEY` blank as shown above.
 | Submitted or unknown session | The endpoint returns HTTP 409 or HTTP 404 without starting a stream. |
 | Hidden scenario data | The system prompt excludes scoring and root-cause keys. |
 | Model configuration | Command A+ is accepted and legacy/blank model identifiers are rejected. |
-| Cohere V2 streamed function call | Text, JSON argument deltas, tool-call ID/name, usage, strict read/write tools, and disabled thinking are translated into neutral turn records. A streamed call is authoritative even when Command A+ labels the terminal event `COMPLETE`. |
+| Cohere V2 streamed function call | Text, JSON argument deltas, tool-call ID/name, usage, and strict read/write tools are translated into neutral turn records. The request omits the `thinking` setting because Command A+ rejects it. A streamed call is authoritative even when Command A+ labels the terminal event `COMPLETE`. |
 | Cohere V2 tool-result follow-up | The next request contains the assistant call and matching `tool` document payload with structured tool data. |
 
 The stream double mirrors Cohere's external event boundary; assertions inspect
@@ -99,5 +106,5 @@ The driver deliberately does not send an AI message. There is no AI suggestion
 to accept, reject, or verify, so `verification_discipline` is excluded rather
 than penalised. The other six applicable criteria are met, yielding 60/70.
 
-The latest observed command output is recorded in
+The latest observed command output, including the current live-panel caveat, is recorded in
 `FINAL-STATE-TEST-RESULT.md`.

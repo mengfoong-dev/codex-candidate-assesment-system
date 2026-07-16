@@ -16,7 +16,7 @@ shape, CORS, and the human-review safeguards.
 
 | Component | Primary provider and protocol | Failure behavior |
 | --- | --- | --- |
-| Candidate simulation | Cohere Chat V2 streaming with strict read/write function tools and disabled thinking | Emits a sanitized `llm_unavailable` SSE/error-event path; server rejects a sixth candidate turn. |
+| Candidate simulation | Cohere Chat V2 streaming with strict read/write function tools and no `thinking` request field | Emits a sanitized `llm_unavailable` SSE/error-event path; server rejects a sixth candidate turn. |
 | Senior and workspace-assistant proxy | Cohere `POST /v2/chat` | Returns sanitized provider errors; `/health` reports `provider: cohere`. |
 | Rubric panel | Cohere Chat V2 structured JSON, one grader per dimension | Reports `consensus: "single"`; Groq/NIM are considered only when the Cohere panel is wholly unavailable and fallback is enabled. |
 | Deterministic scoring | Existing local evaluator | Continues to run regardless of LLM availability. |
@@ -68,12 +68,19 @@ shape, CORS, and the human-review safeguards.
 
 - Deploy with a newly rotated `COHERE_API_KEY`, then run one authenticated Sam
   request and one workspace-assistant request against the deployed proxy.
-- The final-state driver is a no-key deterministic scenario. Keep live Cohere
-  credentials unset for that driver so it remains offline.
+- The final-state driver uses an isolated temporary database but invokes the configured
+  Cohere rubric panel when `backend/.env` contains a key. Add an explicit provider-disable
+  switch if an offline run is required.
+- Recovery commit `8c9e090` removed the unsupported assistant `tool_plan` echo,
+  serializes Cohere tool-document data as JSON, and permits one pre-output
+  `INVALID_TOOL_GENERATION` retry with non-strict tools. A live temporary-database
+  FastAPI probe completed the read-tool round trip after two Cohere `200` responses;
+  `cd backend; uv run pytest -q` then reported `60 passed`. Do not revisit this
+  adapter path unless a newly captured provider response contradicts that evidence.
 - Live diagnosis found empty thinking-only output, rubric schema 400s, the zero-input listing-tool
-  generation failure, and Command A+'s `COMPLETE` label on streamed tool calls. The fixes are covered
-  locally and a read-tool live probe now enters the sandbox loop; rerun the complete five-turn
-  acceptance plus panel path with available quota.
+  generation failure, and Command A+'s `COMPLETE` label on streamed tool calls. The five-turn live
+  acceptance now completed with sandbox read/write actions, scripted validations, and a Layer 1/2/3
+  report; retain the focused tests as the regression boundary.
 - Generated local `vibeproof_backend.egg-info/` should remain uncommitted.
 
 ## Getting Started

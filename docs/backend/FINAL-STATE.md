@@ -1,8 +1,10 @@
 # VibeProof Backend - Final State
 
 **Updated:** 2026-07-16, Asia/Singapore
-**Status:** Backend implementation and automated verification complete. The final live
-five-turn Cohere-plus-panel acceptance remains pending available provider trial quota.
+**Status:** Backend implementation, automated verification, and the live five-turn
+Cohere-plus-panel acceptance are complete. The final-state driver uses an isolated
+temporary database but invokes the configured Cohere rubric panel when `backend/.env`
+contains a key.
 
 This document is the current backend handoff for the candidate-session flow. It supersedes
 the earlier Anthropic and two-active-vendor descriptions in this file.
@@ -16,7 +18,7 @@ the earlier Anthropic and two-active-vendor descriptions in this file.
 
 | Layer | Active behavior |
 | --- | --- |
-| Candidate simulation | Cohere Command A+ (`command-a-plus-05-2026`) streams text and strict `read_file`/`write_file` tool calls through `POST /api/sessions/{id}/messages`. Thinking is disabled so the bounded output budget is available to the candidate. An `INVALID_TOOL_GENERATION` pre-output failure retries once with non-strict tools. |
+| Candidate simulation | Cohere Command A+ (`command-a-plus-05-2026`) streams text and strict `read_file`/`write_file` tool calls through `POST /api/sessions/{id}/messages`. The request omits the unsupported `thinking` setting; non-text blocks are ignored by the adapter. An `INVALID_TOOL_GENERATION` pre-output failure retries once with non-strict tools. |
 | Sandbox inventory | The TSX client receives seeded files from `POST /api/sessions` and refreshes them through `GET /api/sessions/{id}/files`. Listing is deterministic; it is not delegated to Cohere. |
 | Five-turn lifecycle | The server permits exactly five candidate prompts. Each prompt must finish its SSE stream before the next begins. A sixth prompt emits `candidate_turn_limit_reached` without reaching the model or scoring log. |
 | Scoring layer 1 | Deterministic event-based rules, always available. |
@@ -41,6 +43,19 @@ The implementation-ready TSX event types and stream parser are in
 
 ## Local commands
 
+Final-state API scenario:
+
+```powershell
+cd backend
+uv run python scripts/run_final_state_simulation.py
+```
+
+This command creates an isolated temporary SQLite database and never executes candidate
+code. It is **not provider-isolated**: Settings load `backend/.env`, and blank environment
+variables do not suppress configured provider keys. Run it only when live Cohere rubric
+calls are acceptable. An explicit panel-disable switch is still needed for a fully offline
+final-state scenario.
+
 Interactive human-driven run:
 
 ```powershell
@@ -61,14 +76,19 @@ history.
 
 ## Verification evidence
 
-- `cd backend; uv run pytest -q` completed with **60 passed**.
+- `cd backend; uv run pytest -q` completed with **60 passed in 20.46s** on 2026-07-16.
+- `cd backend; uv run python -m pytest tests/test_simulation.py -q` completed with
+  **15 passed in 3.52s**. These endpoint tests use a complete Cohere V2 stream double only
+  at the external-provider boundary.
 - `tests/test_simulation.py` verifies the real FastAPI/SSE endpoint, persisted events, token usage,
   tool budget, safe errors, and fifth-turn enforcement using a provider-boundary double.
 - `tests/test_interactive_session.py` drives the same public session, SSE, workspace, scoring, and
   report APIs used by the TSX client. It proves sequential prompt exchanges, a persisted sandbox
   edit, the cutoff, and the three-layer handoff.
-- A live temporary-database FastAPI probe returned token events, `tool_use` for `read_file` on
-  `src/homepage_orchestrator.ts`, and terminal `done` after the serialized tool-result follow-up.
+- The final-state API scenario completed with a graded session, deterministic 60/70, three AI
+  analysis dimensions, six context indices, and the forged-artifact (422) and duplicate-submit
+  (409) guards. Its current live-panel behavior is documented below rather than treated as an
+  offline test.
 
 The detailed repeatable procedure is in [FINAL-STATE-TEST-FLOW.md](FINAL-STATE-TEST-FLOW.md);
 the observed outcomes and the remaining live acceptance condition are in
@@ -76,8 +96,9 @@ the observed outcomes and the remaining live acceptance condition are in
 
 ## Remaining operational acceptance
 
-Run one complete live session with five human prompts and the Cohere panel once trial quota is
-available. Confirm visible streamed feedback, at least one sandbox edit, fifth-turn cutoff, and the
-Layer 1/2/3 report. The backend safely retries one `INVALID_TOOL_GENERATION` pre-output provider
-failure with non-strict tools and emits a sanitized SSE error if Cohere remains unavailable; it does
-not expose headers, trace IDs, or credentials.
+The live acceptance completed on 2026-07-16: five prompts streamed successfully, including a
+`read_file` and a `write_file` sandbox action; both scripted validations passed; and the Layer
+1/2/3 report was retrieved. See [FINAL-STATE-TEST-RESULT.md](FINAL-STATE-TEST-RESULT.md) for the
+observed result. A separate provider-disable configuration is still needed if the final-state
+driver must become fully offline; blank provider environment variables are currently overridden by
+values in `backend/.env`.

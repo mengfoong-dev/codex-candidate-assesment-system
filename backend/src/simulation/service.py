@@ -156,10 +156,6 @@ class CohereLLM:
             # prevents malformed tool calls from reaching the provider's generation boundary;
             # application code remains the authority for all session-scoped operations.
             "strict_tools": COHERE_STRICT_TOOLS,
-            # Command A+ enables reasoning by default. For this candidate-facing chat we need
-            # the bounded response budget to produce visible text/tool calls, not exhaust it in
-            # internal thinking blocks.
-            "thinking": {"type": "disabled"},
             "max_tokens": self._max_tokens,
             "temperature": self._temperature,
         }

@@ -139,7 +139,6 @@ async def _cohere_json_once(
             # still guarantees valid JSON; _grade_once and the narrative/question parsers retain
             # the application-side shape and value validation.
             response_format={"type": "json_object"},
-            thinking={"type": "disabled"},
             temperature=temperature,
         )
         if inspect.isawaitable(response):

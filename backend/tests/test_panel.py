@@ -57,7 +57,7 @@ async def test_cohere_structured_request_uses_the_score_schema(monkeypatch):
     assert captured["api_key"] == "fake-cohere-key"
     assert captured["model"] == "command-a-plus-05-2026"
     assert captured["response_format"] == {"type": "json_object"}
-    assert captured["thinking"] == {"type": "disabled"}
+    assert "thinking" not in captured
 
 
 def test_cohere_score_schema_avoids_unsupported_numeric_ranges():
