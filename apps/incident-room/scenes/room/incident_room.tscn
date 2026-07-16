@@ -129,11 +129,6 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -2, 0.2, 6.4)
 
 [node name="Body" parent="Senior" instance=ExtResource("24_senior")]
 
-[node name="Trigger" parent="Senior" instance=ExtResource("2_station")]
-station_id = "senior"
-station_title = "Talk to Sam"
-accent_color = Color(0.66, 0.42, 0.94, 1)
-
 [node name="MyDesk" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1, 0, 3.37)
 
@@ -148,6 +143,11 @@ accent_color = Color(0.1, 0.78, 0.95, 1)
 transform = Transform3D(-0.891, 0, 0.454, 0, 1, 0, -0.454, 0, -0.891, -4.11, 0.42, 5.4)
 script = ExtResource("30_cw")
 character = ExtResource("36_ma")
+
+[node name="Trigger" parent="Coworkers/CW1" instance=ExtResource("2_station")]
+station_id = "senior"
+station_title = "Talk to Sam"
+accent_color = Color(0.66, 0.42, 0.94, 1)
 
 [node name="CW2" type="Node3D" parent="Coworkers"]
 transform = Transform3D(-0.239, 0, -0.971, 0, 1, 0, 0.971, 0, -0.239, -8.18, 0.42, 3.43)
