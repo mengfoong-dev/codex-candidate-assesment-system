@@ -46,6 +46,8 @@ class Settings(BaseSettings):
 
     # --- Scenario data ---
     scenario_data_dir: Path = Path(__file__).resolve().parent.parent / "data" / "scenarios"
+    # Virtual Workspace seed apps: one directory per scenario_id, each with a _manifest.json.
+    workspace_data_dir: Path = Path(__file__).resolve().parent.parent / "data" / "workspaces"
     default_scenario_id: str = "homepage_latency"
     default_scenario_version: str = "1.0.0"
 

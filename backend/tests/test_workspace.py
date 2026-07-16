@@ -65,3 +65,62 @@ async def test_unknown_remediation_id_422(new_session, client):
         json={"remediation_id": "not_a_real_remediation"},
     )
     assert resp.status_code == 422
+
+
+# --- write->validate loop: the scripted test grades against the rewritten file content ------------
+
+_CONCURRENT_REWRITE = (
+    "export async function renderHomepageForUser(userId: string) {\n"
+    "  await requireAuthenticatedUser(userId);\n"
+    "  const [profile, recommendations, notices] = await Promise.all([\n"
+    "    getProfile(userId), getRecommendations(userId), getNotices(userId),\n"
+    "  ]);\n"
+    "  return renderHomepage({ profile, recommendations, notices });\n"
+    "}\n"
+)
+
+_STILL_SEQUENTIAL = (
+    "export async function renderHomepageForUser(userId: string) {\n"
+    "  await requireAuthenticatedUser(userId);\n"
+    "  const profile = await getProfile(userId);\n"
+    "  const recommendations = await getRecommendations(userId);\n"
+    "  const notices = await getNotices(userId);\n"
+    "  return renderHomepage({ profile, recommendations, notices });\n"
+    "}\n"
+)
+
+
+async def _write_orchestrator(session_id: str, content: str) -> None:
+    from src.database import AsyncSessionLocal
+    from src.simulation.tools import write_file  # upserts with source="ai"
+
+    async with AsyncSessionLocal() as db:
+        await write_file(db, session_id, "src/homepage_orchestrator.ts", content)
+
+
+async def test_write_validate_passes_on_concurrent_rewrite_even_without_matching_remediation(new_session, client):
+    session_id = new_session["session_id"]
+    await _write_orchestrator(session_id, _CONCURRENT_REWRITE)
+
+    # remediation_id would normally be "unavailable" — the written fix content overrides it to passed.
+    resp = await client.post(
+        f"/api/sessions/{session_id}/tests/p95_latency",
+        json={"remediation_id": "scale_cpu"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "passed"
+    assert "Validated against your edited" in body["actual_result"]
+
+
+async def test_write_validate_fails_when_rewrite_is_still_sequential(new_session, client):
+    session_id = new_session["session_id"]
+    await _write_orchestrator(session_id, _STILL_SEQUENTIAL)
+
+    # remediation_id would normally pass — the still-sequential content overrides it to failed.
+    resp = await client.post(
+        f"/api/sessions/{session_id}/tests/p95_latency",
+        json={"remediation_id": "parallelize_confirmed_independent_calls"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "failed"

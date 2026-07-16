@@ -1,0 +1,19 @@
+{
+  "name": "homepage-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Server-rendered homepage for the storefront web app.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

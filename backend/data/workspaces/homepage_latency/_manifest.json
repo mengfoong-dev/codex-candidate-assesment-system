@@ -1,0 +1,32 @@
+{
+  "files": [
+    {
+      "path": "src/homepage_orchestrator.ts",
+      "role": "builds the homepage response for a user (input: userId)"
+    },
+    {
+      "path": "src/services/requireAuthenticatedUser.ts",
+      "role": "verifies the user's session (input: userId)"
+    },
+    {
+      "path": "src/services/getProfile.ts",
+      "role": "fetches the user's profile (input: userId)"
+    },
+    {
+      "path": "src/services/getRecommendations.ts",
+      "role": "fetches the user's recommendations (input: userId)"
+    },
+    {
+      "path": "src/services/getNotices.ts",
+      "role": "fetches the user's notices (input: userId)"
+    },
+    {
+      "path": "src/renderHomepage.ts",
+      "role": "assembles the final homepage payload from the provided parts"
+    },
+    {
+      "path": "package.json",
+      "role": "project manifest listing scripts and dependencies"
+    }
+  ]
+}
