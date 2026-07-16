@@ -1,59 +1,311 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
-type ArtifactId = 'metrics_overview' | 'homepage_trace' | 'homepage_orchestrator';
-type Message = { id: string; role: 'user' | 'assistant'; content?: string; thinking?: boolean };
+import {
+  createSession,
+  sendChatMessage,
+  type CreateSessionResponse,
+  type Scenario,
+  type ScenarioArtifact,
+} from './api';
 
-const artifacts: Record<ArtifactId, { label: string; content: ReactNode }> = {
-  metrics_overview: { label: 'Metrics', content: <><span className="muted">Homepage p95 latency</span>  <strong>850 ms</strong>{'\n'}<span className="muted">Baseline p95 latency</span>   <b>180 ms</b>{'\n'}<span className="muted">CPU utilization</span>         <b>35% (healthy)</b>{'\n'}<span className="muted">Database</span>                <b>Healthy</b>{'\n\n'}Latency increased without CPU saturation.</> },
-  homepage_trace: { label: 'Trace', content: <><span className="muted">GET / homepage</span>{'\n'}|- auth.check <b>120ms</b>{'\n'}|- user.load <b>190ms</b>{'\n'}|- feed.fetch <b>210ms</b>{'\n'}\- ads.fetch <strong>330ms</strong>{'\n\n'}Calls accumulate on the critical path.</> },
-  homepage_orchestrator: { label: 'Code', content: <><span className="muted">async function buildHomepage(userId) {'{'}</span>{'\n'}  const auth = await checkAuth();{'\n'}  const user = await loadUser(userId);{'\n'}  const feed = await fetchFeed(userId);{'\n'}  const ads = await fetchAds();{'\n'}<span className="muted">{'}'}</span>{'\n\n'}Confirm calls are independent before parallelizing.</> },
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  author: string;
+  content: string;
+  thinking?: boolean;
 };
 
-const assistantReply = 'Mock response: compare the trace with the orchestration code, confirm the calls do not depend on one another, then validate both latency and correctness before changing concurrency.';
+function buildInitialMessages(scenario: Scenario): ChatMessage[] {
+  const prompt = scenario.ai_interaction?.prompt?.text?.trim();
+  const response = scenario.ai_interaction?.response?.text?.trim();
+
+  return [
+    {
+      id: 'seed-user',
+      role: 'user',
+      author: 'You',
+      content: prompt || 'Ask the copilot about this incident.',
+    },
+    {
+      id: 'seed-assistant',
+      role: 'assistant',
+      author: 'Copilot',
+      content:
+        response ||
+        'I am ready to help you investigate the incident using the evidence in this workspace.',
+    },
+  ];
+}
+
+function splitSummaryLine(line: string): { label: string; value: string } {
+  const index = line.indexOf(':');
+  if (index === -1) {
+    return { label: line.trim(), value: '' };
+  }
+
+  return {
+    label: line.slice(0, index).trim(),
+    value: line.slice(index + 1).trim(),
+  };
+}
+
+function getDisplayTitle(scenario: Scenario | null): string {
+  if (!scenario) return 'Loading incident...';
+  return `${scenario.title} - ${scenario.role}`;
+}
+
+function getSignalRows(metricsArtifact: ScenarioArtifact | undefined): Array<{ label: string; value: string }> {
+  if (!metricsArtifact) return [];
+  return metricsArtifact.content.slice(0, 3).map(splitSummaryLine);
+}
+
+function getEvidenceArtifacts(scenario: Scenario | null): ScenarioArtifact[] {
+  if (!scenario) return [];
+  return scenario.artifacts.filter(artifact => artifact.artifact_id !== 'metrics_overview');
+}
 
 export default function App() {
-  const [artifact, setArtifact] = useState<ArtifactId>('homepage_trace');
-  const [confidence, setConfidence] = useState(65);
+  const [workspace, setWorkspace] = useState<CreateSessionResponse | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState('');
-  const [validated, setValidated] = useState(false);
-  const [approval, setApproval] = useState<'awaiting' | 'allowed' | 'denied'>('awaiting');
-  const [toast, setToast] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'first-user', role: 'user', content: 'Where should I start looking?' },
-    { id: 'first-assistant', role: 'assistant', content: 'CPU is low, so it is likely waiting on something. Open the homepage trace and check whether calls run one after another.' },
-    { id: 'second-user', role: 'user', content: 'Found 4 API calls in a row.' },
-    { id: 'starter-thinking', role: 'assistant', thinking: true },
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState('');
 
-  const notify = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 3200);
-  };
+  useEffect(() => {
+    let active = true;
 
-  const sendPrompt = (event: FormEvent<HTMLFormElement>) => {
+    const loadWorkspace = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const session = await createSession();
+        if (!active) return;
+
+        setWorkspace(session);
+        setMessages(buildInitialMessages(session.scenario));
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Failed to load incident data.');
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadWorkspace();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const scenario = workspace?.scenario ?? null;
+  const metricsArtifact = scenario?.artifacts.find(artifact => artifact.artifact_id === 'metrics_overview');
+  const signalRows = useMemo(() => getSignalRows(metricsArtifact), [metricsArtifact]);
+  const evidenceArtifacts = useMemo(() => getEvidenceArtifacts(scenario), [scenario]);
+
+  const statusText = useMemo(() => {
+    if (isLoading) return 'Loading incident data...';
+    if (isSending) return 'Contacting backend...';
+    return 'Copilot ready - prompts stay in this assessment session.';
+  }, [isLoading, isSending]);
+
+  const resultCopy = scenario?.notices;
+  const sessionId = workspace?.session_id ?? '';
+
+  const sendPrompt = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const question = prompt.trim();
-    if (!question) return;
+
+    const message = prompt.trim();
+    if (!message || isSending || !sessionId) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      author: 'You',
+      content: message,
+    };
     const thinkingId = crypto.randomUUID();
-    setMessages(current => [...current.filter(message => message.id !== 'starter-thinking'), { id: crypto.randomUUID(), role: 'user', content: question }, { id: thinkingId, role: 'assistant', thinking: true }]);
+
+    setMessages(current => [
+      ...current,
+      userMessage,
+      {
+        id: thinkingId,
+        role: 'assistant',
+        author: 'Copilot',
+        content: 'Thinking...',
+        thinking: true,
+      },
+    ]);
     setPrompt('');
-    notify('Your message appeared immediately. Assistant is thinking...');
-    window.setTimeout(() => setMessages(current => current.map(message => message.id === thinkingId ? { ...message, thinking: false, content: assistantReply } : message)), 650);
+    setIsSending(true);
+
+    try {
+      const reply = await sendChatMessage(sessionId, message);
+      setMessages(current =>
+        current.map(item =>
+          item.id === thinkingId
+            ? {
+                ...item,
+                thinking: false,
+                content: reply,
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      const messageText = err instanceof Error ? err.message : 'Backend request failed.';
+      setMessages(current =>
+        current.map(item =>
+          item.id === thinkingId
+            ? {
+                ...item,
+                thinking: false,
+                content: messageText,
+              }
+            : item,
+        ),
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const runValidation = () => {
-    setValidated(true);
-    setApproval('allowed');
-    notify('Mock validation completed.');
-  };
+  return (
+    <main className="app-shell">
+      <section className="workspace-shell" aria-label="VibeProof candidate prompting screen">
+        <p className="workspace-banner">
+          Use the copilot alongside the evidence workspace. Your prompts and actions are recorded.
+        </p>
 
-  return <main className="app-shell"><section className="assessment-screen" aria-label="VibeProof candidate assessment">
-    <header className="challenge-bar"><div className="challenge-title"><span>Homepage latency spike</span><span className="difficulty">Intermediate</span></div><div className="challenge-actions"><span className="timer">Time <strong>18:42</strong></span><button className="run-button" onClick={runValidation}>Run</button><button className="submit-button" onClick={() => notify('Mock submission saved as an unscored candidate summary.')}>Submit</button></div></header>
-    <p className="prototype-notice"><span />Mock workspace: actions are demonstrative and the result is explicitly unscored.</p>
-    <section className="workspace">
-      <aside className="incident-panel panel"><h1>Incident brief</h1><p>Users report the homepage feels slow. Engineering metrics show:</p><div className="signals"><div>p95 latency <span>180ms to</span> <strong>850ms</strong></div><div>CPU usage <b>35%</b></div></div><p>Your task is not to rewrite the system, but to find the bottleneck and propose a fix.</p><div className="hypothesis-card"><label htmlFor="hypothesis">Current hypothesis</label><select id="hypothesis" defaultValue="Sequential independent API calls"><option>Redis cache degradation</option><option>CPU saturation</option><option>Sequential independent API calls</option><option>Database slowdown</option></select><div><span>Confidence</span><strong>{confidence}%</strong></div><input aria-label="Confidence" type="range" min="0" max="100" value={confidence} onChange={event => setConfidence(Number(event.target.value))} /></div></aside>
-      <section className="conversation-panel panel" aria-label="Conversation"><h2>Conversation <span>Scripted assistant</span></h2><div className="conversation-workspace"><div className="chat-thread"><div className="conversation" aria-live="polite">{messages.map(message => <article className={`message ${message.role}${message.thinking ? ' thinking' : ''}`} key={message.id}>{message.thinking ? <><i /><i /><i /></> : <p>{message.content}</p>}</article>)}</div><form className="prompt-box" onSubmit={sendPrompt}><label className="sr-only" htmlFor="prompt">Write a message</label><textarea id="prompt" rows={1} value={prompt} onChange={event => setPrompt(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Write a message... Press Enter to send, or Shift+Enter for a new line." /><button type="submit">Send</button></form></div><aside className="activity-panel" aria-label="Assistant activity"><div className="activity-heading"><h3>Assistant activity</h3><span>Live</span></div><ol className="activity-list"><li><span className="activity-dot complete" /><div><strong>Context loaded</strong><p>Homepage trace and metrics</p></div></li><li><span className="activity-dot complete" /><div><strong>Trace reviewed</strong><p>Sequential waits detected</p></div></li><li><span className="activity-dot active" /><div><strong>Reasoning</strong><p>Checking call independence</p></div></li></ol><section className={`permission-card ${approval}`}><p className="permission-label">Permission required</p><strong>Run scripted validation?</strong><span>Checks p95 latency and correctness using mock data.</span>{approval === 'awaiting' ? <div><button onClick={() => { setApproval('allowed'); notify('Validation permission allowed.'); }}>Allow</button><button className="deny" onClick={() => { setApproval('denied'); notify('Validation permission denied.'); }}>Deny</button></div> : <p className="permission-result">{approval === 'allowed' ? 'Allowed by candidate' : 'Denied by candidate'}</p>}</section></aside></div></section>
-      <section className="right-column"><section className="output-panel panel"><div className="panel-title"><h2>Output</h2><div className="tabs" role="tablist">{(Object.keys(artifacts) as ArtifactId[]).map(id => <button key={id} className={`tab ${artifact === id ? 'active' : ''}`} onClick={() => { setArtifact(id); notify(`Opened ${artifacts[id].label} evidence (mock event recorded).`); }}>{artifacts[id].label}</button>)}</div></div><pre><code>{artifacts[artifact].content}</code></pre></section><section className="result-panel"><div><h2>Result</h2><p>{validated ? 'Mock validation selected latency and correctness checks. Parallelize only confirmed independent calls.' : 'Submit your diagnosis to see the unscored session summary.'}</p></div><button className="text-button" onClick={runValidation}>{validated ? 'Ready' : 'Use safe remediation'}</button></section></section>
-    </section>
-  </section><div className={`toast ${toast ? 'show' : ''}`} role="status">{toast}</div></main>;
+        <section className="workspace-grid">
+          <aside className="panel panel-incident" aria-label="Incident brief">
+            <p className="panel-kicker panel-kicker-amber">Incident brief</p>
+            <h1>{getDisplayTitle(scenario)}</h1>
+            <p className="panel-intro">
+              {scenario?.brief ?? 'Loading the incident brief from the backend...'}
+            </p>
+
+            <hr />
+
+            <p className="panel-kicker panel-kicker-amber">Assessment flow</p>
+            <p className="panel-copy">
+              {scenario?.notices?.human_review ??
+                'Your initial hypothesis is recorded. Use this screen to investigate it with the copilot and the evidence below.'}
+            </p>
+
+            {error ? (
+              <>
+                <hr />
+                <p className="panel-copy">{error}</p>
+              </>
+            ) : null}
+          </aside>
+
+          <section className="panel panel-conversation" aria-label="Conversation">
+            <div className="panel-heading">
+              <p className="panel-kicker panel-kicker-violet">Conversation</p>
+              <h2>Engineering copilot</h2>
+              <p className="panel-subtitle">{statusText}</p>
+            </div>
+
+            <div className="conversation-feed" aria-live="polite">
+              {messages.map(message => (
+                <article
+                  className={`message-card ${message.role}${message.thinking ? ' thinking' : ''}`}
+                  key={message.id}
+                >
+                  <span className="message-author">{message.author}</span>
+                  {message.thinking ? (
+                    <div className="thinking-dots" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                  ) : (
+                    <p>{message.content}</p>
+                  )}
+                </article>
+              ))}
+            </div>
+
+            <form className="prompt-row" onSubmit={sendPrompt}>
+              <label className="sr-only" htmlFor="prompt">
+                Ask the copilot about this incident
+              </label>
+              <textarea
+                id="prompt"
+                rows={2}
+                value={prompt}
+                onChange={event => setPrompt(event.target.value)}
+                onKeyDown={event => {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                placeholder="Ask the copilot about this incident"
+                disabled={isLoading}
+              />
+              <button type="submit" disabled={isLoading || isSending || !prompt.trim() || !sessionId}>
+                {isSending ? 'Sending' : 'Send'}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel panel-evidence" aria-label="Evidence and output">
+            <div className="panel-heading">
+              <p className="panel-kicker panel-kicker-cyan">Evidence and output</p>
+              <h2>Homepage signals</h2>
+            </div>
+
+            <div className="signal-grid" aria-label="Homepage signals summary">
+              {signalRows.map(signal => (
+                <div className="signal-row" key={signal.label}>
+                  <span>{signal.label}</span>
+                  <strong>{signal.value}</strong>
+                </div>
+              ))}
+            </div>
+
+            <hr />
+
+            <div className="evidence-scroll">
+              <p className="panel-kicker panel-kicker-cyan">Evidence</p>
+
+              {evidenceArtifacts.map(artifact => (
+                <section className="evidence-section" key={artifact.artifact_id}>
+                  <h3>{artifact.title}</h3>
+                  <pre>{artifact.content.join('\n')}</pre>
+                </section>
+              ))}
+            </div>
+
+            <hr />
+
+            <section className="result-block" aria-label="Result guidance">
+              <p className="panel-kicker panel-kicker-result">Result</p>
+              <p>
+                {resultCopy?.human_review ??
+                  'Build an evidence-backed diagnosis, then state a safe remediation, validation plan, and rollback condition in your submission.'}
+              </p>
+              <p>{resultCopy?.limitations ?? ''}</p>
+              <p>{resultCopy?.navigation ?? ''}</p>
+            </section>
+          </section>
+        </section>
+      </section>
+    </main>
+  );
 }
