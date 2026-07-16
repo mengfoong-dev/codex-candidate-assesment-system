@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/room/incident_room.tscn" id="2_room"]
 [ext_resource type="PackedScene" path="res://scenes/ui/title_screen.tscn" id="3_title"]
 [ext_resource type="PackedScene" path="res://scenes/ui/browser_workspace.tscn" id="4_workspace"]
 [ext_resource type="PackedScene" path="res://scenes/ui/office_layer.tscn" id="5_office"]
+[ext_resource type="PackedScene" path="res://scenes/ui/notepad.tscn" id="6_notepad"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -21,5 +22,8 @@ demo_mode = false
 [node name="OfficeLayer" parent="UI" instance=ExtResource("5_office")]
 visible = false
 senior_proxy_url = "https://senior-proxy-production.up.railway.app/api/senior/chat"
+
+[node name="Notepad" parent="UI" instance=ExtResource("6_notepad")]
+visible = false
 
 [node name="TitleScreen" parent="UI" instance=ExtResource("3_title")]

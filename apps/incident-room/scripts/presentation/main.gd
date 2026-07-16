@@ -9,6 +9,7 @@ const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summ
 @onready var player: Node = $IncidentRoom/Player
 @onready var workspace: BrowserWorkspace = $UI/Workspace
 @onready var office: OfficeLayer = $UI/OfficeLayer
+@onready var notepad: Notepad = $UI/Notepad
 @onready var title_screen: Control = $UI/TitleScreen
 
 var _scenario: Dictionary = {}
@@ -194,6 +195,7 @@ func _connect_signals() -> void:
     workspace.final_submission_requested.connect(submit_final)
     workspace.restart_requested.connect(restart_session)
     workspace.leave_requested.connect(_stand)
+    workspace.notepad_requested.connect(func() -> void: notepad.open_pad())
     if player != null:
         player.interaction_requested.connect(_on_interact)
         player.nearest_station_changed.connect(_on_nearest_station_changed)
