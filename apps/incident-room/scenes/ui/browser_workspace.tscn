@@ -1,0 +1,123 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/presentation/browser_workspace.gd" id="1_browser"]
+
+[sub_resource type="StyleBoxFlat" id="Chrome"]
+bg_color = Color(0.12, 0.16, 0.3, 1)
+content_margin_left = 18.0
+content_margin_top = 12.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="AddressPill"]
+bg_color = Color(0.06, 0.08, 0.16, 1)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="DotCyan"]
+bg_color = Color(0.1, 0.78, 0.95, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="DotViolet"]
+bg_color = Color(0.66, 0.42, 0.94, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="DotGreen"]
+bg_color = Color(0.24, 0.82, 0.49, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="TabStrip"]
+bg_color = Color(0.09, 0.12, 0.24, 1)
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 0.0
+
+[sub_resource type="StyleBoxFlat" id="Content"]
+bg_color = Color(0.95, 0.92, 0.86, 1)
+
+[node name="BrowserWorkspace" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_browser")
+
+[node name="Frame" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 0
+
+[node name="Chrome" type="PanelContainer" parent="Frame"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("Chrome")
+
+[node name="ChromeRow" type="HBoxContainer" parent="Frame/Chrome"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Dots" type="HBoxContainer" parent="Frame/Chrome/ChromeRow"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Dot1" type="Panel" parent="Frame/Chrome/ChromeRow/Dots"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DotCyan")
+
+[node name="Dot2" type="Panel" parent="Frame/Chrome/ChromeRow/Dots"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DotViolet")
+
+[node name="Dot3" type="Panel" parent="Frame/Chrome/ChromeRow/Dots"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DotGreen")
+
+[node name="Address" type="PanelContainer" parent="Frame/Chrome/ChromeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("AddressPill")
+
+[node name="Url" type="Label" parent="Frame/Chrome/ChromeRow/Address"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.74, 0.82, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+text = "🔒  vibeproof.app / incident / homepage-latency-spike"
+
+[node name="TabStrip" type="PanelContainer" parent="Frame"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("TabStrip")
+
+[node name="Tabs" type="HBoxContainer" parent="Frame/TabStrip"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Content" type="PanelContainer" parent="Frame"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("Content")
+
+[node name="PanelHost" type="Control" parent="Frame/Content"]
+layout_mode = 2

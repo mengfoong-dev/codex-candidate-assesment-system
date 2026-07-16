@@ -64,6 +64,9 @@ The older discovery notes below describe the sequence that led to the current di
 | `S-20260715-234554` | Codex | 3.9 minutes | Implement and stage the Godot Web export |
 | `S-20260715-235300` | Codex | 11.6 minutes | Reconcile and push concurrent main changes |
 | `S-20260716-000559` | Codex | 8.1 minutes | Verify and deploy the Godot Web build to Railway |
+| `S-20260716-001843` | Codex | 0.5 minutes | Research free 3D art options for the Godot game |
+| `S-20260716-002801` | Codex | 2.1 minutes | Design the Cozy Toy Office visual overhaul |
+| `S-20260716-003445` | Codex | 9.9 minutes | Plan the Cozy Toy Office implementation |
 
 ## 14 July 2026 - Historical product discovery
 
