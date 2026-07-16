@@ -110,6 +110,10 @@ func _physics_process(_delta: float) -> void:
 func set_input_enabled(enabled: bool) -> void:
     input_enabled = enabled
 
+## Toggle the seated pose (used when sitting at the desk).
+func set_seated(seated: bool) -> void:
+    player_visual.set_seated(seated)
+
 func register_station(station: Area3D) -> void:
     if not _nearby_stations.has(station):
         _nearby_stations.append(station)

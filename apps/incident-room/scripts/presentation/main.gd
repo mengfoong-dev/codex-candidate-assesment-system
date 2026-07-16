@@ -17,11 +17,19 @@ var _summary_writer := Callable()
 var _logger: RefCounted
 var _session: RefCounted
 var _phase := "title"
-# Presentation-only: "office" (walking the 3D room) vs "desk" (working in the laptop).
+# Presentation-only: "office" (walking the 3D room) vs "desk" (seated, using the PC).
 var _view := "office"
+var _desk_pc_open := false     # true once the desk camera has glided in and the PC UI shows
+var _pre_sit := Transform3D.IDENTITY
 var _current_summary: Dictionary = {}
 var _session_serial := 0
 var _session_id := ""
+
+# Where the player sits at the desk (facing the monitor, legs under the desk) and the
+# desk close-up camera framing the monitor. The built-in desk sits at ~(1.75, -0.5).
+const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(1.75, 0.45, 0.5))
+const DESK_CAM_POS := Vector3(1.75, 2.5, 3.4)
+const DESK_CAM_LOOK := Vector3(1.75, 0.95, -0.4)
 
 func _ready() -> void:
     _connect_signals()
@@ -137,6 +145,12 @@ func restart_session() -> Dictionary:
     _configure_static_ui()
     office.close()
     _view = "office"
+    _desk_pc_open = false
+    if player != null and player.has_method("set_seated"):
+        player.set_seated(false)
+    var cam := room.get_node_or_null("Camera3D")
+    if cam != null and cam.has_method("clear_focus"):
+        cam.clear_focus()
     _set_phase("title")
     return {"ok": true, "session_id": _session_id}
 
@@ -221,12 +235,36 @@ func _sit() -> void:
         return
     office.close()
     _view = "desk"
+    _desk_pc_open = false
+    # Seat the player in the chair facing the monitor with the sit pose.
+    _pre_sit = player.global_transform
+    player.global_transform = DESK_SEAT
+    if player.has_method("set_seated"):
+        player.set_seated(true)
+    # Glide the camera to the desk close-up; reveal the PC once it arrives.
+    var cam := room.get_node_or_null("Camera3D")
+    if cam != null and cam.has_method("focus_on"):
+        cam.focus_on(Transform3D(Basis.IDENTITY, DESK_CAM_POS).looking_at(DESK_CAM_LOOK, Vector3.UP))
+    _update_presentation()
+    get_tree().create_timer(0.55).timeout.connect(_open_desk_pc)
+
+func _open_desk_pc() -> void:
+    if _view != "desk":
+        return
+    _desk_pc_open = true
     _update_presentation()
 
 func _stand() -> void:
     if _phase != "briefing" and _phase != "room":
         return
     _view = "office"
+    _desk_pc_open = false
+    if player.has_method("set_seated"):
+        player.set_seated(false)
+    player.global_transform = _pre_sit
+    var cam := room.get_node_or_null("Camera3D")
+    if cam != null and cam.has_method("clear_focus"):
+        cam.clear_focus()
     _update_presentation()
 
 func _prompt_for(station_id: String) -> String:
@@ -250,7 +288,7 @@ func _update_presentation() -> void:
     var at_desk := _view == "desk"
     title_screen.visible = _phase == "title"
     room.visible = _phase != "summary"
-    workspace.visible = (working and at_desk) or _phase == "summary"
+    workspace.visible = (working and at_desk and _desk_pc_open) or _phase == "summary"
     office.visible = working and not at_desk
     if office.visible:
         office.show_hint(_prompt_for(""))
