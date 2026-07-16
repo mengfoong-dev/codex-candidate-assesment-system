@@ -28,7 +28,7 @@ func run(tree: SceneTree) -> Array[String]:
     var cameras := room.find_children("*", "Camera3D", true, false)
     t.assert_equal(cameras.size(), 1, "room has exactly one camera")
     if cameras.size() == 1:
-        t.assert_equal(cameras[0].projection, Camera3D.PROJECTION_ORTHOGONAL, "camera is orthographic")
+        t.assert_equal(cameras[0].projection, Camera3D.PROJECTION_PERSPECTIVE, "third-person camera is perspective")
         t.assert_true(cameras[0].current, "camera is current")
 
     var player := room.get_node_or_null("Player")
