@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
 [ext_resource type="Script" path="res://scripts/presentation/mesh_collider.gd" id="21_collider"]
 [ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
+[ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="26_chair"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -90,6 +91,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, -0.2)
 station_id = "my_desk"
 station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
+
+[node name="DeskChair" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 0, 0.35)
+mesh = ExtResource("26_chair")
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector3(1.0, 0.05, 1.7)
