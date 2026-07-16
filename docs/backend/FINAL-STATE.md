@@ -1,6 +1,6 @@
 # VibeProof Backend - Final State
 
-**Updated:** 2026-07-16, Asia/Singapore
+**Updated:** 2026-07-17, Asia/Singapore
 **Status:** Backend implementation, automated verification, and the live five-turn
 Cohere-plus-panel acceptance are complete. The final-state driver uses an isolated
 temporary database but invokes the configured Cohere rubric panel when `backend/.env`
@@ -76,7 +76,7 @@ history.
 
 ## Verification evidence
 
-- `cd backend; uv run pytest -q` completed with **60 passed in 20.46s** on 2026-07-16.
+- `cd backend; uv run pytest -q` completed with **60 passed in 21.33s** on 2026-07-17.
 - `cd backend; uv run python -m pytest tests/test_simulation.py -q` completed with
   **15 passed in 3.52s**. These endpoint tests use a complete Cohere V2 stream double only
   at the external-provider boundary.
