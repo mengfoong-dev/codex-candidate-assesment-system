@@ -24,6 +24,11 @@ var _drag_dist := 0.0
 func _unhandled_input(event: InputEvent) -> void:
     if not input_enabled:
         return
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+        var camera := get_node_or_null(camera_path)
+        if camera != null and camera.has_method("toggle_mode"):
+            camera.toggle_mode()
+        return
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
         if event.pressed:
             _pointer_down = true
