@@ -17,26 +17,43 @@ var _nearest_station_id := ""
 var _click_target := Vector3.ZERO
 var _has_click_target := false
 var _click_wants_interact := false
+# Drag-to-orbit: a held drag rotates the camera; a small press+release is a tap (walk).
+var _pointer_down := false
+var _drag_dist := 0.0
 
 func _unhandled_input(event: InputEvent) -> void:
     if not input_enabled:
         return
-    if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-        var camera := get_node_or_null(camera_path) as Camera3D
-        if camera == null:
-            return
-        var origin := camera.project_ray_origin(event.position)
-        var dir := camera.project_ray_normal(event.position)
-        if absf(dir.y) < 0.0001:
-            return
-        var t := -origin.y / dir.y
-        if t < 0.0:
-            return
-        var hit := origin + dir * t
-        _click_target = Vector3(hit.x, 0.0, hit.z)
-        _has_click_target = true
-        # Walk to the click, then try to interact with whatever's there.
-        _click_wants_interact = true
+    if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+        if event.pressed:
+            _pointer_down = true
+            _drag_dist = 0.0
+        else:
+            _pointer_down = false
+            if _drag_dist < 10.0:  # negligible movement => a tap, so walk there
+                _walk_to_screen_point(event.position)
+    elif event is InputEventMouseMotion and _pointer_down:
+        _drag_dist += event.relative.length()
+        var camera := get_node_or_null(camera_path)
+        if camera != null and camera.has_method("add_orbit"):
+            camera.add_orbit(-event.relative.x * 0.006, event.relative.y * 0.02)
+
+func _walk_to_screen_point(screen_pos: Vector2) -> void:
+    var camera := get_node_or_null(camera_path) as Camera3D
+    if camera == null:
+        return
+    var origin := camera.project_ray_origin(screen_pos)
+    var dir := camera.project_ray_normal(screen_pos)
+    if absf(dir.y) < 0.0001:
+        return
+    var t := -origin.y / dir.y
+    if t < 0.0:
+        return
+    var hit := origin + dir * t
+    _click_target = Vector3(hit.x, 0.0, hit.z)
+    _has_click_target = true
+    # Walk to the tap point, then try to interact with whatever is there.
+    _click_wants_interact = true
 
 func _physics_process(_delta: float) -> void:
     if not input_enabled:
