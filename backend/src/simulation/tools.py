@@ -18,7 +18,12 @@ TOOL_SCHEMAS: list[dict] = [
             "List every file currently in the candidate's Virtual Workspace, with its path "
             "and source (seeded/ai/user)."
         ),
-        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
     },
     {
         "name": "read_file",
@@ -50,8 +55,13 @@ TOOL_SCHEMAS: list[dict] = [
     },
 ]
 
-# Cohere V2 wraps the same JSON Schemas inside a function descriptor. Keeping one canonical
-# tool definition prevents the candidate-visible workspace surface from drifting by provider.
+# Cohere receives only file-read and file-write functions. Command A+ currently rejects some
+# otherwise-valid strict generations when the zero-input list_files tool is present. Workspace
+# inventory remains fully frontend-callable through GET /sessions/{id}/files and is returned at
+# session creation; the engine retains list_files for its provider-neutral/fake-provider seam.
+#
+# Keeping the provider surface to functions with required inputs lets strict mode guarantee tool
+# arguments without changing the sandbox's access controls or list API.
 COHERE_TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
@@ -62,6 +72,7 @@ COHERE_TOOL_SCHEMAS: list[dict] = [
         },
     }
     for tool in TOOL_SCHEMAS
+    if tool["name"] != "list_files"
 ]
 
 

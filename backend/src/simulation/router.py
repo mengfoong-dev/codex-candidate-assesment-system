@@ -38,4 +38,5 @@ async def post_message(session_id: str, body: MessageIn, db: AsyncSession = Depe
             content=body.content,
         ),
         media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

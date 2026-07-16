@@ -146,6 +146,9 @@ async def test_happy_path_write_file_and_usage(sim_client, active_session, monke
         f"/api/sessions/{active_session}/messages", json={"content": "Fix the latency"}
     )
     assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    assert resp.headers["cache-control"] == "no-cache"
+    assert resp.headers["x-accel-buffering"] == "no"
     events = _parse_sse(resp.text)
     types = [e for e, _ in events]
 
@@ -295,6 +298,8 @@ async def test_outage_emits_error_and_technical_error_event(sim_client, active_s
     events = _parse_sse(resp.text)
     assert events[-1][0] == "error"
     assert events[-1][1]["code"] == "llm_unavailable"
+    assert events[-1][1]["message"] == service.SAFE_MODEL_UNAVAILABLE_MESSAGE
+    assert "simulated provider outage" not in events[-1][1]["message"]
 
     async with AsyncSessionLocal() as db:
         stored = await load_events(db, active_session)
@@ -318,6 +323,46 @@ async def test_missing_api_key_emits_error(sim_client, active_session, monkeypat
     events = _parse_sse(resp.text)
     assert events[-1][0] == "error"
     assert events[-1][1]["code"] == "llm_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_sixth_candidate_prompt_is_rejected_by_the_server(sim_client, active_session, monkeypatch):
+    """The five-turn assessment limit is a backend invariant, not merely a CLI convention."""
+    fake = FakeLLM(
+        [
+            [
+                TurnDone(
+                    stop_reason="end_turn",
+                    usage=TokenUsage(input_tokens=1, output_tokens=1),
+                    tool_calls=[],
+                    raw_content={"role": "assistant", "content": [], "tool_calls": []},
+                )
+            ]
+            for _ in range(5)
+        ]
+    )
+    monkeypatch.setattr(service, "get_llm", lambda: fake)
+
+    for turn_number in range(1, 6):
+        response = await sim_client.post(
+            f"/api/sessions/{active_session}/messages", json={"content": f"candidate turn {turn_number}"}
+        )
+        assert _parse_sse(response.text)[-1][0] == "done"
+
+    sixth = await sim_client.post(
+        f"/api/sessions/{active_session}/messages", json={"content": "candidate turn 6"}
+    )
+    assert sixth.status_code == 200
+    assert _parse_sse(sixth.text) == [
+        (
+            "error",
+            {
+                "code": "candidate_turn_limit_reached",
+                "message": "This assessment accepts a maximum of 5 candidate prompts.",
+            },
+        )
+    ]
+    assert fake.call_count == 5
 
 
 # --- 409 on a submitted session: no stream started ----------------------------------------
@@ -365,6 +410,7 @@ def test_system_prompt_excludes_hidden_scenario_keys():
     assert "configured_points" not in prompt
     assert "scoring" not in prompt
     assert "root_cause" not in prompt
+    assert "asks you to read or edit a known workspace file" in prompt
 
 
 # --- model/health check --------------------------------------------------------------------
@@ -387,6 +433,27 @@ class RecordingCohereClient:
 
     def chat_stream(self, **kwargs):
         self.calls.append(kwargs)
+        events = self._turns.pop(0)
+
+        async def stream():
+            for event in events:
+                yield event
+
+        return stream()
+
+
+class TransientFailingCohereClient(RecordingCohereClient):
+    """Fails before yielding an event once, then provides the supplied V2 stream."""
+
+    def __init__(self, turns):
+        super().__init__(turns)
+        self._fail_first_request = True
+
+    def chat_stream(self, **kwargs):
+        self.calls.append(kwargs)
+        if self._fail_first_request:
+            self._fail_first_request = False
+            raise RuntimeError("transient Cohere request failure")
         events = self._turns.pop(0)
 
         async def stream():
@@ -443,7 +510,8 @@ async def test_cohere_adapter_reconstructs_streamed_tool_arguments_and_usage():
             _cohere_event(
                 "message-end",
                 delta=SimpleNamespace(
-                    message=SimpleNamespace(finish_reason="TOOL_CALL", usage=_cohere_usage(101, 23))
+                    # Command A+ may emit COMPLETE even when tool-call events were streamed.
+                    message=SimpleNamespace(finish_reason="COMPLETE", usage=_cohere_usage(101, 23))
                 ),
             ),
         ]]
@@ -477,7 +545,50 @@ async def test_cohere_adapter_reconstructs_streamed_tool_arguments_and_usage():
     assert done.raw_content["tool_calls"][0]["function"]["arguments"] == '{"path":"src/a.ts","content":"// fixed"}'
     assert client.calls[0]["model"] == "command-a-plus-05-2026"
     assert client.calls[0]["tools"] == workspace_tools.COHERE_TOOL_SCHEMAS
+    # Cohere only receives required-input read/write tools, so strict mode can prevent
+    # malformed provider-side tool generation.
     assert client.calls[0]["strict_tools"] is True
+    assert client.calls[0]["thinking"] == {"type": "disabled"}
+
+
+@pytest.mark.asyncio
+async def test_cohere_adapter_retries_a_pre_output_provider_failure_once():
+    client = TransientFailingCohereClient(
+        [[
+            _cohere_event(
+                "content-delta",
+                delta=SimpleNamespace(message=SimpleNamespace(content=SimpleNamespace(text="Recovered response."))),
+            ),
+            _cohere_event(
+                "message-end",
+                delta=SimpleNamespace(
+                    message=SimpleNamespace(finish_reason="COMPLETE", usage=_cohere_usage(12, 3))
+                ),
+            ),
+        ]]
+    )
+    llm = service.CohereLLM(
+        api_key="fake-key", model="command-a-plus-05-2026", max_tokens=128, client=client
+    )
+
+    chunks = [
+        chunk
+        async for chunk in llm.stream_turn(
+            system="system",
+            messages=[{"role": "user", "content": "help"}],
+            tools=workspace_tools.COHERE_TOOL_SCHEMAS,
+        )
+    ]
+
+    assert [chunk.text for chunk in chunks if isinstance(chunk, TokenChunk)] == ["Recovered response."]
+    assert len(client.calls) == 2
+
+
+def test_cohere_workspace_tools_are_compatible_with_strict_mode():
+    cohere_tool_names = {tool["function"]["name"] for tool in workspace_tools.COHERE_TOOL_SCHEMAS}
+    assert cohere_tool_names == {"read_file", "write_file"}
+    assert all(tool["function"]["parameters"]["required"] for tool in workspace_tools.COHERE_TOOL_SCHEMAS)
+    assert service.COHERE_STRICT_TOOLS is True
 
 
 @pytest.mark.asyncio
