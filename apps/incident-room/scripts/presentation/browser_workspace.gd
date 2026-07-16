@@ -303,35 +303,65 @@ func _build_prompting_page() -> void:
     incident_card.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 18, INK))
     incident_card.add_child(_richtext(str(_scenario.get("brief", "")), 130))
     incident_card.add_child(HSeparator.new())
-    incident_card.add_child(_heading("Start from a clear hypothesis, then validate it against the artifacts.", 14, MUTED))
-    var open_brief := _flat_button("Open brief")
-    open_brief.pressed.connect(func() -> void: _on_tab_pressed("brief"))
-    incident_card.add_child(open_brief)
+    incident_card.add_child(_heading("Assessment flow", 15, ACCENT["brief"]))
+    incident_card.add_child(_heading("Your initial hypothesis is recorded. Use this screen to investigate it with the copilot and the evidence below.", 14, MUTED))
 
     var conversation_card := _add_workspace_card(workspace, "Conversation", ACCENT["assistant"])
     conversation_card.add_child(_heading("Engineering copilot", 18, INK))
-    conversation_card.add_child(_heading("Ask focused questions; the interaction stays in your session record.", 13, MUTED))
-    conversation_card.add_child(_bubble("You", "Help me understand the latency spike and what I should verify first.", Color(0.88, 0.91, 0.98, 1)))
-    conversation_card.add_child(_bubble("Copilot", "Start with the trace and compare it with healthy CPU and database signals. Then inspect the homepage orchestration code.", Color(0.93, 0.88, 0.99, 1)))
-    var open_assistant := _flat_button("Open live assistant")
-    open_assistant.pressed.connect(func() -> void: _on_tab_pressed("assistant"))
-    conversation_card.add_child(open_assistant)
+    conversation_card.add_child(_heading("Copilot ready · prompts stay in this assessment session.", 13, MUTED))
+    var chat_scroll := ScrollContainer.new()
+    chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    chat_scroll.custom_minimum_size = Vector2(0, 255)
+    conversation_card.add_child(chat_scroll)
+    var chat_log := VBoxContainer.new()
+    chat_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    chat_log.add_theme_constant_override("separation", 8)
+    chat_scroll.add_child(chat_log)
+    chat_log.add_child(_bubble("You", "Help me understand the latency spike and what I should verify first.", Color(0.88, 0.91, 0.98, 1)))
+    chat_log.add_child(_bubble("Copilot", "Start with the trace and compare it with healthy CPU and database signals. Then inspect the homepage orchestration code.", Color(0.93, 0.88, 0.99, 1)))
+    var chat_row := HBoxContainer.new()
+    chat_row.add_theme_constant_override("separation", 7)
+    conversation_card.add_child(chat_row)
+    var chat_input := LineEdit.new()
+    chat_input.placeholder_text = "Ask the copilot about this incident"
+    chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    chat_input.add_theme_font_size_override("font_size", 14)
+    chat_row.add_child(chat_input)
+    var chat_send := _flat_button("Send")
+    chat_send.custom_minimum_size = Vector2(74, 38)
+    chat_row.add_child(chat_send)
+    var send_prompt := func() -> void:
+        var prompt := chat_input.text.strip_edges()
+        if prompt.is_empty():
+            return
+        chat_log.add_child(_bubble("You", prompt, Color(0.88, 0.91, 0.98, 1)))
+        chat_input.clear()
+        chat_log.add_child(_bubble("Copilot", "Focus on the trace, compare it with the healthy service signals, and use the artifacts on the right to validate your hypothesis.", Color(0.93, 0.88, 0.99, 1)))
+        chat_scroll.scroll_vertical = 100000
+    chat_send.pressed.connect(send_prompt)
+    chat_input.text_submitted.connect(func(_text: String) -> void: send_prompt.call())
 
     var output_card := _add_workspace_card(workspace, "Evidence and output", ACCENT["evidence"])
     output_card.add_child(_heading("Homepage signals", 18, INK))
     output_card.add_child(_heading("p95 latency   180 ms → 850 ms\nCPU usage     35% (healthy)\nDatabase      healthy", 15, INK))
     output_card.add_child(HSeparator.new())
-    output_card.add_child(_heading("Review the trace, logs, and source code before choosing a remediation.", 13, MUTED))
-    var open_evidence := _flat_button("Open evidence")
-    open_evidence.pressed.connect(func() -> void: _on_tab_pressed("evidence"))
-    output_card.add_child(open_evidence)
-    var open_tests := _flat_button("Open files and tests")
-    open_tests.pressed.connect(func() -> void: _on_tab_pressed("tests"))
-    output_card.add_child(open_tests)
-
-    var result_card := _add_workspace_card(body, "Result", ACCENT["submit"])
-    result_card.add_child(_heading("Build an evidence-backed diagnosis", 17, INK))
-    result_card.add_child(_heading("Your actions, prompts, evidence views, and validation choices feed into the final submission.", 14, MUTED))
+    output_card.add_child(_heading("Evidence", 15, ACCENT["evidence"]))
+    var evidence_scroll := ScrollContainer.new()
+    evidence_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    evidence_scroll.custom_minimum_size = Vector2(0, 170)
+    output_card.add_child(evidence_scroll)
+    var evidence_list := VBoxContainer.new()
+    evidence_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    evidence_list.add_theme_constant_override("separation", 7)
+    evidence_scroll.add_child(evidence_list)
+    for artifact: Dictionary in _scenario.get("artifacts", []):
+        evidence_list.add_child(_heading(str(artifact.get("title", "Evidence artifact")), 14, INK))
+        var content: Array = artifact.get("content", [])
+        if not content.is_empty():
+            evidence_list.add_child(_heading("• " + str(content[0]), 13, MUTED))
+    output_card.add_child(HSeparator.new())
+    output_card.add_child(_heading("Result", 15, ACCENT["submit"]))
+    output_card.add_child(_heading("Build an evidence-backed diagnosis, then state a safe remediation, validation plan, and rollback condition in your submission.", 14, MUTED))
 
 func _update_brief_confirm() -> void:
     # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
