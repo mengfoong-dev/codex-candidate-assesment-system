@@ -15,3 +15,6 @@ CLAUDE.local.md
 .env.local
 **/.env
 **/.env.local
+
+# Vendored asset source archives — only the extracted files under assets/third_party are tracked.
+*.zip
