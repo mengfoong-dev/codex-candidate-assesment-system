@@ -6,7 +6,9 @@ const EventLoggerScript = preload("res://scripts/persistence/event_logger.gd")
 const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summary_builder.gd")
 
 @onready var room: Node3D = $IncidentRoom
+@onready var player: Node = $IncidentRoom/Player
 @onready var workspace: BrowserWorkspace = $UI/Workspace
+@onready var office: OfficeLayer = $UI/OfficeLayer
 @onready var title_screen: Control = $UI/TitleScreen
 
 var _scenario: Dictionary = {}
@@ -15,6 +17,8 @@ var _summary_writer := Callable()
 var _logger: RefCounted
 var _session: RefCounted
 var _phase := "title"
+# Presentation-only: "office" (walking the 3D room) vs "desk" (working in the laptop).
+var _view := "office"
 var _current_summary: Dictionary = {}
 var _session_serial := 0
 var _session_id := ""
@@ -29,7 +33,7 @@ func _ready() -> void:
         _scenario = loaded.scenario
     _create_fresh_session()
     _configure_static_ui()
-    _show_phase("title")
+    _set_phase("title")
 
 func configure_dependencies(
         scenario: Dictionary,
@@ -41,7 +45,7 @@ func configure_dependencies(
     _summary_writer = summary_writer
     _create_fresh_session()
     _configure_static_ui()
-    _show_phase("title")
+    _set_phase("title")
 
 func begin_session() -> Dictionary:
     if _phase != "title":
@@ -50,7 +54,10 @@ func begin_session() -> Dictionary:
     if result.ok:
         workspace.configure(_scenario)
         workspace.set_started(false)
-        _show_phase("briefing")
+        office.configure(_scenario)
+        office.set_snapshot(_session.snapshot())
+        _view = "office"
+        _set_phase("briefing")
     return _finish_intent(result)
 
 func submit_initial_hypothesis(hypothesis_id: String, confidence: int) -> Dictionary:
@@ -58,7 +65,7 @@ func submit_initial_hypothesis(hypothesis_id: String, confidence: int) -> Dictio
         return _reject("Initial hypothesis is only available during briefing")
     var result: Dictionary = _session.record_initial_hypothesis(hypothesis_id, confidence)
     if result.ok:
-        _show_phase("room")
+        _set_phase("room")
         workspace.set_started(true)
     return _finish_intent(result)
 
@@ -83,6 +90,7 @@ func record_ai_disposition(option_id: String) -> Dictionary:
 func open_hypothesis_panel() -> Dictionary:
     if _phase != "room":
         return _reject("Hypothesis revision is only available inside the workspace")
+    _sit()
     workspace.set_active_tab("submit")
     return {"ok": true}
 
@@ -120,14 +128,16 @@ func submit_final(submission: Dictionary) -> Dictionary:
             event_warning + "\n" if not event_warning.is_empty() else "",
             summary_warning,
         ]
-    _show_phase("summary")
+    _set_phase("summary")
     workspace.show_report(_current_summary)
     return _finish_intent(result)
 
 func restart_session() -> Dictionary:
     _create_fresh_session()
     _configure_static_ui()
-    _show_phase("title")
+    office.close()
+    _view = "office"
+    _set_phase("title")
     return {"ok": true, "session_id": _session_id}
 
 func current_phase() -> String:
@@ -169,22 +179,88 @@ func _connect_signals() -> void:
     workspace.verification_requested.connect(request_verification)
     workspace.final_submission_requested.connect(submit_final)
     workspace.restart_requested.connect(restart_session)
+    workspace.leave_requested.connect(_stand)
+    if player != null:
+        player.interaction_requested.connect(_on_interact)
+        player.nearest_station_changed.connect(_on_nearest_station_changed)
+        player.hypothesis_requested.connect(open_hypothesis_panel)
+    office.evidence_view_requested.connect(view_artifact)
+    office.modal_changed.connect(func(_open: bool) -> void: _update_player_input())
 
 func _configure_static_ui() -> void:
     if _scenario.is_empty():
         return
     title_screen.configure(_scenario.get("notices", {}))
 
-func _show_phase(next_phase: String) -> void:
+# --- Office <-> desk presentation loop ---------------------------------------
+
+func _on_interact(station_id: String) -> void:
+    if _phase != "briefing" and _phase != "room":
+        return
+    if _view != "office" or office.is_modal_open():
+        return
+    match station_id:
+        "my_desk":
+            _sit()
+        "senior":
+            office.open_senior()
+        _:
+            office.open_station(station_id)
+
+func _on_nearest_station_changed(station_id: String) -> void:
+    office.show_hint(_prompt_for(station_id))
+
+func _sit() -> void:
+    if _phase != "briefing" and _phase != "room":
+        return
+    office.close()
+    _view = "desk"
+    _update_presentation()
+
+func _stand() -> void:
+    if _phase != "briefing" and _phase != "room":
+        return
+    _view = "office"
+    _update_presentation()
+
+func _prompt_for(station_id: String) -> String:
+    match station_id:
+        "":
+            return "WASD / arrows to move  ·  walk up to someone or something and press E"
+        "my_desk":
+            return "Press E — sit at your laptop 💻"
+        "senior":
+            return "Press E — talk to Sam, your senior ☕"
+        _:
+            var station := _find_by_id(_scenario.get("stations", []), "station_id", station_id)
+            return "Press E — inspect %s" % str(station.get("title", station_id))
+
+func _set_phase(next_phase: String) -> void:
     _phase = next_phase
-    title_screen.visible = next_phase == "title"
-    # The 3D cozy office is an optional intro backdrop shown only on the title screen.
-    room.visible = next_phase == "title"
-    workspace.visible = next_phase == "briefing" or next_phase == "room" or next_phase == "summary"
+    _update_presentation()
+
+func _update_presentation() -> void:
+    var working := _phase == "briefing" or _phase == "room"
+    var at_desk := _view == "desk"
+    title_screen.visible = _phase == "title"
+    room.visible = _phase != "summary"
+    workspace.visible = (working and at_desk) or _phase == "summary"
+    office.visible = working and not at_desk
+    if office.visible:
+        office.show_hint(_prompt_for(""))
+    _update_player_input()
+
+func _update_player_input() -> void:
+    if player == null or not player.has_method("set_input_enabled"):
+        return
+    var can_move := (_phase == "briefing" or _phase == "room") and _view == "office" and not office.is_modal_open()
+    player.set_input_enabled(can_move)
 
 func _finish_intent(result: Dictionary) -> Dictionary:
     if _session != null and _phase != "title":
-        workspace.refresh(_session.snapshot())
+        var snapshot: Dictionary = _session.snapshot()
+        workspace.refresh(snapshot)
+        office.set_snapshot(snapshot)
     return result
 
 func _write_summary(contents: String) -> Error:

@@ -13,6 +13,7 @@ signal verification_requested(test_id: String, remediation_id: String)
 signal revision_submitted(hypothesis_id: String, confidence: int, fact_ids: Array)
 signal final_submission_requested(submission: Dictionary)
 signal restart_requested
+signal leave_requested
 
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
@@ -91,6 +92,12 @@ var _report_notices: RichTextLabel
 
 func _ready() -> void:
     _apply_page_theme()
+    var leave := Button.new()
+    leave.text = "⟵ Leave desk"
+    leave.focus_mode = Control.FOCUS_ALL
+    leave.add_theme_font_size_override("font_size", 13)
+    leave.pressed.connect(func() -> void: leave_requested.emit())
+    ($Frame/Chrome/ChromeRow as HBoxContainer).add_child(leave)
     if demo_mode and _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
         if loaded.ok:
