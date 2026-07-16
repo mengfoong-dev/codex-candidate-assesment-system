@@ -36,6 +36,15 @@ async def _next_sequence(db, session_id: str) -> int:
     return (result.scalar() or 0) + 1
 
 
+async def _event_type_count(db, session_id: str, event_type: str) -> int:
+    result = await db.execute(
+        select(func.count()).select_from(Event).where(
+            Event.session_id == session_id, Event.event_type == event_type
+        )
+    )
+    return int(result.scalar_one())
+
+
 async def _load_session(db, session_id: str) -> Session:
     # populate_existing=True forces a fresh SELECT even if this session_id is already in the caller's
     # identity map — so the status re-check inside the lock (finding #5) can never read a stale cached
@@ -57,6 +66,7 @@ async def append_event(
     actor: str,
     elapsed_active_ms: int = 0,
     require_active: bool = True,
+    max_event_type_count: tuple[str, int] | None = None,
 ) -> EventEnvelope:
     """Append one event atomically. Set require_active=False only for post-submission audit writes
     (e.g. a `technical_error` recorded during grading)."""
@@ -65,6 +75,14 @@ async def append_event(
             session = await _load_session(db, session_id)
             if session.status != "active":
                 raise AppError("session_not_active", "Session no longer accepts writes", 409)
+        if max_event_type_count is not None:
+            limited_event_type, maximum = max_event_type_count
+            if await _event_type_count(db, session_id, limited_event_type) >= maximum:
+                raise AppError(
+                    "candidate_turn_limit_reached",
+                    f"This assessment accepts a maximum of {maximum} candidate prompts.",
+                    409,
+                )
         seq = await _next_sequence(db, session_id)
         eid = next_event_id(session_id, seq)
         occurred_at = now_iso()

@@ -41,7 +41,10 @@ async def test_cohere_structured_request_uses_the_score_schema(monkeypatch):
             captured.update(kwargs)
             return SimpleNamespace(
                 message=SimpleNamespace(
-                    content=[SimpleNamespace(text='{"score":4,"justification":"Evidence-led","cited_event_ids":["e1"]}')]
+                    content=[
+                        SimpleNamespace(text=None, thinking="internal reasoning"),
+                        SimpleNamespace(text='{"score":4,"justification":"Evidence-led","cited_event_ids":["e1"]}'),
+                    ]
                 )
             )
 
@@ -53,7 +56,13 @@ async def test_cohere_structured_request_uses_the_score_schema(monkeypatch):
     assert result == {"score": 4, "justification": "Evidence-led", "cited_event_ids": ["e1"]}
     assert captured["api_key"] == "fake-cohere-key"
     assert captured["model"] == "command-a-plus-05-2026"
-    assert captured["response_format"] == {"type": "json_object", "json_schema": panel_module._SCORE_SCHEMA}
+    assert captured["response_format"] == {"type": "json_object"}
+    assert captured["thinking"] == {"type": "disabled"}
+
+
+def test_cohere_score_schema_avoids_unsupported_numeric_ranges():
+    assert "minimum" not in panel_module._SCORE_SCHEMA["properties"]["score"]
+    assert "maximum" not in panel_module._SCORE_SCHEMA["properties"]["score"]
 
 
 @pytest.mark.asyncio

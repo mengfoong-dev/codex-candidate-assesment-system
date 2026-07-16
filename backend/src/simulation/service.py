@@ -10,6 +10,7 @@ implementation.
 """
 import inspect
 import json
+import logging
 import os
 from dataclasses import dataclass
 from typing import AsyncIterator, Protocol
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import get_settings
 from src.database import AsyncSessionLocal
 from src.event_log import append_event, load_events
+from src.exceptions import AppError
 from src.registry import Scenario, get_scenario
 from src.schemas import (
     AiPromptSubmittedPayload,
@@ -33,6 +35,11 @@ from src.simulation import tools as workspace_tools
 # Tool-loop budget (brief 02). No `sim_max_tool_calls` field exists on the frozen Settings —
 # read straight from the env var the brief names instead of touching foundation config.
 MAX_TOOL_CALLS = int(os.getenv("SIM_MAX_TOOL_CALLS", "8"))
+MAX_CANDIDATE_TURNS = 5
+COHERE_STREAM_ATTEMPTS = 2
+COHERE_STRICT_TOOLS = True
+SAFE_MODEL_UNAVAILABLE_MESSAGE = "The coding agent is temporarily unavailable. Please retry this turn."
+logger = logging.getLogger("vibeproof.simulation")
 
 
 # --- provider-agnostic chunk types -------------------------------------------------------
@@ -133,49 +140,66 @@ class CohereLLM:
 
     async def stream_turn(self, *, system: str, messages: list[dict], tools: list[dict]):
         request_messages = [{"role": "system", "content": system}, *messages]
-        stream = self._client.chat_stream(
-            model=self._model,
-            messages=request_messages,
-            tools=tools,
-            strict_tools=True,
-            max_tokens=self._max_tokens,
-            temperature=self._temperature,
-        )
-        if inspect.isawaitable(stream):
-            stream = await stream
+        request = {
+            "model": self._model,
+            "messages": request_messages,
+            "tools": tools,
+            # Cohere receives only the required-input read/write functions. Strict mode
+            # prevents malformed tool calls from reaching the provider's generation boundary;
+            # application code remains the authority for all session-scoped operations.
+            "strict_tools": COHERE_STRICT_TOOLS,
+            # Command A+ enables reasoning by default. For this candidate-facing chat we need
+            # the bounded response budget to produce visible text/tool calls, not exhaust it in
+            # internal thinking blocks.
+            "thinking": {"type": "disabled"},
+            "max_tokens": self._max_tokens,
+            "temperature": self._temperature,
+        }
 
-        text_parts: list[str] = []
-        calls: dict[int, dict[str, str]] = {}
-        finish_reason = "COMPLETE"
-        usage = TokenUsage(input_tokens=0, output_tokens=0)
+        for attempt in range(COHERE_STREAM_ATTEMPTS):
+            text_parts: list[str] = []
+            calls: dict[int, dict[str, str]] = {}
+            finish_reason = "COMPLETE"
+            usage = TokenUsage(input_tokens=0, output_tokens=0)
+            emitted_text = False
+            try:
+                stream = self._client.chat_stream(**request)
+                if inspect.isawaitable(stream):
+                    stream = await stream
 
-        async for event in stream:
-            event_type = _value(event, "type")
-            if event_type == "content-delta":
-                text = _value(event, "delta", "message", "content", "text", default="")
-                if text:
-                    text = str(text)
-                    text_parts.append(text)
-                    yield TokenChunk(text=text)
-            elif event_type == "tool-call-start":
-                index = int(_value(event, "index", default=len(calls)))
-                tool_call = _first(_value(event, "delta", "message", "tool_calls"))
-                calls[index] = {
-                    "id": str(_value(tool_call, "id", default="")),
-                    "name": str(_value(tool_call, "function", "name", default="")),
-                    "arguments": str(_value(tool_call, "function", "arguments", default="")),
-                }
-            elif event_type == "tool-call-delta":
-                index = int(_value(event, "index", default=len(calls) - 1))
-                call = calls.setdefault(index, {"id": "", "name": "", "arguments": ""})
-                delta_call = _first(_value(event, "delta", "message", "tool_calls"))
-                call["arguments"] += str(_value(delta_call, "function", "arguments", default=""))
-            elif event_type == "message-end":
-                finish_reason = str(_value(event, "delta", "message", "finish_reason", default="COMPLETE"))
-                usage = TokenUsage(
-                    input_tokens=int(_value(event, "delta", "message", "usage", "tokens", "input_tokens", default=0)),
-                    output_tokens=int(_value(event, "delta", "message", "usage", "tokens", "output_tokens", default=0)),
-                )
+                async for event in stream:
+                    event_type = _value(event, "type")
+                    if event_type == "content-delta":
+                        text = _value(event, "delta", "message", "content", "text", default="")
+                        if text:
+                            text = str(text)
+                            text_parts.append(text)
+                            emitted_text = True
+                            yield TokenChunk(text=text)
+                    elif event_type == "tool-call-start":
+                        index = int(_value(event, "index", default=len(calls)))
+                        tool_call = _first(_value(event, "delta", "message", "tool_calls"))
+                        calls[index] = {
+                            "id": str(_value(tool_call, "id", default="")),
+                            "name": str(_value(tool_call, "function", "name", default="")),
+                            "arguments": str(_value(tool_call, "function", "arguments", default="")),
+                        }
+                    elif event_type == "tool-call-delta":
+                        index = int(_value(event, "index", default=len(calls) - 1))
+                        call = calls.setdefault(index, {"id": "", "name": "", "arguments": ""})
+                        delta_call = _first(_value(event, "delta", "message", "tool_calls"))
+                        call["arguments"] += str(_value(delta_call, "function", "arguments", default=""))
+                    elif event_type == "message-end":
+                        finish_reason = str(_value(event, "delta", "message", "finish_reason", default="COMPLETE"))
+                        usage = TokenUsage(
+                            input_tokens=int(_value(event, "delta", "message", "usage", "tokens", "input_tokens", default=0)),
+                            output_tokens=int(_value(event, "delta", "message", "usage", "tokens", "output_tokens", default=0)),
+                        )
+                break
+            except Exception as exc:
+                if emitted_text or attempt + 1 == COHERE_STREAM_ATTEMPTS:
+                    raise
+                logger.warning("Retrying Cohere stream after pre-output %s", type(exc).__name__)
 
         tool_calls: list[ToolCallChunk] = []
         raw_tool_calls: list[dict] = []
@@ -195,7 +219,11 @@ class CohereLLM:
         if text_parts:
             raw_message["content"] = [{"type": "text", "text": "".join(text_parts)}]
         yield TurnDone(
-            stop_reason="tool_use" if finish_reason.upper() == "TOOL_CALL" else "end_turn",
+            # Command A+ can return a COMPLETE finish reason alongside streamed tool-call
+            # events. The calls themselves are the authoritative signal for the loop; relying
+            # solely on finish_reason discarded valid read/write requests and left the UI with
+            # only the model's textual tool plan.
+            stop_reason="tool_use" if tool_calls else "end_turn",
             usage=usage,
             tool_calls=tool_calls,
             raw_content=raw_message,
@@ -246,8 +274,11 @@ def _build_system_prompt(scenario: Scenario) -> str:
         "pastes or asks, and use the workspace tools when useful. Do not introduce facts "
         "beyond what the candidate has shared with you or what is in the brief below.\n\n"
         f"Incident: {safe['title']}\n{safe['brief']}\n\n"
-        "You can inspect and edit the candidate's Virtual Workspace with the list_files, "
-        "read_file, and write_file tools. Nothing you write ever executes."
+        "The frontend displays the sandbox file inventory from its workspace API. You can inspect "
+        "or edit a known sandbox file with the read_file and write_file tools. If the candidate "
+        "asks you to read or edit a known workspace file, invoke the appropriate workspace tool "
+        "before explaining the result. Do not claim a workspace action without a matching tool "
+        "call. Nothing you write ever executes."
     )
 
 
@@ -314,24 +345,26 @@ async def stream_candidate_message(
         # History is built from events recorded before this turn — this turn's own
         # ai_prompt_submitted is appended next, so building history first avoids double-
         # counting the current prompt.
-        history = await _build_message_history(db, session_id)
-
-        await append_event(
-            db,
-            session_id=session_id,
-            scenario_id=scenario_id,
-            scenario_version=scenario_version,
-            event_type="ai_prompt_submitted",
-            actor="candidate",
-            payload=AiPromptSubmittedPayload(turn_id=turn_id, prompt=content).model_dump(),
-        )
-
         total_input = 0
         total_output = 0
         files_written: list[str] = []
         response_text_parts: list[str] = []
 
         try:
+            # The append is serialized under the event-log session lock, so concurrent browser
+            # requests cannot both consume the fifth and final prompt slot.
+            history = await _build_message_history(db, session_id)
+            await append_event(
+                db,
+                session_id=session_id,
+                scenario_id=scenario_id,
+                scenario_version=scenario_version,
+                event_type="ai_prompt_submitted",
+                actor="candidate",
+                payload=AiPromptSubmittedPayload(turn_id=turn_id, prompt=content).model_dump(),
+                max_event_type_count=("ai_prompt_submitted", MAX_CANDIDATE_TURNS),
+            )
+
             llm = get_llm()
             if llm is None:
                 raise RuntimeError("COHERE_API_KEY is not configured")
@@ -400,8 +433,16 @@ async def stream_candidate_message(
 
                 messages.extend(_cohere_tool_result(result) for result in tool_results)
 
+        except AppError as exc:
+            # The response has already become an SSE stream, so domain rejections are emitted
+            # as the documented error event instead of attempting to change the HTTP status.
+            yield _sse("error", {"code": exc.code, "message": exc.message})
+            return
         except Exception as exc:  # noqa: BLE001 — outage handling is intentionally broad (brief 02)
-            message = f"Simulation Engine could not reach the model: {exc}"
+            # Vendor exceptions can contain request headers, provider trace IDs, and account
+            # metadata. Preserve neither in the candidate-facing SSE stream nor in the event log.
+            logger.warning("Simulation provider request failed (%s)", type(exc).__name__)
+            message = SAFE_MODEL_UNAVAILABLE_MESSAGE
             yield _sse("error", {"code": "llm_unavailable", "message": message})
             await append_event(
                 db,
@@ -443,5 +484,9 @@ async def stream_candidate_message(
 
         yield _sse(
             "done",
-            {"response_id": response_id, "usage": {"input_tokens": total_input, "output_tokens": total_output}},
+            {
+                "response_id": response_id,
+                "usage": {"input_tokens": total_input, "output_tokens": total_output},
+                "turn_limit": MAX_CANDIDATE_TURNS,
+            },
         )
