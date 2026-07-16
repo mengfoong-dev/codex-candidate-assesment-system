@@ -33,8 +33,8 @@ cd backend
 uv run python -m pytest tests/test_simulation.py -q
 ```
 
-For the complete backend suite, use `uv run pytest -q`; the current observed result is 60 passing
-tests. Run the final-state scenario separately:
+For the complete backend suite, use `uv run pytest -q`; the current observed result is
+**60 passed in 21.33s** on 2026-07-17. Run the final-state scenario separately:
 
 ```powershell
 uv run python scripts/run_final_state_simulation.py

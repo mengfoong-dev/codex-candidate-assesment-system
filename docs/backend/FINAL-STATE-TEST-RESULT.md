@@ -6,8 +6,8 @@
 
 ## Status
 
-PASS - executed locally on 2026-07-16, Asia/Singapore. The full backend suite completed with
-**60 passed in 20.46s**. The provider-boundary endpoint suite is isolated from credentials and
+PASS - refreshed locally on 2026-07-17, Asia/Singapore. The full backend suite completed with
+**60 passed in 21.33s**. The provider-boundary endpoint suite is isolated from credentials and
 provider quota; the final-state driver is isolated from the production database but currently uses
 the local Cohere configuration if one is present.
 
