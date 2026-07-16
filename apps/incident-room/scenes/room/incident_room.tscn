@@ -115,7 +115,7 @@ accent_color = Color(0.24, 0.82, 0.49, 1)
 [node name="Landmark" parent="ReleaseConsole" instance=ExtResource("7_rel")]
 
 [node name="Senior" type="Node3D" parent="."]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4.8, 0.05, 1.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.9, 0.05, 2.1)
 
 [node name="Body" parent="Senior" instance=ExtResource("8_senior")]
 
