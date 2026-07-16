@@ -1,5 +1,9 @@
 # Final-State Backend Simulation Result
 
+> **Current handoff:** [FINAL-STATE.md](FINAL-STATE.md) summarizes the deployed backend contract.
+> This document records the automated and live-probe evidence; the reproducible commands are in
+> [FINAL-STATE-TEST-FLOW.md](FINAL-STATE-TEST-FLOW.md).
+
 ## Status
 
 PASS - executed locally on 2026-07-16, Asia/Singapore. The automated suite uses
@@ -17,7 +21,8 @@ $env:NIM_API_KEY = ''
 python -m pytest tests/test_simulation.py -q
 ```
 
-Observed output after the interactive-flow hardening: **59 passed in 18.65s**.
+Observed output after the tool-round-trip and strict-generation recovery hardening:
+**60 passed in 13.42s**.
 
 | Coverage group | Observed result |
 | --- | --- |
@@ -38,12 +43,13 @@ strict-tool correction, but exposed two provider-compatibility defects: Command 
 bounded response in default thinking blocks, and the rubric sent `json_schema` plus unsupported
 numeric ranges. Those findings are now covered and fixed by the automated suite: both flows send
 `thinking={"type":"disabled"}`, and the rubric uses valid JSON object mode with application-level
-shape/range validation. Further live diagnosis isolated Command A+ `INVALID_TOOL_GENERATION` to the
-zero-input `list_files` function: Cohere now receives strict required-argument read/write tools, while
-the frontend lists sandbox files through its deterministic files API. The adapter also treats streamed
-tool calls as authoritative because Command A+ can label their terminal event `COMPLETE`; a final live
-probe returned `tool_use` for `read_file` with `src/homepage_orchestrator.ts`. The stream retries one
-pre-output provider failure and still preserves the sanitized SSE error if it cannot recover. A complete
+shape/range validation. Further diagnosis isolated the simulation follow-up failure: Command A+ rejects
+an echoed `tool_plan`, but accepts an assistant `tool_calls` message followed by a `tool` document whose
+`data` is serialized JSON. The adapter now follows that model-specific round trip. It also treats
+streamed tool calls as authoritative because Command A+ can label their terminal event `COMPLETE`, and
+retries an explicit pre-output `INVALID_TOOL_GENERATION` once with non-strict tools. A live temporary-
+database FastAPI request emitted tokens, `tool_use` for `read_file` on
+`src/homepage_orchestrator.ts`, and terminal `done` after two Cohere 200 responses. A complete
 five-turn live acceptance plus panel run remains to be captured when sufficient Cohere trial quota is
 available.
 

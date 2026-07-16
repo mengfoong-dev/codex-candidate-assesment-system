@@ -1,5 +1,9 @@
 # Final-State Backend Simulation Flow
 
+> **Current handoff:** The complete backend state is summarized in
+> [FINAL-STATE.md](FINAL-STATE.md). This document is the repeatable offline/API verification flow;
+> `FINAL-STATE-TEST-RESULT.md` records its observed outcome and the separate live-provider probe.
+
 ## Purpose
 
 This repeatable validation has three layers:
@@ -29,6 +33,20 @@ $env:NIM_API_KEY = ''
 python -m pytest tests/test_simulation.py -q
 python scripts/run_final_state_simulation.py
 ```
+
+For the complete backend suite, use `uv run pytest -q`; the current observed result is 60 passing
+tests. The interactive human runner is intentionally a separate live command because it reads the
+ignored local `COHERE_API_KEY`:
+
+```powershell
+.\tools\run-interactive-simulation.ps1
+```
+
+For a live provider smoke check, ask the coding agent to read the seeded
+`src/homepage_orchestrator.ts` file. The expected SSE order contains one or more `token` events,
+then `tool_use`, then terminal `done`. Command A+ tool results are returned as serialized JSON
+documents; if strict generation returns `INVALID_TOOL_GENERATION` before output, the backend retries
+the same request once with non-strict tools.
 
 The final-state driver also clears Groq/NIM for its process. Cohere is the
 primary provider after this milestone, so the invoking command must explicitly
