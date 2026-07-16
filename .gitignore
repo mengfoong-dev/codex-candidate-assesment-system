@@ -9,6 +9,7 @@ docs/hackathon/codex-usage/active-session.json
 
 # Personal Claude Code context for the backend engineer (not team-shared).
 CLAUDE.local.md
+AGENTS.local.md
 
 # Environment secrets — never commit real API keys. Templates (.env.example) stay tracked.
 .env
