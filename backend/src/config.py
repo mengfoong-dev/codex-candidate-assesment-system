@@ -26,15 +26,14 @@ class Settings(BaseSettings):
     default_scenario_id: str = "homepage_latency"
     default_scenario_version: str = "1.0.0"
 
-    # --- Simulation Engine (Anthropic Sonnet) ---
-    anthropic_api_key: str | None = None
-    # Model ID is config, not a hard-coded constant (Codex MEDIUM finding). Startup health-check
-    # in the simulation engine validates it and records the resolved label on each response event.
-    sim_model: str = "claude-sonnet-5"
+    # --- Cohere Command A+ (simulation + primary grading panel) ---
+    cohere_api_key: str | None = None
+    cohere_model: str = "command-a-plus-05-2026"
     sim_max_tokens: int = 1024
     sim_temperature: float = 0.2
 
-    # --- Grading panel: Groq + NVIDIA NIM, both OpenAI-compatible (one client, base-URL swap) ---
+    # --- Opt-in grading fallback: Groq + NVIDIA NIM, both OpenAI-compatible ---
+    ai_panel_fallback_enabled: bool = False
     groq_api_key: str | None = None
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_grader_model: str = "llama-3.3-70b-versatile"

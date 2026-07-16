@@ -1,20 +1,20 @@
-"""Simulation Engine (brief 02): the candidate-facing AI assistant. One Anthropic client, a
+"""Simulation Engine (brief 02): the candidate-facing AI assistant. One Cohere client, a
 small tool loop over the Virtual Workspace, SSE out, events in. No agent framework.
 
 Provider seam (for the team lead / test authors): the SDK call is wrapped behind the
 `SimulationLLM` protocol below. `get_llm()` is the module-level factory that
 `stream_candidate_message` calls to obtain it — tests monkeypatch
 `src.simulation.service.get_llm` to return a `FakeLLM` (see tests/test_simulation.py) so no
-real network call is ever made in the test suite. `AnthropicLLM` is the default, real
+real network call is ever made in the test suite. `CohereLLM` is the default, real
 implementation.
 """
+import inspect
 import json
 import os
 from dataclasses import dataclass
 from typing import AsyncIterator, Protocol
 from uuid import uuid4
 
-import anthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
@@ -71,8 +71,8 @@ class SimulationLLM(Protocol):
         ...
 
 
-class AnthropicLLM:
-    """Real provider: the async Anthropic SDK. See the `claude-api` skill for the streaming +
+class RemovedProvider:
+    """Inert compatibility placeholder; Cohere is the sole live simulation provider.
     tool-use shapes this mirrors (`client.messages.stream()` + `text_stream`, then
     `get_final_message()` for the accumulated content/usage).
 
@@ -82,39 +82,132 @@ class AnthropicLLM:
     """
 
     def __init__(self, *, api_key: str, model: str, max_tokens: int):
-        self._client = anthropic.AsyncAnthropic(api_key=api_key)
+        raise RuntimeError("This removed provider cannot be used")
         self._model = model
         self._max_tokens = max_tokens
 
     async def stream_turn(self, *, system: str, messages: list[dict], tools: list[dict]):
-        async with self._client.messages.stream(
-            model=self._model,
-            max_tokens=self._max_tokens,
-            system=system,
-            tools=tools,
-            messages=messages,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield TokenChunk(text=text)
-            final = await stream.get_final_message()
+        raise RuntimeError("This removed provider cannot be used")
+        yield  # pragma: no cover - makes this an async generator for compatibility only
 
-        tool_calls = [
-            ToolCallChunk(id=b.id, name=b.name, input=b.input) for b in final.content if b.type == "tool_use"
-        ]
+
+DEFAULT_COHERE_MODEL = "command-a-plus-05-2026"
+
+
+def _value(value: object, *path: str, default=None):
+    """Read Cohere SDK objects and plain fake-test dictionaries through one small adapter."""
+    current = value
+    for key in path:
+        if current is None:
+            return default
+        current = current.get(key) if isinstance(current, dict) else getattr(current, key, None)
+    return default if current is None else current
+
+
+def _first(value: object) -> object | None:
+    if isinstance(value, (list, tuple)):
+        return value[0] if value else None
+    return value
+
+
+class CohereLLM:
+    """Cohere Chat V2 streaming adapter translated into the provider-neutral simulation loop."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        max_tokens: int,
+        temperature: float = 0.2,
+        client: object | None = None,
+    ):
+        if client is None:
+            import cohere
+
+            client = cohere.AsyncClientV2(api_key=api_key)
+        self._client = client
+        self._model = model
+        self._max_tokens = max_tokens
+        self._temperature = temperature
+
+    async def stream_turn(self, *, system: str, messages: list[dict], tools: list[dict]):
+        request_messages = [{"role": "system", "content": system}, *messages]
+        stream = self._client.chat_stream(
+            model=self._model,
+            messages=request_messages,
+            tools=tools,
+            strict_tools=True,
+            max_tokens=self._max_tokens,
+            temperature=self._temperature,
+        )
+        if inspect.isawaitable(stream):
+            stream = await stream
+
+        text_parts: list[str] = []
+        calls: dict[int, dict[str, str]] = {}
+        finish_reason = "COMPLETE"
+        usage = TokenUsage(input_tokens=0, output_tokens=0)
+
+        async for event in stream:
+            event_type = _value(event, "type")
+            if event_type == "content-delta":
+                text = _value(event, "delta", "message", "content", "text", default="")
+                if text:
+                    text = str(text)
+                    text_parts.append(text)
+                    yield TokenChunk(text=text)
+            elif event_type == "tool-call-start":
+                index = int(_value(event, "index", default=len(calls)))
+                tool_call = _first(_value(event, "delta", "message", "tool_calls"))
+                calls[index] = {
+                    "id": str(_value(tool_call, "id", default="")),
+                    "name": str(_value(tool_call, "function", "name", default="")),
+                    "arguments": str(_value(tool_call, "function", "arguments", default="")),
+                }
+            elif event_type == "tool-call-delta":
+                index = int(_value(event, "index", default=len(calls) - 1))
+                call = calls.setdefault(index, {"id": "", "name": "", "arguments": ""})
+                delta_call = _first(_value(event, "delta", "message", "tool_calls"))
+                call["arguments"] += str(_value(delta_call, "function", "arguments", default=""))
+            elif event_type == "message-end":
+                finish_reason = str(_value(event, "delta", "message", "finish_reason", default="COMPLETE"))
+                usage = TokenUsage(
+                    input_tokens=int(_value(event, "delta", "message", "usage", "tokens", "input_tokens", default=0)),
+                    output_tokens=int(_value(event, "delta", "message", "usage", "tokens", "output_tokens", default=0)),
+                )
+
+        tool_calls: list[ToolCallChunk] = []
+        raw_tool_calls: list[dict] = []
+        for call in calls.values():
+            arguments = call["arguments"] or "{}"
+            parsed_arguments = json.loads(arguments)
+            tool_calls.append(ToolCallChunk(id=call["id"], name=call["name"], input=parsed_arguments))
+            raw_tool_calls.append(
+                {
+                    "id": call["id"],
+                    "type": "function",
+                    "function": {"name": call["name"], "arguments": arguments},
+                }
+            )
+
+        raw_message: dict = {"role": "assistant", "content": [], "tool_calls": raw_tool_calls}
+        if text_parts:
+            raw_message["content"] = [{"type": "text", "text": "".join(text_parts)}]
         yield TurnDone(
-            stop_reason=final.stop_reason,
-            usage=TokenUsage(input_tokens=final.usage.input_tokens, output_tokens=final.usage.output_tokens),
+            stop_reason="tool_use" if finish_reason.upper() == "TOOL_CALL" else "end_turn",
+            usage=usage,
             tool_calls=tool_calls,
-            raw_content=final.content,
+            raw_content=raw_message,
         )
 
 
 def _check_model_configured(model: str) -> None:
     """Lightweight model/health check (Codex MEDIUM finding: no hard-coded model constant —
-    the model is already config in `settings.sim_model`; this just validates that config
+    the model is already config in `settings.cohere_model`; this just validates that config
     before spending a real API call on it)."""
-    if not model or not model.startswith("claude-"):
-        raise ValueError(f"sim_model is not a recognizable Anthropic model id: {model!r}")
+    if model != DEFAULT_COHERE_MODEL:
+        raise ValueError(f"cohere_model must be {DEFAULT_COHERE_MODEL!r}, got {model!r}")
 
 
 def get_llm() -> "SimulationLLM | None":
@@ -122,10 +215,15 @@ def get_llm() -> "SimulationLLM | None":
     (outage path, handled by the caller). Tests monkeypatch this function to return a
     FakeLLM instead of hitting the network."""
     settings = get_settings()
-    if not settings.anthropic_api_key:
+    if not settings.cohere_api_key:
         return None
-    _check_model_configured(settings.sim_model)
-    return AnthropicLLM(api_key=settings.anthropic_api_key, model=settings.sim_model, max_tokens=settings.sim_max_tokens)
+    _check_model_configured(settings.cohere_model)
+    return CohereLLM(
+        api_key=settings.cohere_api_key,
+        model=settings.cohere_model,
+        max_tokens=settings.sim_max_tokens,
+        temperature=settings.sim_temperature,
+    )
 
 
 # --- SSE + prompt assembly helpers -------------------------------------------------------
@@ -182,6 +280,26 @@ async def _invoke_tool(db: AsyncSession, session_id: str, call: ToolCallChunk, f
     return f"Unknown tool: {call.name}"
 
 
+def _assistant_message(raw_content: object) -> dict:
+    """Keep fake-provider compatibility while passing Cohere's assistant call back verbatim."""
+    if isinstance(raw_content, dict) and raw_content.get("role") == "assistant":
+        return raw_content
+    return {"role": "assistant", "content": raw_content}
+
+
+def _cohere_tool_result(legacy_result: dict) -> dict:
+    """Translate the loop's provider-neutral result into Cohere's V2 tool-message envelope."""
+    payload = {
+        "result": legacy_result["content"],
+        "is_error": bool(legacy_result.get("is_error", False)),
+    }
+    return {
+        "role": "tool",
+        "tool_call_id": legacy_result["tool_use_id"],
+        "content": [{"type": "document", "document": {"data": payload}}],
+    }
+
+
 # --- the engine ---------------------------------------------------------------------------
 
 
@@ -216,7 +334,7 @@ async def stream_candidate_message(
         try:
             llm = get_llm()
             if llm is None:
-                raise RuntimeError("ANTHROPIC_API_KEY is not configured")
+                raise RuntimeError("COHERE_API_KEY is not configured")
 
             scenario = get_scenario(scenario_id, scenario_version)
             system_prompt = _build_system_prompt(scenario)
@@ -229,7 +347,9 @@ async def stream_candidate_message(
                 stop_reason = None
                 tool_calls: list[ToolCallChunk] = []
 
-                async for chunk in llm.stream_turn(system=system_prompt, messages=messages, tools=workspace_tools.TOOL_SCHEMAS):
+                async for chunk in llm.stream_turn(
+                    system=system_prompt, messages=messages, tools=workspace_tools.COHERE_TOOL_SCHEMAS
+                ):
                     if isinstance(chunk, TokenChunk):
                         yield _sse("token", {"text": chunk.text})
                         response_text_parts.append(chunk.text)
@@ -240,7 +360,7 @@ async def stream_candidate_message(
                         stop_reason = chunk.stop_reason
                         tool_calls = chunk.tool_calls
 
-                messages.append({"role": "assistant", "content": assistant_content})
+                messages.append(_assistant_message(assistant_content))
 
                 if stop_reason != "tool_use" or not tool_calls:
                     break
@@ -278,7 +398,7 @@ async def stream_candidate_message(
                         yield _sse("file_updated", {"path": call.input["path"], "source": "ai"})
                     tool_results.append({"type": "tool_result", "tool_use_id": call.id, "content": result_text})
 
-                messages.append({"role": "user", "content": tool_results})
+                messages.extend(_cohere_tool_result(result) for result in tool_results)
 
         except Exception as exc:  # noqa: BLE001 — outage handling is intentionally broad (brief 02)
             message = f"Simulation Engine could not reach the model: {exc}"
@@ -302,7 +422,7 @@ async def stream_candidate_message(
         payload = AiResponseReceivedPayload(
             turn_id=turn_id,
             response_id=response_id,
-            model_label=get_settings().sim_model,
+            model_label=get_settings().cohere_model,
             status="ok",
             usage=TokenUsage(input_tokens=total_input, output_tokens=total_output),
         ).model_dump()

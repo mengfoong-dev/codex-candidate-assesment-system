@@ -20,7 +20,7 @@ src/
   sessions/      create, snapshot, submit  (session lifecycle)
   events/        POST /events  (typed, validated, append-only, concurrency-safe)
   workspace/     files listing + scripted test results
-  simulation/    SSE chat (Anthropic Sonnet + workspace file tools)
+  simulation/    SSE chat (Cohere Command A+ + workspace file tools)
   evaluation/    3-layer scoring + Proof Replay report
 data/scenarios/  homepage_latency_v1.json (byte-identical to apps/incident-room copy)
 tests/           golden-fixture + contract + concurrency tests
@@ -56,3 +56,6 @@ not an access-control mechanism and this service must not be publicly exposed as
 Scoring layers stay provenance-separated per decisions D006/D007/D009: Layer 1 deterministic
 (scored, cites event IDs), Layer 2 LLM rubric (labeled AI analysis), Layer 3 context indices
 (computed, never scored).
+
+See [Cohere runtime configuration](../docs/backend/COHERE_RUNTIME.md) for the live-provider,
+fallback, local, and Railway setup.

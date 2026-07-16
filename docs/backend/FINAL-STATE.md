@@ -116,8 +116,8 @@ Reconciliations made during integration:
 
 ## 9. Not done / out of scope / next steps
 
-- **Env keys** for live engines: `ANTHROPIC_API_KEY` (Simulation), `GROQ_API_KEY` + `NIM_API_KEY` (grading panel) → `backend/.env`. Engines degrade gracefully without them.
-- `SIM_MODEL` defaults to `claude-sonnet-5`; Sonnet 5 rejects non-default temperature, so it is not sent.
+- **Env keys** for live engines: `COHERE_API_KEY` (simulation and grading), plus optional `GROQ_API_KEY` / `NIM_API_KEY` only when `AI_PANEL_FALLBACK_ENABLED=true` → `backend/.env`. Engines degrade gracefully without them.
+- `COHERE_MODEL` defaults to `command-a-plus-05-2026`. The simulation preserves its `SIM_MAX_TOKENS` and `SIM_TEMPERATURE` controls.
 - Not implemented (deliberate): auth, real code execution, resumable sessions, Postgres migration, `"aborted"` SSE status, recruiter dashboard UI. Out of scope per the MVP design.
 
 ## 10. How to run
@@ -125,7 +125,7 @@ Reconciliations made during integration:
 ```bash
 cd backend
 python -m venv .venv && .venv/Scripts/activate     # source .venv/bin/activate on *nix
-pip install fastapi "uvicorn[standard]" "sqlalchemy[asyncio]" aiosqlite pydantic pydantic-settings anthropic openai pytest pytest-asyncio httpx
+pip install -e ".[dev]"
 cp .env.example .env    # fill keys (optional; engines degrade without them)
 uvicorn src.main:app --reload      # /docs = frontend handoff
 pytest

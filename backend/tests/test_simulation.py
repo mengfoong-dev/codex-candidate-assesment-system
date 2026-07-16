@@ -12,6 +12,7 @@ domain lands. Building the schema and inserting a `Session` row directly (via th
 `Session`/`SessionFile` models) sidesteps the not-yet-built sessions domain the same way.
 """
 import json
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
@@ -23,6 +24,7 @@ from src.event_log import load_events, now_iso
 from src.exceptions import register_exception_handlers
 from src.models import Session as SessionRow, SessionFile
 from src.schemas import TokenUsage
+from src.simulation import tools as workspace_tools
 from src.simulation import service
 from src.simulation.router import router as simulation_router
 from src.simulation.service import ToolCallChunk, TokenChunk, TurnDone, _check_model_configured
@@ -370,7 +372,176 @@ def test_system_prompt_excludes_hidden_scenario_keys():
 
 def test_check_model_configured():
     with pytest.raises(ValueError):
-        _check_model_configured("gpt-4")
+        _check_model_configured("claude-sonnet-5")
     with pytest.raises(ValueError):
         _check_model_configured("")
-    _check_model_configured("claude-sonnet-5")  # does not raise
+    _check_model_configured("command-a-plus-05-2026")  # does not raise
+
+
+class RecordingCohereClient:
+    """A complete local V2 stream double; it never reaches the Cohere network."""
+
+    def __init__(self, turns):
+        self._turns = list(turns)
+        self.calls = []
+
+    def chat_stream(self, **kwargs):
+        self.calls.append(kwargs)
+        events = self._turns.pop(0)
+
+        async def stream():
+            for event in events:
+                yield event
+
+        return stream()
+
+
+def _cohere_event(event_type, **kwargs):
+    return SimpleNamespace(type=event_type, **kwargs)
+
+
+def _cohere_usage(input_tokens, output_tokens):
+    return SimpleNamespace(tokens=SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens))
+
+
+@pytest.mark.asyncio
+async def test_cohere_adapter_reconstructs_streamed_tool_arguments_and_usage():
+    """Provider adapter contract: V2 deltas become the existing neutral turn objects."""
+    cohere_llm = getattr(service, "CohereLLM", None)
+    assert cohere_llm is not None, "Cohere must replace the Anthropic simulation adapter"
+
+    tool_call = SimpleNamespace(
+        id="call_write", type="function", function=SimpleNamespace(name="write_file", arguments="")
+    )
+    client = RecordingCohereClient(
+        [[
+            _cohere_event(
+                "content-delta",
+                delta=SimpleNamespace(message=SimpleNamespace(content=SimpleNamespace(text="I can update it."))),
+            ),
+            _cohere_event(
+                "tool-call-start",
+                index=0,
+                delta=SimpleNamespace(message=SimpleNamespace(tool_calls=tool_call)),
+            ),
+            _cohere_event(
+                "tool-call-delta",
+                index=0,
+                delta=SimpleNamespace(
+                    message=SimpleNamespace(tool_calls=SimpleNamespace(function=SimpleNamespace(arguments='{"path":"src/')))
+                ),
+            ),
+            _cohere_event(
+                "tool-call-delta",
+                index=0,
+                delta=SimpleNamespace(
+                    message=SimpleNamespace(
+                        tool_calls=SimpleNamespace(function=SimpleNamespace(arguments='a.ts","content":"// fixed"}'))
+                    )
+                ),
+            ),
+            _cohere_event(
+                "message-end",
+                delta=SimpleNamespace(
+                    message=SimpleNamespace(finish_reason="TOOL_CALL", usage=_cohere_usage(101, 23))
+                ),
+            ),
+        ]]
+    )
+    llm = cohere_llm(
+        api_key="fake-key", model="command-a-plus-05-2026", max_tokens=128, client=client
+    )
+
+    chunks = [
+        chunk
+        async for chunk in llm.stream_turn(
+            system="system",
+            messages=[{"role": "user", "content": "help"}],
+            tools=workspace_tools.COHERE_TOOL_SCHEMAS,
+        )
+    ]
+
+    assert [chunk.text for chunk in chunks if isinstance(chunk, TokenChunk)] == ["I can update it."]
+    done = chunks[-1]
+    assert isinstance(done, TurnDone)
+    assert done.stop_reason == "tool_use"
+    assert done.usage == TokenUsage(input_tokens=101, output_tokens=23)
+    assert done.tool_calls == [
+        ToolCallChunk(
+            id="call_write",
+            name="write_file",
+            input={"path": "src/a.ts", "content": "// fixed"},
+        )
+    ]
+    assert done.raw_content["role"] == "assistant"
+    assert done.raw_content["tool_calls"][0]["function"]["arguments"] == '{"path":"src/a.ts","content":"// fixed"}'
+    assert client.calls[0]["model"] == "command-a-plus-05-2026"
+    assert client.calls[0]["tools"] == workspace_tools.COHERE_TOOL_SCHEMAS
+    assert client.calls[0]["strict_tools"] is True
+
+
+@pytest.mark.asyncio
+async def test_cohere_tool_result_round_trip_uses_v2_tool_messages(sim_client, active_session, monkeypatch):
+    """The second Cohere request must contain the assistant call and matching tool document."""
+    cohere_llm = getattr(service, "CohereLLM", None)
+    assert cohere_llm is not None, "Cohere must replace the Anthropic simulation adapter"
+
+    tool_call = SimpleNamespace(
+        id="call_list", type="function", function=SimpleNamespace(name="list_files", arguments="")
+    )
+    client = RecordingCohereClient(
+        [
+            [
+                _cohere_event(
+                    "tool-call-start",
+                    index=0,
+                    delta=SimpleNamespace(message=SimpleNamespace(tool_calls=tool_call)),
+                ),
+                _cohere_event(
+                    "tool-call-delta",
+                    index=0,
+                    delta=SimpleNamespace(
+                        message=SimpleNamespace(tool_calls=SimpleNamespace(function=SimpleNamespace(arguments="{}")))
+                    ),
+                ),
+                _cohere_event(
+                    "message-end",
+                    delta=SimpleNamespace(
+                        message=SimpleNamespace(finish_reason="TOOL_CALL", usage=_cohere_usage(30, 8))
+                    ),
+                ),
+            ],
+            [
+                _cohere_event(
+                    "content-delta",
+                    delta=SimpleNamespace(message=SimpleNamespace(content=SimpleNamespace(text="Workspace checked."))),
+                ),
+                _cohere_event(
+                    "message-end",
+                    delta=SimpleNamespace(
+                        message=SimpleNamespace(finish_reason="COMPLETE", usage=_cohere_usage(25, 9))
+                    ),
+                ),
+            ],
+        ]
+    )
+    llm = cohere_llm(
+        api_key="fake-key", model="command-a-plus-05-2026", max_tokens=128, client=client
+    )
+    monkeypatch.setattr(service, "get_llm", lambda: llm)
+
+    resp = await sim_client.post(f"/api/sessions/{active_session}/messages", json={"content": "List files"})
+
+    assert resp.status_code == 200
+    assert _parse_sse(resp.text)[-1][0] == "done"
+    assert len(client.calls) == 2
+    follow_up_messages = client.calls[1]["messages"]
+    assert follow_up_messages[-2]["role"] == "assistant"
+    assert follow_up_messages[-2]["tool_calls"][0]["id"] == "call_list"
+    assert follow_up_messages[-1]["role"] == "tool"
+    assert follow_up_messages[-1]["tool_call_id"] == "call_list"
+    assert follow_up_messages[-1]["content"][0]["type"] == "document"
+    assert follow_up_messages[-1]["content"][0]["document"]["data"] == {
+        "result": "No files in the workspace.",
+        "is_error": False,
+    }

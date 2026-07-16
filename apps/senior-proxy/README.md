@@ -1,70 +1,33 @@
-# Senior NPC proxy
+# VibeProof senior proxy
 
-A tiny zero-dependency Node server that gives the 3D office **senior** NPC a live LLM voice
-without ever exposing an API key to the game client. The Godot game POSTs the conversation
-here; this server adds the senior's system prompt, calls the model with a **server-side** key,
-and returns the reply.
+This small Node 18+ service keeps `COHERE_API_KEY` off the Godot client. It provides both Sam's
+office chat and the recorded workspace assistant through Cohere Chat V2, using
+`command-a-plus-05-2026` by default.
 
-## 1. Add your key (local)
+## Local setup
 
-The real key lives in `.env`, which is **gitignored** — it is never committed.
-
-```powershell
-cd apps/senior-proxy
-Copy-Item .env.example .env   # if .env doesn't exist yet
-```
-
-Open `.env` and paste your key:
-
-```
-PROVIDER=openai
-OPENAI_API_KEY=sk-...your key...
-```
-
-(For Claude instead: set `PROVIDER=anthropic` and `ANTHROPIC_API_KEY=sk-ant-...`.)
-
-## 2. Run it locally
+Copy `.env.example` to `.env`, set `COHERE_API_KEY` in that ignored file, then run:
 
 ```powershell
-cd apps/senior-proxy
-node server.js
+npm start
 ```
 
-Check it's up (no key needed for this):
+Check the non-sensitive deployment status with `GET /health`; it returns `{ ok, provider, model,
+routes }`. Both chat endpoints return `{ "reply": "..." }` and sanitize all upstream errors to
+`{ "error": "assistant is unavailable right now" }`.
 
-```powershell
-curl http://localhost:8080/health
-# {"ok":true,"provider":"openai","model":"gpt-4o-mini"}
-```
+## Railway
 
-Try a real reply (needs your key in `.env`):
-
-```powershell
-curl -X POST http://localhost:8080/api/senior/chat -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"where should I start?"}]}'
-```
-
-## 3. Deploy to Railway (to make it live for the deployed game)
-
-Create a new service and set the key as a Railway **variable** (not a file):
-
-```powershell
-railway add --service senior-proxy
-railway variables --service senior-proxy --set PROVIDER=openai --set OPENAI_API_KEY=sk-...
-railway up apps/senior-proxy --service senior-proxy --ci
-```
-
-Then point the game at the service URL and lock CORS to the game's origin:
-
-```powershell
-railway variables --service senior-proxy --set ALLOWED_ORIGINS=https://vibeproof-web-production.up.railway.app
-```
+Create or select the `senior-proxy` service, then set `COHERE_API_KEY`, optional
+`COHERE_MODEL`, and `ALLOWED_ORIGINS` as Railway service variables in the Railway dashboard.
+This avoids recording a credential in a tracked file or shell history. Deploy the
+`apps/senior-proxy` directory normally; Railway supplies `PORT`.
 
 ## Endpoints
 
-- `GET /health` → `{ ok, provider, model }`
-- `POST /api/senior/chat` → body `{ "messages": [{"role","content"}], "task": "optional context" }` → `{ "reply": "..." }`
+- `GET /health` -> `{ ok, provider: "cohere", model, routes }`
+- `POST /api/senior/chat` -> `{ messages, task? }` -> `{ reply }`
+- `POST /api/assistant/chat` -> `{ messages, task? }` -> `{ reply }`
 
-## Boundary
-
-This proxy only powers the senior's *task-clarification* roleplay. It does not score the
-candidate, persist data, or make any hiring decision — that stays in the game's unscored flow.
+The proxy is limited to task clarification and workspace assistance. It does not score a
+candidate, persist events, or make a hiring decision.

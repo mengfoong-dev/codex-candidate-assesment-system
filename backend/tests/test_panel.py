@@ -1,24 +1,23 @@
-"""Layer 2 (RubricPanel) tests. Every vendor call goes through the monkeypatchable seams
-(`_grade_once`, `_grade_narrative_once`, `_grade_questions_once`) — no network access anywhere in
-this file. `_grader_configs` is also patched to return fake, always-configured vendors so
-`_pick_vendor` (used for the narrative/interview-question single calls) never falls back to "no
-vendor configured" just because GROQ_API_KEY/NIM_API_KEY aren't set in the test environment.
-"""
+"""Cohere-primary rubric-panel behavior, using no-network provider doubles."""
+import sys
+from types import SimpleNamespace
 import pytest
 
 from src.evaluation import panel as panel_module
 from src.evaluation.rules import CriterionResult, Layer1Result
 from src.registry import RUBRIC_DIMENSIONS
 
-FAKE_CONFIGS = [
+COHERE = panel_module.GraderConfig(
+    "cohere", "fake-cohere-key", "https://api.cohere.com", "command-a-plus-05-2026"
+)
+FALLBACKS = [
     panel_module.GraderConfig("groq", "fake-groq-key", "http://fake-groq", "fake-groq-model"),
     panel_module.GraderConfig("nim", "fake-nim-key", "http://fake-nim", "fake-nim-model"),
 ]
 
 
-@pytest.fixture(autouse=True)
-def _fake_vendor_configs(monkeypatch):
-    monkeypatch.setattr(panel_module, "_grader_configs", lambda: FAKE_CONFIGS)
+def _scored_rows(rows):
+    return [row for row in rows if row["dimension"] not in ("thinking_style", "interview_questions")]
 
 
 async def _no_narrative(vendor_cfg, digest):
@@ -29,14 +28,39 @@ async def _no_questions(vendor_cfg, digest, missed_labels, flagged_dimensions):
     return None
 
 
-def _scored_rows(rows):
-    return [r for r in rows if r["dimension"] not in ("thinking_style", "interview_questions")]
+@pytest.mark.asyncio
+async def test_cohere_structured_request_uses_the_score_schema(monkeypatch):
+    """The real Cohere boundary sends V2 JSON mode and returns parsed rubric data."""
+    captured = {}
+
+    class FakeClient:
+        def __init__(self, *, api_key):
+            captured["api_key"] = api_key
+
+        def chat(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                message=SimpleNamespace(
+                    content=[SimpleNamespace(text='{"score":4,"justification":"Evidence-led","cited_event_ids":["e1"]}')]
+                )
+            )
+
+    monkeypatch.setitem(sys.modules, "cohere", SimpleNamespace(AsyncClientV2=FakeClient))
+    result = await panel_module._cohere_json_once(
+        COHERE, "Generate a JSON object with score.", panel_module._SCORE_SCHEMA, temperature=0.2
+    )
+
+    assert result == {"score": 4, "justification": "Evidence-led", "cited_event_ids": ["e1"]}
+    assert captured["api_key"] == "fake-cohere-key"
+    assert captured["model"] == "command-a-plus-05-2026"
+    assert captured["response_format"] == {"type": "json_object", "json_schema": panel_module._SCORE_SCHEMA}
 
 
-async def test_median_consensus_when_both_vendors_available(monkeypatch):
+@pytest.mark.asyncio
+async def test_cohere_primary_records_single_consensus_and_provenance(monkeypatch):
     async def fake_grade_once(vendor_cfg, dimension, digest):
-        score = 4 if vendor_cfg.vendor == "groq" else 5
-        return {"score": score, "justification": f"{vendor_cfg.vendor} says so", "cited_event_ids": [f"{vendor_cfg.vendor}-cite"]}
+        assert vendor_cfg.vendor == "cohere"
+        return {"score": 4, "justification": "Cohere says so", "cited_event_ids": ["cohere-cite"]}
 
     async def fake_narrative(vendor_cfg, digest):
         return "Breadth-first, evidence-led investigation."
@@ -44,6 +68,8 @@ async def test_median_consensus_when_both_vendors_available(monkeypatch):
     async def fake_questions(vendor_cfg, digest, missed_labels, flagged_dimensions):
         return ["Why did you choose this remediation over the alternatives?"]
 
+    monkeypatch.setattr(panel_module, "_primary_grader_config", lambda: COHERE)
+    monkeypatch.setattr(panel_module, "_fallback_grader_configs", lambda: [])
     monkeypatch.setattr(panel_module, "_grade_once", fake_grade_once)
     monkeypatch.setattr(panel_module, "_grade_narrative_once", fake_narrative)
     monkeypatch.setattr(panel_module, "_grade_questions_once", fake_questions)
@@ -52,27 +78,53 @@ async def test_median_consensus_when_both_vendors_available(monkeypatch):
 
     scored = _scored_rows(rows)
     assert len(scored) == len(RUBRIC_DIMENSIONS)
-    for r in scored:
-        assert r["consensus"] == "median"
-        assert r["score"] == pytest.approx(4.5)  # 2 vendors -> median == mean
-        assert r["flagged"] is False  # |4-5| == 1 < 2
-        assert len(r["graders"]) == 2
-        assert set(r["cited_event_ids"]) == {"groq-cite", "nim-cite"}
+    for row in scored:
+        assert row["consensus"] == "single"
+        assert row["score"] == 4.0
+        assert row["flagged"] is False
+        assert row["graders"] == [
+            {"vendor": "cohere", "model": "command-a-plus-05-2026", "score": 4}
+        ]
+        assert row["cited_event_ids"] == ["cohere-cite"]
 
-    narrative = next(r for r in rows if r["dimension"] == "thinking_style")
+    narrative = next(row for row in rows if row["dimension"] == "thinking_style")
     assert narrative["text"] == "Breadth-first, evidence-led investigation."
     assert narrative["scored"] is False
-
-    questions = next(r for r in rows if r["dimension"] == "interview_questions")
+    questions = next(row for row in rows if row["dimension"] == "interview_questions")
     assert questions["questions"] == ["Why did you choose this remediation over the alternatives?"]
 
 
-async def test_single_vendor_consensus_when_one_vendor_down(monkeypatch):
-    async def fake_grade_once(vendor_cfg, dimension, digest):
-        if vendor_cfg.vendor == "nim":
-            return None  # NIM down for every dimension
-        return {"score": 3, "justification": "groq only", "cited_event_ids": ["e1"]}
+@pytest.mark.asyncio
+async def test_disabled_fallback_does_not_call_groq_or_nim_when_cohere_is_unavailable(monkeypatch):
+    calls = []
 
+    async def fake_grade_once(vendor_cfg, dimension, digest):
+        calls.append(vendor_cfg.vendor)
+        return None
+
+    monkeypatch.setattr(panel_module, "_primary_grader_config", lambda: COHERE)
+    monkeypatch.setattr(panel_module, "_fallback_grader_configs", lambda: [])
+    monkeypatch.setattr(panel_module, "_grade_once", fake_grade_once)
+    monkeypatch.setattr(panel_module, "_grade_narrative_once", _no_narrative)
+    monkeypatch.setattr(panel_module, "_grade_questions_once", _no_questions)
+
+    rows = await panel_module.rubric_panel([], {}, scenario=None)
+
+    assert _scored_rows(rows) == []
+    assert calls == ["cohere"] * len(RUBRIC_DIMENSIONS)
+    assert next(row for row in rows if row["dimension"] == "interview_questions")["questions"] == []
+
+
+@pytest.mark.asyncio
+async def test_enabled_fallback_retains_median_semantics_and_vendor_provenance(monkeypatch):
+    async def fake_grade_once(vendor_cfg, dimension, digest):
+        if vendor_cfg.vendor == "cohere":
+            return None
+        score = 3 if vendor_cfg.vendor == "groq" else 5
+        return {"score": score, "justification": vendor_cfg.vendor, "cited_event_ids": [vendor_cfg.vendor]}
+
+    monkeypatch.setattr(panel_module, "_primary_grader_config", lambda: COHERE)
+    monkeypatch.setattr(panel_module, "_fallback_grader_configs", lambda: FALLBACKS)
     monkeypatch.setattr(panel_module, "_grade_once", fake_grade_once)
     monkeypatch.setattr(panel_module, "_grade_narrative_once", _no_narrative)
     monkeypatch.setattr(panel_module, "_grade_questions_once", _no_questions)
@@ -81,63 +133,34 @@ async def test_single_vendor_consensus_when_one_vendor_down(monkeypatch):
 
     scored = _scored_rows(rows)
     assert len(scored) == len(RUBRIC_DIMENSIONS)
-    for r in scored:
-        assert r["consensus"] == "single"
-        assert r["score"] == 3.0
-        assert r["flagged"] is False
-        assert len(r["graders"]) == 1
-        assert r["graders"][0]["vendor"] == "groq"
+    for row in scored:
+        assert row["consensus"] == "median"
+        assert row["score"] == pytest.approx(4.0)
+        assert row["flagged"] is True
+        assert [grader["vendor"] for grader in row["graders"]] == ["groq", "nim"]
 
 
-async def test_both_vendors_down_omits_all_dimensions(monkeypatch):
-    async def fake_grade_once(vendor_cfg, dimension, digest):
-        return None
-
-    monkeypatch.setattr(panel_module, "_grade_once", fake_grade_once)
-    monkeypatch.setattr(panel_module, "_grade_narrative_once", _no_narrative)
-    monkeypatch.setattr(panel_module, "_grade_questions_once", _no_questions)
-
-    rows = await panel_module.rubric_panel([], {}, scenario=None)
-
-    assert _scored_rows(rows) == []
-    assert not any(r["dimension"] == "thinking_style" for r in rows)
-    questions_row = next(r for r in rows if r["dimension"] == "interview_questions")
-    assert questions_row["questions"] == []  # silent failure, not an exception
-
-
-async def test_flagged_when_scores_diverge_by_two_or_more(monkeypatch):
-    async def fake_grade_once(vendor_cfg, dimension, digest):
-        score = 2 if vendor_cfg.vendor == "groq" else 5
-        return {"score": score, "justification": "x", "cited_event_ids": []}
-
-    monkeypatch.setattr(panel_module, "_grade_once", fake_grade_once)
-    monkeypatch.setattr(panel_module, "_grade_narrative_once", _no_narrative)
-    monkeypatch.setattr(panel_module, "_grade_questions_once", _no_questions)
-
-    rows = await panel_module.rubric_panel([], {}, scenario=None)
-
-    scored = _scored_rows(rows)
-    assert all(r["flagged"] for r in scored)
-    assert all(r["consensus"] == "median" for r in scored)
-    assert all(r["score"] == pytest.approx(3.5) for r in scored)
-
-
-async def test_interview_questions_receive_missed_criteria_and_flagged_dimensions(monkeypatch):
+@pytest.mark.asyncio
+async def test_interview_questions_keep_missed_criteria_and_human_review_context(monkeypatch):
     captured = {}
 
     async def fake_grade_once(vendor_cfg, dimension, digest):
-        score = 2 if vendor_cfg.vendor == "groq" else 5  # forces every dimension to flag
+        if vendor_cfg.vendor == "cohere":
+            return None
+        score = 2 if vendor_cfg.vendor == "groq" else 5
         return {"score": score, "justification": "x", "cited_event_ids": []}
 
     async def fake_questions(vendor_cfg, digest, missed_labels, flagged_dimensions):
+        captured["vendor"] = vendor_cfg.vendor
         captured["missed"] = missed_labels
         captured["flagged"] = flagged_dimensions
         return ["q"]
 
+    monkeypatch.setattr(panel_module, "_primary_grader_config", lambda: COHERE)
+    monkeypatch.setattr(panel_module, "_fallback_grader_configs", lambda: FALLBACKS)
     monkeypatch.setattr(panel_module, "_grade_once", fake_grade_once)
     monkeypatch.setattr(panel_module, "_grade_narrative_once", _no_narrative)
     monkeypatch.setattr(panel_module, "_grade_questions_once", fake_questions)
-
     layer1 = Layer1Result(
         criteria=[
             CriterionResult("trace_before_change", "investigation_strategy", "positive", 0, 10, "missed", []),
@@ -150,5 +173,6 @@ async def test_interview_questions_receive_missed_criteria_and_flagged_dimension
 
     await panel_module.rubric_panel([], {}, scenario=None, layer1=layer1)
 
+    assert captured["vendor"] == "groq"
     assert captured["missed"] == ["trace_before_change"]
     assert len(captured["flagged"]) == len(RUBRIC_DIMENSIONS)
