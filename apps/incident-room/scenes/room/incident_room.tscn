@@ -84,7 +84,7 @@ station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 0, -0.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, -0.2)
 
 [node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
 station_id = "my_desk"
@@ -92,6 +92,6 @@ station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
-position = Vector3(1.3, 0.05, 1.6)
+position = Vector3(1.0, 0.05, 1.7)
 camera_path = NodePath("../Camera3D")
 movement_speed = 2.8

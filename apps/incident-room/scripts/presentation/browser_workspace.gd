@@ -187,6 +187,11 @@ func _on_tab_pressed(key: String) -> void:
     if key == "report" and not _report_available:
         return
     if key != "brief" and key != "report" and not _started:
+        # These tabs unlock once the candidate records an initial hypothesis; send them
+        # to the Brief tab (where that happens) instead of a dead tap.
+        set_active_tab("brief")
+        if _brief_status != null:
+            _brief_status.text = "🔒 Record your initial hypothesis below to unlock the workspace."
         return
     set_active_tab(key)
 
@@ -256,7 +261,7 @@ func _build_brief_page() -> void:
     var brief := _richtext(str(_scenario.get("brief", "")), 90)
     body.add_child(brief)
     body.add_child(HSeparator.new())
-    body.add_child(_heading("Record your initial hypothesis before you dig in.", 16, MUTED))
+    body.add_child(_heading("Record your initial hypothesis to unlock Evidence, Assistant, Files & Tests, and Submit.", 16, ACCENT["brief"]))
     _brief_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
     body.add_child(_brief_option)
     _brief_confidence = _slider()
