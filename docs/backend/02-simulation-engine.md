@@ -1,6 +1,6 @@
 # Backend Brief 02 — Simulation Engine
 
-> **For the executing agent:** the candidate-facing AI assistant — "ChatGPT but recorded". One Anthropic client, a small tool loop, SSE out, events in. No agent framework.
+> **For the executing agent:** the candidate-facing AI assistant — "ChatGPT but recorded". One Cohere Chat V2 client, a small tool loop, SSE out, events in. No agent framework.
 
 Depends on: briefs 00 (SSE + envelope), 03 (session_files, events). Consumed by: brief 01 (its events feed grading).
 
@@ -10,13 +10,13 @@ A service invoked by `POST /api/sessions/{id}/messages`. It:
 
 1. Records `ai_prompt_submitted` (payload: prompt text, referenced context IDs if the frontend sent any).
 2. Assembles context: system prompt + candidate-safe scenario brief + Virtual Workspace file listing + chat history (derived from prior `ai_prompt_submitted`/`ai_response_received` events, in sequence order).
-3. Streams an Anthropic Sonnet response with a three-tool loop.
+3. Streams a Cohere Command A+ response with a three-tool loop.
 4. Emits SSE events (`token`, `tool_use`, `file_updated`, `done`, `error`) per the contract in brief 00.
 5. Records `ai_response_received` with `payload.usage.input_tokens/output_tokens` from the API response and the model ID as `model_label`.
 
 ## Model
 
-Anthropic Sonnet (current: `claude-sonnet-5`; pin the exact ID in one config constant). Streaming via the official `anthropic` SDK. Temperature default; `max_tokens` capped (env `SIM_MAX_TOKENS`, default 2048) — cost control, not assessment.
+Cohere Command A+ (default: `command-a-plus-05-2026`; override only with `COHERE_MODEL`). Streaming uses Cohere Chat V2 tool use. `SIM_MAX_TOKENS` (default 2048) and `SIM_TEMPERATURE` remain bounded cost and behavior controls, not assessment criteria.
 
 ## Tools (the whole "codex" surface)
 

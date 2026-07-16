@@ -1,7 +1,7 @@
 """The Virtual Workspace tool surface (brief 02): list_files/read_file/write_file over
 `session_files` rows for one session. Nothing here ever executes — these are plain DB reads
 and an upsert (decision D006). `service.py` owns the tool-loop, SSE emission, and event
-recording; this module is pure DB I/O plus the Anthropic tool schemas that describe it.
+recording; this module is pure DB I/O plus the provider function schemas that describe it.
 """
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +48,20 @@ TOOL_SCHEMAS: list[dict] = [
             "additionalProperties": False,
         },
     },
+]
+
+# Cohere V2 wraps the same JSON Schemas inside a function descriptor. Keeping one canonical
+# tool definition prevents the candidate-visible workspace surface from drifting by provider.
+COHERE_TOOL_SCHEMAS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": tool["name"],
+            "description": tool["description"],
+            "parameters": tool["input_schema"],
+        },
+    }
+    for tool in TOOL_SCHEMAS
 ]
 
 
