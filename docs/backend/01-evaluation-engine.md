@@ -1,6 +1,6 @@
 # Backend Brief 01 — Evaluation Engine
 
-> **For the executing agent:** runs exactly once, triggered by `POST /submit`. Three layers computed concurrently with `asyncio.gather`, results written to `grading_results`, then the report assembles from those rows + events. No LangGraph, no queues, no background workers — the demo can wait the ~10 s grading takes inline.
+> **For the executing agent:** runs exactly once, triggered by `POST /submit`. Three layers computed concurrently with `asyncio.gather`, results written to `scoring_results`, then the report assembles from those rows + events. No LangGraph, no queues, no background workers — the demo can wait the ~10 s grading takes inline.
 
 Depends on: briefs 00, 03; formulas and rubric anchors in brief 04. Terminology: `UBIQUITOUS_LANGUAGE.md`.
 
@@ -13,7 +13,7 @@ submit → load events + final_submission + scenario
            rubric_panel(events, submission, scenario),     # 14 LLM calls, parallel
            context_indices(events, layer1_total)           # pure functions *
          )
-       → write grading_results rows → status = graded
+       → write scoring_results rows → status = graded
 ```
 
 \* `context_indices` needs the Layer 1 total as input `Q`; run `rule_grader` first (it is microseconds), then gather the panel and indices together.
@@ -66,4 +66,4 @@ One additional LLM call (either vendor) generating 3–5 targeted follow-up ques
 - Contrast test: blind-acceptance fixture → rule 8 fires with the disposition event cited.
 - Outage test: excluded criteria drop from max; normalization stays correct.
 - Panel test with faked vendors: median, single-vendor, both-down, and flag paths all covered.
-- Every `grading_results` row has non-empty `evidence_refs` for Layer 1 met/missed.
+- Every `scoring_results` row has non-empty `evidence_refs` for Layer 1 met/missed.

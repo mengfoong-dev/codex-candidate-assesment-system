@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0.0",
+  "scenario_id": "homepage_latency",
+  "scenario_version": "1.0.0",
+  "title": "Homepage Latency Incident",
+  "role": "On-call software engineer",
+  "brief": "Homepage p95 latency increased from 180 ms to 850 ms after the latest release. Investigate the evidence, identify the most supportable cause, and propose a safe remediation with validation and rollback.",
+  "stations": [
+    {"station_id": "observability_wall", "title": "Observability Wall", "quick_key": 1},
+    {"station_id": "developer_desk", "title": "Developer Desk", "quick_key": 2},
+    {"station_id": "release_console", "title": "Release Console", "quick_key": 3}
+  ],
+  "artifacts": [
+    {
+      "artifact_id": "metrics_overview",
+      "station_id": "observability_wall",
+      "evidence_type": "metrics",
+      "title": "Service Health Metrics",
+      "content": [
+        "Homepage p95 latency: 850 ms (previously 180 ms)",
+        "CPU utilization: 35%",
+        "Database health: healthy",
+        "Recommendation service health: healthy",
+        "Redis hit rate: 42%"
+      ],
+      "facts": [
+        {"fact_id": "homepage_p95_increased", "label": "Homepage p95 is 850 ms, previously 180 ms."},
+        {"fact_id": "cpu_not_saturated", "label": "CPU utilization is 35%."},
+        {"fact_id": "database_healthy", "label": "Database health checks are healthy."},
+        {"fact_id": "recommendation_service_healthy", "label": "Recommendation service health checks are healthy."},
+        {"fact_id": "redis_hit_rate_low", "label": "Redis hit rate is 42%."}
+      ]
+    },
+    {
+      "artifact_id": "application_logs",
+      "station_id": "observability_wall",
+      "evidence_type": "logs",
+      "title": "Homepage Application Logs",
+      "content": [
+        "INFO homepage request completed status=200",
+        "INFO profile, recommendations, and notices calls returned successfully",
+        "No database timeout or CPU-exhaustion signal is present"
+      ],
+      "facts": [
+        {"fact_id": "requests_complete_without_errors", "label": "Homepage requests complete without application errors."},
+        {"fact_id": "downstream_calls_successful", "label": "Downstream service calls return successfully."},
+        {"fact_id": "no_database_timeout", "label": "No database timeout appears in the logs."},
+        {"fact_id": "no_cpu_exhaustion", "label": "No CPU-exhaustion signal appears in the logs."}
+      ]
+    },
+    {
+      "artifact_id": "homepage_trace",
+      "station_id": "observability_wall",
+      "evidence_type": "trace",
+      "title": "Homepage Request Trace",
+      "content": [
+        "Authentication completes before the homepage lookups begin.",
+        "Profile, recommendations, and notices spans appear one after another.",
+        "The downstream waits accumulate before final rendering."
+      ],
+      "facts": [
+        {"fact_id": "downstream_calls_sequential_in_trace", "label": "Several downstream calls appear one after another."},
+        {"fact_id": "downstream_waits_accumulate", "label": "Their waiting times accumulate into homepage latency."}
+      ]
+    },
+    {
+      "artifact_id": "homepage_orchestrator",
+      "station_id": "developer_desk",
+      "evidence_type": "source_code",
+      "title": "Homepage Orchestration Source",
+      "content": [
+        "await requireAuthenticatedUser(userId);",
+        "const profile = await getProfile(userId);",
+        "const recommendations = await getRecommendations(userId);",
+        "const notices = await getNotices(userId);",
+        "return renderHomepage({ profile, recommendations, notices });"
+      ],
+      "facts": [
+        {"fact_id": "sequential_awaits_in_code", "label": "The orchestration awaits profile, recommendations, and notices sequentially."},
+        {"fact_id": "calls_are_independent_in_code", "label": "The three lookups share only the user ID and do not consume one another's results."},
+        {"fact_id": "required_ordering_must_remain", "label": "Authentication and final rendering must remain ordered around the lookups."}
+      ]
+    }
+  ],
+  "hypotheses": [
+    {"hypothesis_id": "redis_degradation", "label": "Redis cache degradation is driving the latency increase."},
+    {"hypothesis_id": "database_slowdown", "label": "Database slowdown is driving the latency increase."},
+    {"hypothesis_id": "cpu_saturation", "label": "Application CPU saturation is driving the latency increase."},
+    {"hypothesis_id": "sequential_independent_calls", "label": "Independent homepage lookups are waiting sequentially."},
+    {"hypothesis_id": "insufficient_evidence", "label": "There is not yet enough evidence to identify a cause."}
+  ],
+  "ai_interaction": {
+    "prompt": {
+      "prompt_id": "safe_concurrency_prompt",
+      "text": "How could these calls be made concurrent safely, and what assumptions should be checked?",
+      "referenced_context_ids": ["homepage_orchestrator"]
+    },
+    "response": {
+      "response_id": "safe_concurrency_response_v1",
+      "model_label": "scripted_offline_v1",
+      "latency_ms": 0,
+      "status": "ok",
+      "text": "Run only confirmed-independent calls concurrently, preserve required ordering, and consider partial failure handling."
+    },
+    "dispositions": [
+      {"option_id": "accept_immediately", "disposition": "accepted", "verification_ids": []},
+      {"option_id": "verify_then_adapt", "disposition": "modified", "verification_ids": ["calls_independent", "failure_handling_considered"]},
+      {"option_id": "reject_suggestion", "disposition": "rejected", "verification_ids": []}
+    ]
+  },
+  "tests": [
+    {
+      "test_id": "correctness_regression",
+      "title": "Correctness regression",
+      "expected_result": "All scripted homepage fixtures preserve their expected output.",
+      "results_by_remediation": {
+        "parallelize_confirmed_independent_calls": {"actual_result": "12 of 12 scripted fixtures passed.", "status": "passed"},
+        "scale_cpu": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
+        "improve_redis_hit_rate": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
+        "rewrite_system": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
+        "collect_more_evidence": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"}
+      }
+    },
+    {
+      "test_id": "p95_latency",
+      "title": "Homepage p95 latency",
+      "expected_result": "Scripted p95 falls materially while the error rate remains unchanged.",
+      "results_by_remediation": {
+        "parallelize_confirmed_independent_calls": {"actual_result": "Scripted p95 is 310 ms and the error rate is unchanged.", "status": "passed"},
+        "scale_cpu": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
+        "improve_redis_hit_rate": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
+        "rewrite_system": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
+        "collect_more_evidence": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"}
+      }
+    }
+  ],
+  "submission_options": {
+    "root_causes": [
+      {"option_id": "redis_degradation", "label": "Redis cache degradation"},
+      {"option_id": "database_slowdown", "label": "Database slowdown"},
+      {"option_id": "cpu_saturation", "label": "Application CPU saturation"},
+      {"option_id": "sequential_independent_calls", "label": "Sequential independent homepage calls"},
+      {"option_id": "insufficient_evidence", "label": "Insufficient evidence"}
+    ],
+    "remediations": [
+      {"option_id": "parallelize_confirmed_independent_calls", "label": "Run confirmed-independent lookups concurrently while preserving required ordering"},
+      {"option_id": "scale_cpu", "label": "Scale application CPU capacity"},
+      {"option_id": "improve_redis_hit_rate", "label": "Improve the Redis hit rate"},
+      {"option_id": "rewrite_system", "label": "Rewrite the homepage orchestration system"},
+      {"option_id": "collect_more_evidence", "label": "Collect more evidence before changing production"}
+    ],
+    "expected_impacts": [
+      {"option_id": "lower_p95_preserve_correctness", "label": "Lower p95 latency while preserving correctness"},
+      {"option_id": "increase_cpu_headroom", "label": "Increase CPU headroom"},
+      {"option_id": "increase_redis_hit_rate", "label": "Increase the Redis hit rate"},
+      {"option_id": "unknown_impact", "label": "Impact is not yet known"}
+    ],
+    "risks": [
+      {"option_id": "dependency_order", "label": "A hidden dependency may require call ordering"},
+      {"option_id": "partial_failure_behavior", "label": "Concurrent partial failures may need explicit handling"},
+      {"option_id": "downstream_rate_limits", "label": "Concurrency may increase downstream rate-limit pressure"},
+      {"option_id": "shared_state_race", "label": "Shared state may introduce a race"},
+      {"option_id": "none_identified", "label": "No material risk identified"}
+    ],
+    "assumptions": [
+      {"option_id": "calls_are_independent", "label": "The three lookups are independent"},
+      {"option_id": "downstreams_support_concurrency", "label": "Downstream services support concurrent requests"},
+      {"option_id": "no_required_ordering", "label": "There is no required ordering between the three lookups"},
+      {"option_id": "none", "label": "No assumption selected"}
+    ],
+    "rollbacks": [
+      {"option_id": "restore_sequential_orchestration", "label": "Restore the previous sequential orchestration"},
+      {"option_id": "rollback_release", "label": "Roll back the release"},
+      {"option_id": "no_rollback", "label": "No rollback plan"}
+    ],
+    "required_validation_test_ids": ["correctness_regression", "p95_latency"]
+  },
+  "scoring": {
+    "criteria": [
+      {"criterion_id": "trace_before_change", "dimension": "investigation_strategy", "kind": "positive", "configured_points": 10, "label": "Review the homepage trace before recording a code-changing remediation."},
+      {"criterion_id": "healthy_signals_used", "dimension": "evidence_use", "kind": "positive", "configured_points": 10, "label": "Use healthy CPU and downstream signals to narrow the diagnosis."},
+      {"criterion_id": "sequential_source_identified", "dimension": "technical_conclusion", "kind": "positive", "configured_points": 10, "label": "Connect the source orchestration evidence to sequential waits."},
+      {"criterion_id": "independence_checked", "dimension": "ai_verification", "kind": "positive", "configured_points": 10, "label": "Verify independence and ordering assumptions before using concurrency."},
+      {"criterion_id": "dual_validation_selected", "dimension": "technical_conclusion", "kind": "positive", "configured_points": 10, "label": "Use both correctness and latency validation for the selected remediation."},
+      {"criterion_id": "revised_after_contradiction", "dimension": "adaptability", "kind": "positive", "configured_points": 10, "label": "Revise an initial hypothesis when trace or source evidence contradicts it."},
+      {"criterion_id": "unsupported_cpu_scaling", "dimension": "technical_conclusion", "kind": "warning", "configured_points": -10, "label": "Avoid unsupported CPU-saturation conclusions or scaling changes."},
+      {"criterion_id": "unverified_ai_acceptance", "dimension": "ai_verification", "kind": "warning", "configured_points": -10, "label": "Do not accept the scripted assistant suggestion without checking assumptions."},
+      {"criterion_id": "diagnosis_without_evidence", "dimension": "evidence_use", "kind": "warning", "configured_points": -15, "label": "Support the diagnosis with viewed, valid evidence."}
+    ]
+  },
+  "notices": {
+    "human_review": "This prototype supports human review and does not make an employment decision.",
+    "limitations": "Results are scenario-specific evidence, not a validated psychometric judgment.",
+    "navigation": "Navigation speed and game-control performance are not scored."
+  }
+}

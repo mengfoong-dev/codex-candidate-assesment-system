@@ -53,7 +53,7 @@ Layer boundaries: routes never touch models directly; engines never build HTTP r
 | `sessions` | One candidate attempt | `id` (UUID), `scenario_id`, `scenario_version`, `display_name`, `status` (active/submitted/graded), `started_at`, `submitted_at` |
 | `events` | Append-only source of truth | frozen envelope: `event_id`, `session_id`, `sequence`, `event_type`, `actor`, `occurred_at`, `elapsed_active_ms`, `payload` JSON. Token usage lives on `ai_response_received.payload` |
 | `session_files` | Virtual Workspace state | `session_id`, `path`, `content`, `source` (seeded/ai/user), `updated_at` |
-| `grading_results` | One row per criterion × layer | `session_id`, `layer` (deterministic/llm_rubric/context_index), `criterion_id`, `dimension`, `value`, `max_value`, `evidence_refs` JSON, `grader_label`, `rubric_version`, `detail` JSON |
+| `scoring_results` | One row per criterion × layer | `session_id`, `layer` (deterministic/llm_rubric/context_index), `criterion_id`, `dimension`, `value`, `max_value`, `evidence_refs` JSON, `grader_label`, `rubric_version`, `detail` JSON |
 
 The event envelope, event types, and all scenario IDs reuse the frozen vocabulary from `docs/superpowers/plans/2026-07-15-vibeproof-incident-room-mvp.md` and `docs/assessment/evidence-and-scoring.md`, extended with `payload.usage.input_tokens` / `output_tokens` on `ai_response_received`.
 

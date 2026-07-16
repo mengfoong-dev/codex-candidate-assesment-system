@@ -72,10 +72,11 @@ yet — they are the agreed names the backend will use.
 | `sessions` (planned table) | Session | One attempt; `display_name` = the candidate |
 | `events` (planned table) | Event log | Append-only, seq-numbered actions; source of truth |
 | `session_files` (planned table) | Virtual Workspace | Current file state per session |
-| `grading_results` (planned table) | Scoring layers | One row per criterion × layer, with evidence refs |
+| `scoring_results` (planned table) | Scoring layers | One row per criterion × layer, with evidence refs |
 | `SessionService` (planned service) | — | Creates sessions, ingests frontend events |
 | `SimulationEngine` (planned service) | Simulation Engine | Chat + file tools + SSE streaming |
 | `EvaluationEngine` (planned service) | Evaluation Engine | Runs all 3 layers at submit |
+| `RubricPanel` (planned, inside EvaluationEngine) | Grading panel | Parallel LLM rubric calls, median consensus |
 | `homepage_latency_v1.json` (Godot plan §Task 1; backend reuses) | Scenario | The one MVP scenario, frozen IDs inside |
 | `ai_suggestion_dispositioned` (event type, evidence-and-scoring.md) | Disposition | Candidate accepted/modified/rejected an AI suggestion |
 | `results_by_remediation` (Godot plan scenario JSON) | Scripted test result | Pass/fail lookup keyed by chosen fix |
@@ -84,10 +85,10 @@ yet — they are the agreed names the backend will use.
 ## Relationships
 
 - A **Scenario** is shared by many **Sessions**; a **Session** belongs to exactly one **Scenario** version.
-- A **Session** owns many **Events** (append-only), many **Virtual Workspace** files, and many **grading_results** rows.
+- A **Session** owns many **Events** (append-only), many **Virtual Workspace** files, and many **scoring_results** rows.
 - The **Simulation Engine** *writes* events during the session; the **Evaluation Engine** *reads* them once at submission.
 - Every **Layer 1 rule** result cites ≥1 **Event**; **Layer 2** quotes events; **Layer 3** is computed from event counts.
-- The **Proof Replay** is assembled from Events + grading_results — nothing else.
+- The **Proof Replay** is assembled from Events + scoring_results — nothing else.
 
 ## Example dialogue
 
