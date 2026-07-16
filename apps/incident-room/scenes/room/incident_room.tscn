@@ -1,25 +1,29 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
-[ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
 [ext_resource type="Script" path="res://scripts/presentation/mesh_collider.gd" id="21_collider"]
 [ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
 [ext_resource type="PackedScene" path="res://scenes/room/workstation.tscn" id="25_workstation"]
+[ext_resource type="PackedScene" path="res://scenes/room/enclosed_office.tscn" id="26_office"]
+[ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="27_samchair"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
-background_color = Color(0.55, 0.6, 0.68, 1)
+background_color = Color(0.5, 0.55, 0.62, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.72, 0.7, 0.74, 1)
-ambient_light_energy = 0.7
+ambient_light_color = Color(0.78, 0.77, 0.8, 1)
+ambient_light_energy = 0.85
 
 [sub_resource type="BoxShape3D" id="FloorShape"]
-size = Vector3(12, 0.2, 12)
+size = Vector3(7, 0.2, 7)
 
-[sub_resource type="BoxShape3D" id="WallShape"]
-size = Vector3(6, 3, 0.4)
+[sub_resource type="BoxShape3D" id="WallZ"]
+size = Vector3(7, 3, 0.4)
+
+[sub_resource type="BoxShape3D" id="WallX"]
+size = Vector3(0.4, 3, 7)
 
 [node name="IncidentRoom" type="Node3D"]
 
@@ -27,26 +31,26 @@ size = Vector3(6, 3, 0.4)
 environment = SubResource("Environment_room")
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-52, -34, 0)
+transform = Transform3D(1, 0, 0, 0, 0.82, 0.57, 0, -0.57, 0.82, 0, 0, 0)
+rotation_degrees = Vector3(-55, -34, 0)
 light_color = Color(1, 0.97, 0.92, 1)
-light_energy = 1.2
+light_energy = 1.1
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.8, 0.6, 0, -0.6, 0.8, -0.3, 4.55, 6.8)
-fov = 60.0
+transform = Transform3D(1, 0, 0, 0, 0.82, 0.57, 0, -0.57, 0.82, 0, 3.0, 3.9)
+fov = 62.0
 current = true
 script = ExtResource("17_cam")
 target_path = NodePath("../Player")
-offset = Vector3(0, 4.5, 6.0)
-look_height = 1.0
+offset = Vector3(0, 3.0, 3.9)
+look_height = 1.1
 
-[node name="OfficeRoom15" parent="." instance=ExtResource("18_room")]
-transform = Transform3D(0.011, 0, 0, 0, 0.011, 0, 0, 0, 0.011, 0, 0, 0)
+[node name="Office" parent="." instance=ExtResource("26_office")]
 
 [node name="RoomCollision" type="Node" parent="."]
 script = ExtResource("21_collider")
-target_path = NodePath("../OfficeRoom15")
+target_path = NodePath("../Office")
 
 [node name="Architecture" type="Node3D" parent="."]
 
@@ -58,24 +62,27 @@ shape = SubResource("FloorShape")
 
 [node name="Walls" type="StaticBody3D" parent="Architecture"]
 
-[node name="RearCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(0, 1.5, -2.65)
-shape = SubResource("WallShape")
+[node name="Back" type="CollisionShape3D" parent="Architecture/Walls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -3.5)
+shape = SubResource("WallZ")
 
-[node name="FrontCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(0, 1.5, 2.65)
-shape = SubResource("WallShape")
+[node name="Front" type="CollisionShape3D" parent="Architecture/Walls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 3.5)
+shape = SubResource("WallZ")
 
-[node name="LeftCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.65, 1.5, 0)
-shape = SubResource("WallShape")
+[node name="Left" type="CollisionShape3D" parent="Architecture/Walls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 1.5, 0)
+shape = SubResource("WallX")
 
-[node name="RightCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 2.65, 1.5, 0)
-shape = SubResource("WallShape")
+[node name="Right" type="CollisionShape3D" parent="Architecture/Walls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 1.5, 0)
+shape = SubResource("WallX")
+
+[node name="Workstation" parent="." instance=ExtResource("25_workstation")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2.55)
 
 [node name="Senior" type="Node3D" parent="."]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.8, 0.82, 0.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.6, 0.42, -0.4)
 
 [node name="Body" parent="Senior" instance=ExtResource("24_senior")]
 
@@ -84,11 +91,12 @@ station_id = "senior"
 station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
-[node name="Workstation" parent="." instance=ExtResource("25_workstation")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 1.4)
+[node name="SamChair" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.6, 0, -0.4)
+mesh = ExtResource("27_samchair")
 
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 2.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2.95)
 
 [node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
 station_id = "my_desk"
@@ -96,6 +104,6 @@ station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
-position = Vector3(-0.8, 0.05, 2.2)
+position = Vector3(-1.2, 0.05, 1.0)
 camera_path = NodePath("../Camera3D")
-movement_speed = 2.8
+movement_speed = 3.2

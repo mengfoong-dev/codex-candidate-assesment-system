@@ -1,0 +1,93 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Material" path="res://resources/materials/cream_architecture.tres" id="1_cream"]
+[ext_resource type="Material" path="res://resources/materials/warm_wood.tres" id="2_wood"]
+[ext_resource type="Material" path="res://resources/materials/navy_trim.tres" id="3_navy"]
+[ext_resource type="Mesh" uid="uid://hhqqgqk3rtpo" path="res://assets/third_party/vnb-office-set/Bookshelf.obj" id="4_shelf"]
+[ext_resource type="Mesh" uid="uid://dkh7nu2l36rq0" path="res://assets/third_party/vnb-office-set/Rug_A.obj" id="5_rug"]
+[ext_resource type="Mesh" uid="uid://c5hb2b8thixgk" path="res://assets/third_party/vnb-office-set/Nature_Deco.obj" id="6_plant"]
+[ext_resource type="Mesh" uid="uid://c21f1wmmeet1m" path="res://assets/third_party/vnb-office-set/Nature_Deco_Bamboo1.obj" id="7_bamboo"]
+[ext_resource type="Mesh" uid="uid://bnfu8fkrcat0" path="res://assets/third_party/vnb-office-set/Painting.obj" id="8_paint"]
+[ext_resource type="Mesh" uid="uid://c8067alib4hi5" path="res://assets/third_party/vnb-office-set/Clock.obj" id="9_clock"]
+
+[sub_resource type="BoxMesh" id="FloorMesh"]
+size = Vector3(7, 0.1, 7)
+
+[sub_resource type="BoxMesh" id="CeilMesh"]
+size = Vector3(7, 0.1, 7)
+
+[sub_resource type="BoxMesh" id="WallX"]
+size = Vector3(0.2, 3, 7)
+
+[sub_resource type="StandardMaterial3D" id="WindowMat"]
+shading_mode = 0
+albedo_color = Color(0.72, 0.86, 0.98, 1)
+emission_enabled = true
+emission = Color(0.72, 0.86, 0.98, 1)
+emission_energy_multiplier = 0.6
+
+[node name="EnclosedOffice" type="Node3D"]
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+mesh = SubResource("FloorMesh")
+surface_material_override/0 = ExtResource("2_wood")
+
+[node name="Ceiling" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.05, 0)
+mesh = SubResource("CeilMesh")
+surface_material_override/0 = ExtResource("1_cream")
+
+[node name="WallBack" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.5, -3.5)
+mesh = SubResource("WallX")
+surface_material_override/0 = ExtResource("1_cream")
+
+[node name="WallFront" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1.5, 3.5)
+mesh = SubResource("WallX")
+surface_material_override/0 = ExtResource("1_cream")
+
+[node name="WallLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 1.5, 0)
+mesh = SubResource("WallX")
+surface_material_override/0 = ExtResource("1_cream")
+
+[node name="WallRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 1.5, 0)
+mesh = SubResource("WallX")
+surface_material_override/0 = ExtResource("1_cream")
+
+[node name="WindowLeft1" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.05, 0, 0, 0, 1.3, 0, 0, 0, 1.6, -3.4, 1.7, -1.2)
+mesh = SubResource("WallX")
+surface_material_override/0 = SubResource("WindowMat")
+
+[node name="WindowLeft2" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.05, 0, 0, 0, 1.3, 0, 0, 0, 1.6, -3.4, 1.7, 1.2)
+mesh = SubResource("WallX")
+surface_material_override/0 = SubResource("WindowMat")
+
+[node name="Rug" type="MeshInstance3D" parent="."]
+transform = Transform3D(4, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0.02, 0.8)
+mesh = ExtResource("5_rug")
+
+[node name="Bookshelf" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 3.2, 0, -1.5)
+mesh = ExtResource("4_shelf")
+
+[node name="PlantBackLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0, 0, -3.0)
+mesh = ExtResource("7_bamboo")
+
+[node name="PlantFrontRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.0, 0, 3.0)
+mesh = ExtResource("6_plant")
+
+[node name="Painting" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.9, -3.38)
+mesh = ExtResource("8_paint")
+
+[node name="Clock" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 2.2, -3.38)
+mesh = ExtResource("9_clock")
