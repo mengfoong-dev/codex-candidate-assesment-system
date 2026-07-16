@@ -4,53 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VibeProof | Candidate Workspace</title>
-    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <section class="assessment-screen" aria-label="VibeProof candidate assessment">
-        <header class="challenge-bar">
-          <div class="challenge-title"><span>Homepage latency spike</span><span class="difficulty">Intermediate</span></div>
-          <div class="challenge-actions"><span class="timer">◷ <strong id="timer">18:42</strong></span><button class="run-button" id="run-button">Run</button><button class="submit-button" id="submit-button">Submit</button></div>
-        </header>
-
-        <p class="prototype-notice"><span></span>Mock workspace: actions are demonstrative and the result is explicitly unscored.</p>
-
-        <section class="workspace">
-          <aside class="incident-panel panel">
-            <h1>Incident brief</h1>
-            <p>Users report the homepage feels slow. Engineering metrics show:</p>
-            <div class="signals"><div>p95 latency <span>180ms →</span> <strong>850ms</strong></div><div>CPU usage <b>35%</b></div></div>
-            <p>Your task is not to rewrite the system, but to find the bottleneck and propose a fix.</p>
-            <div class="hypothesis-card"><label for="hypothesis">Current hypothesis</label><select id="hypothesis"><option>Redis cache degradation</option><option>CPU saturation</option><option selected>Sequential independent API calls</option><option>Database slowdown</option></select><div><span>Confidence</span><strong id="confidence-value">65%</strong></div><input id="confidence" type="range" min="0" max="100" value="65" /></div>
-          </aside>
-
-          <section class="conversation-panel panel" aria-label="Conversation">
-            <h2>Conversation <span>Scripted assistant</span></h2>
-            <div class="conversation" id="conversation" aria-live="polite">
-              <article class="message user"><p>Where should I start looking?</p></article>
-              <article class="message assistant"><p>CPU is low, so it is likely waiting on something. Open the homepage trace and check whether calls run one after another.</p></article>
-              <article class="message user"><p>Found 4 API calls in a row.</p></article>
-              <article class="message assistant thinking" id="starter-thinking" aria-label="Assistant is thinking"><i></i><i></i><i></i></article>
-            </div>
-            <form class="prompt-box" id="prompt-form"><label class="sr-only" for="prompt">Write a message</label><textarea id="prompt" rows="1" placeholder="Write a message…"></textarea><button type="submit">Send</button></form>
-          </section>
-
-          <section class="right-column">
-            <section class="output-panel panel">
-              <div class="panel-title"><h2>Output</h2><div class="tabs" role="tablist"><button class="tab" data-artifact="metrics_overview">Metrics</button><button class="tab active" data-artifact="homepage_trace">Trace</button><button class="tab" data-artifact="homepage_orchestrator">Code</button></div></div>
-              <pre id="evidence-output"><code><span class="muted">GET / homepage</span>
-├─ auth.check <b>120ms</b>
-├─ user.load <b>190ms</b>
-├─ feed.fetch <b>210ms</b>
-└─ ads.fetch <strong>330ms</strong></code></pre>
-            </section>
-            <section class="result-panel" id="validation-result"><div><h2>Result</h2><p>Submit your diagnosis to see the unscored session summary.</p></div><button class="text-button" id="use-recommendation">Use safe remediation</button></section>
-          </section>
-        </section>
-      </section>
-    </main>
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
