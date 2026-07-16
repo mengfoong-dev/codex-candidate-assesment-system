@@ -35,3 +35,12 @@ deco) uses models from "Low Poly 3D Office Set [VNB]" by VNB, licensed **CC-BY 4
 - Attribution: **"Low Poly 3D Office Set [VNB]" by VNB — https://vnbp.itch.io/low-poly-3d-office-set-vnb — CC-BY 4.0.**
 - Selected files only: a subset of the separated OBJ models plus their palette/screen textures under `assets/third_party/vnb-office-set/`; the full pack and the source `.zip` are not vendored.
 - Used as in-game props only; the models are not re-sold as an asset pack, per the pack's terms.
+
+## Office Room 15 (Low-poly)
+
+The 3D office environment is "Office Room 15 Low-poly 3D model" by **Mnostva**, licensed **CC-BY 4.0**.
+
+- Canonical source: <https://sketchfab.com/3d-models/office-room-15-low-poly-3d-model-0402e7c67e0e4a6abc51a7269f59600a>.
+- Attribution: **"Office Room 15 Low-poly 3D model" by Mnostva — CC-BY 4.0.**
+- Vendored as `assets/third_party/office-room-15/office_room_15.glb`.
+- Used solely as an in-game environment asset. The model carries a Sketchfab "NoAI" flag, which restricts use in generative-AI *training/development*, not use as a game asset — no AI training is performed on it here.

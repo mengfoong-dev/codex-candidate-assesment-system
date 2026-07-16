@@ -55,9 +55,9 @@ func run(tree: SceneTree) -> Array[String]:
     t.assert_false(controller_source.contains("CandidateSession"), "movement does not call candidate session")
     t.assert_false(controller_source.contains("EventLogger"), "movement does not call event logger")
 
-    # Decluttered office: the shell plus a single desk workstation and the senior NPC.
-    t.assert_true(room.get_node_or_null("Architecture/CozyOfficeShell") is Node3D, "room has the cozy office shell")
-    t.assert_true(room.get_node_or_null("MyDesk") is Node3D, "room has the player's desk workstation")
+    # Office Room 15 environment plus the player's desk-interaction and the senior NPC.
+    t.assert_true(room.get_node_or_null("OfficeRoom15") is Node3D, "room has the office environment")
+    t.assert_true(room.get_node_or_null("MyDesk") is Node3D, "room has the player's desk interaction")
     t.assert_true(room.get_node_or_null("Senior") is Node3D, "room has the senior NPC")
 
     room.queue_free()

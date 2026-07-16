@@ -1,38 +1,23 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
-[ext_resource type="PackedScene" path="res://scenes/room/cozy_office_shell.tscn" id="3_shell"]
 [ext_resource type="PackedScene" path="res://scenes/player/player_visual.tscn" id="8_senior"]
-[ext_resource type="PackedScene" path="res://scenes/room/office_furnishing.tscn" id="11_furnish"]
-[ext_resource type="Mesh" uid="uid://ct0wwua8701fu" path="res://assets/third_party/vnb-office-set/Office_Desk_1.obj" id="12_vdesk"]
-[ext_resource type="Mesh" uid="uid://cegvvfbyb7qsr" path="res://assets/third_party/vnb-office-set/Computer_Monitor.obj" id="13_vmon"]
-[ext_resource type="Mesh" uid="uid://duc4pwb5u6sv0" path="res://assets/third_party/vnb-office-set/Computer_Keyboard.obj" id="14_vkey"]
-[ext_resource type="Mesh" uid="uid://du4oyj80psivy" path="res://assets/third_party/vnb-office-set/Computer_Mouse.obj" id="15_vmouse"]
-[ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="16_vchair"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
+[ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
 background_color = Color(0.07, 0.07, 0.12, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.62, 0.6, 0.66, 1)
-ambient_light_energy = 0.55
+ambient_light_color = Color(0.72, 0.7, 0.74, 1)
+ambient_light_energy = 0.7
 
 [sub_resource type="BoxShape3D" id="FloorShape"]
-size = Vector3(16, 0.2, 10)
+size = Vector3(12, 0.2, 12)
 
-[sub_resource type="BoxShape3D" id="RearWallShape"]
-size = Vector3(16, 2.5, 0.3)
-
-[sub_resource type="BoxShape3D" id="SideWallShape"]
-size = Vector3(0.3, 2.5, 10)
-
-[sub_resource type="BoxShape3D" id="FrontBoundaryShape"]
-size = Vector3(16, 1, 0.2)
-
-[sub_resource type="BoxShape3D" id="RightBoundaryShape"]
-size = Vector3(0.2, 1, 10)
+[sub_resource type="BoxShape3D" id="WallShape"]
+size = Vector3(12, 3, 0.4)
 
 [node name="IncidentRoom" type="Node3D"]
 
@@ -40,9 +25,9 @@ size = Vector3(0.2, 1, 10)
 environment = SubResource("Environment_room")
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-55, -30, 0)
-light_color = Color(1, 0.96, 0.9, 1)
-light_energy = 1.15
+rotation_degrees = Vector3(-52, -34, 0)
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 1.2
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
@@ -52,6 +37,9 @@ current = true
 script = ExtResource("17_cam")
 target_path = NodePath("../Player")
 
+[node name="OfficeRoom15" parent="." instance=ExtResource("18_room")]
+transform = Transform3D(0.02, 0, 0, 0, 0.02, 0, 0, 0, 0.02, 0, 0, 0)
+
 [node name="Architecture" type="Node3D" parent="."]
 
 [node name="Floor" type="StaticBody3D" parent="Architecture"]
@@ -60,28 +48,26 @@ position = Vector3(0, -0.1, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Floor"]
 shape = SubResource("FloorShape")
 
-[node name="CozyOfficeShell" parent="Architecture" instance=ExtResource("3_shell")]
-
 [node name="Walls" type="StaticBody3D" parent="Architecture"]
 
 [node name="RearCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(0, 1.25, -5)
-shape = SubResource("RearWallShape")
+position = Vector3(0, 1.5, -4.8)
+shape = SubResource("WallShape")
+
+[node name="FrontCollision" type="CollisionShape3D" parent="Architecture/Walls"]
+position = Vector3(0, 1.5, 4.8)
+shape = SubResource("WallShape")
 
 [node name="LeftCollision" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(-8, 1.25, 0)
-shape = SubResource("SideWallShape")
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4.8, 1.5, 0)
+shape = SubResource("WallShape")
 
-[node name="FrontBoundary" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(0, 0.5, 5)
-shape = SubResource("FrontBoundaryShape")
-
-[node name="RightBoundary" type="CollisionShape3D" parent="Architecture/Walls"]
-position = Vector3(8, 0.5, 0)
-shape = SubResource("RightBoundaryShape")
+[node name="RightCollision" type="CollisionShape3D" parent="Architecture/Walls"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4.8, 1.5, 0)
+shape = SubResource("WallShape")
 
 [node name="Senior" type="Node3D" parent="."]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.9, 0.05, 3.0)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.0, 0.05, 2.2)
 
 [node name="Body" parent="Senior" instance=ExtResource("8_senior")]
 
@@ -91,33 +77,12 @@ station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 2.4)
-
-[node name="Desk" type="MeshInstance3D" parent="MyDesk"]
-mesh = ExtResource("12_vdesk")
-
-[node name="Monitor" type="MeshInstance3D" parent="MyDesk"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -0.18)
-mesh = ExtResource("13_vmon")
-
-[node name="Keyboard" type="MeshInstance3D" parent="MyDesk"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0.12)
-mesh = ExtResource("14_vkey")
-
-[node name="Mouse" type="MeshInstance3D" parent="MyDesk"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.32, 0.95, 0.12)
-mesh = ExtResource("15_vmouse")
-
-[node name="Chair" type="MeshInstance3D" parent="MyDesk"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0.55)
-mesh = ExtResource("16_vchair")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0, -1.2)
 
 [node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
 station_id = "my_desk"
 station_title = "Sit at your desk"
 accent_color = Color(0.1, 0.78, 0.95, 1)
-
-[node name="Furnishing" parent="." instance=ExtResource("11_furnish")]
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector3(-1.5, 0.05, 2.8)
