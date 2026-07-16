@@ -117,6 +117,14 @@ def _first(value: object) -> object | None:
     return value
 
 
+def _is_invalid_tool_generation(exc: Exception) -> bool:
+    """Identify Cohere's retryable strict-tool generation failure without surfacing its body."""
+    body = getattr(exc, "body", None)
+    if not isinstance(body, dict):
+        return False
+    return str(body.get("error_type", "")).upper() == "INVALID_TOOL_GENERATION"
+
+
 class CohereLLM:
     """Cohere Chat V2 streaming adapter translated into the provider-neutral simulation loop."""
 
@@ -156,6 +164,7 @@ class CohereLLM:
             "temperature": self._temperature,
         }
 
+        retry_with_non_strict_tools = False
         for attempt in range(COHERE_STREAM_ATTEMPTS):
             text_parts: list[str] = []
             calls: dict[int, dict[str, str]] = {}
@@ -163,7 +172,11 @@ class CohereLLM:
             usage = TokenUsage(input_tokens=0, output_tokens=0)
             emitted_text = False
             try:
-                stream = self._client.chat_stream(**request)
+                attempt_request = {
+                    **request,
+                    "strict_tools": False if retry_with_non_strict_tools else COHERE_STRICT_TOOLS,
+                }
+                stream = self._client.chat_stream(**attempt_request)
                 if inspect.isawaitable(stream):
                     stream = await stream
 
@@ -199,7 +212,9 @@ class CohereLLM:
             except Exception as exc:
                 if emitted_text or attempt + 1 == COHERE_STREAM_ATTEMPTS:
                     raise
-                logger.warning("Retrying Cohere stream after pre-output %s", type(exc).__name__)
+                retry_with_non_strict_tools = _is_invalid_tool_generation(exc)
+                retry_mode = " with non-strict tools" if retry_with_non_strict_tools else ""
+                logger.warning("Retrying Cohere stream after pre-output %s%s", type(exc).__name__, retry_mode)
 
         tool_calls: list[ToolCallChunk] = []
         raw_tool_calls: list[dict] = []
@@ -215,8 +230,12 @@ class CohereLLM:
                 }
             )
 
-        raw_message: dict = {"role": "assistant", "content": [], "tool_calls": raw_tool_calls}
-        if text_parts:
+        raw_message: dict = {"role": "assistant"}
+        if raw_tool_calls:
+            # Command A+ rejects assistant tool_plan fields in a follow-up request. Echo only
+            # the tool calls, then provide one serialized document for each matching call ID.
+            raw_message["tool_calls"] = raw_tool_calls
+        elif text_parts:
             raw_message["content"] = [{"type": "text", "text": "".join(text_parts)}]
         yield TurnDone(
             # Command A+ can return a COMPLETE finish reason alongside streamed tool-call
@@ -278,7 +297,9 @@ def _build_system_prompt(scenario: Scenario) -> str:
         "or edit a known sandbox file with the read_file and write_file tools. If the candidate "
         "asks you to read or edit a known workspace file, invoke the appropriate workspace tool "
         "before explaining the result. Do not claim a workspace action without a matching tool "
-        "call. Nothing you write ever executes."
+        "call. You cannot access source-control history, shell commands, or files outside the "
+        "displayed sandbox inventory; say so plainly instead of attempting an invented path. "
+        "Nothing you write ever executes."
     )
 
 
@@ -320,14 +341,17 @@ def _assistant_message(raw_content: object) -> dict:
 
 def _cohere_tool_result(legacy_result: dict) -> dict:
     """Translate the loop's provider-neutral result into Cohere's V2 tool-message envelope."""
+    tool_call_id = str(legacy_result["tool_use_id"]).strip()
+    if not tool_call_id:
+        raise ValueError("Cohere tool result is missing a tool call ID")
     payload = {
         "result": legacy_result["content"],
         "is_error": bool(legacy_result.get("is_error", False)),
     }
     return {
         "role": "tool",
-        "tool_call_id": legacy_result["tool_use_id"],
-        "content": [{"type": "document", "document": {"data": payload}}],
+        "tool_call_id": tool_call_id,
+        "content": [{"type": "document", "document": {"data": json.dumps(payload)}}],
     }
 
 

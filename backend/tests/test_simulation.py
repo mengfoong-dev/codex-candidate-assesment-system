@@ -411,6 +411,7 @@ def test_system_prompt_excludes_hidden_scenario_keys():
     assert "scoring" not in prompt
     assert "root_cause" not in prompt
     assert "asks you to read or edit a known workspace file" in prompt
+    assert "cannot access source-control history" in prompt
 
 
 # --- model/health check --------------------------------------------------------------------
@@ -445,15 +446,16 @@ class RecordingCohereClient:
 class TransientFailingCohereClient(RecordingCohereClient):
     """Fails before yielding an event once, then provides the supplied V2 stream."""
 
-    def __init__(self, turns):
+    def __init__(self, turns, failure: Exception | None = None):
         super().__init__(turns)
         self._fail_first_request = True
+        self._failure = failure or RuntimeError("transient Cohere request failure")
 
     def chat_stream(self, **kwargs):
         self.calls.append(kwargs)
         if self._fail_first_request:
             self._fail_first_request = False
-            raise RuntimeError("transient Cohere request failure")
+            raise self._failure
         events = self._turns.pop(0)
 
         async def stream():
@@ -482,6 +484,10 @@ async def test_cohere_adapter_reconstructs_streamed_tool_arguments_and_usage():
     )
     client = RecordingCohereClient(
         [[
+            _cohere_event(
+                "tool-plan-delta",
+                delta=SimpleNamespace(message=SimpleNamespace(tool_plan="I will update the file.")),
+            ),
             _cohere_event(
                 "content-delta",
                 delta=SimpleNamespace(message=SimpleNamespace(content=SimpleNamespace(text="I can update it."))),
@@ -582,6 +588,46 @@ async def test_cohere_adapter_retries_a_pre_output_provider_failure_once():
 
     assert [chunk.text for chunk in chunks if isinstance(chunk, TokenChunk)] == ["Recovered response."]
     assert len(client.calls) == 2
+    assert [call["strict_tools"] for call in client.calls] == [True, True]
+
+
+class InvalidToolGenerationError(RuntimeError):
+    def __init__(self):
+        super().__init__("invalid tool generation")
+        self.body = {"error_type": "INVALID_TOOL_GENERATION"}
+
+
+@pytest.mark.asyncio
+async def test_cohere_adapter_retries_invalid_tool_generation_in_non_strict_mode():
+    client = TransientFailingCohereClient(
+        [[
+            _cohere_event(
+                "content-delta",
+                delta=SimpleNamespace(message=SimpleNamespace(content=SimpleNamespace(text="Recovered response."))),
+            ),
+            _cohere_event(
+                "message-end",
+                delta=SimpleNamespace(
+                    message=SimpleNamespace(finish_reason="COMPLETE", usage=_cohere_usage(12, 3))
+                ),
+            ),
+        ]],
+        failure=InvalidToolGenerationError(),
+    )
+    llm = service.CohereLLM(
+        api_key="fake-key", model="command-a-plus-05-2026", max_tokens=128, client=client
+    )
+
+    _ = [
+        chunk
+        async for chunk in llm.stream_turn(
+            system="system",
+            messages=[{"role": "user", "content": "help"}],
+            tools=workspace_tools.COHERE_TOOL_SCHEMAS,
+        )
+    ]
+
+    assert [call["strict_tools"] for call in client.calls] == [True, False]
 
 
 def test_cohere_workspace_tools_are_compatible_with_strict_mode():
@@ -648,11 +694,11 @@ async def test_cohere_tool_result_round_trip_uses_v2_tool_messages(sim_client, a
     assert len(client.calls) == 2
     follow_up_messages = client.calls[1]["messages"]
     assert follow_up_messages[-2]["role"] == "assistant"
+    assert "tool_plan" not in follow_up_messages[-2]
     assert follow_up_messages[-2]["tool_calls"][0]["id"] == "call_list"
     assert follow_up_messages[-1]["role"] == "tool"
     assert follow_up_messages[-1]["tool_call_id"] == "call_list"
     assert follow_up_messages[-1]["content"][0]["type"] == "document"
-    assert follow_up_messages[-1]["content"][0]["document"]["data"] == {
-        "result": "No files in the workspace.",
-        "is_error": False,
-    }
+    assert follow_up_messages[-1]["content"][0]["document"]["data"] == (
+        '{"result": "No files in the workspace.", "is_error": false}'
+    )
