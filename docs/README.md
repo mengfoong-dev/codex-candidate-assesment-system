@@ -27,6 +27,7 @@ VibeProof is an AI-allowed Ownership Challenge for software-engineering candidat
 
 ## Godot application
 
+- [Cozy Toy Office visual-overhaul design](superpowers/specs/2026-07-16-godot-cozy-toy-office-visual-overhaul-design.md) - approved CC0 asset, room, character, UI, licensing, and Web-performance direction.
 - [Godot-first candidate-flow design](superpowers/specs/2026-07-15-vibeproof-godot-first-candidate-flow-design.md) - current implementation priority: complete local candidate flow and event logging before backend scoring.
 - [Godot Incident Room design](superpowers/specs/2026-07-15-vibeproof-incident-room-mvp-design.md) - room, interaction, visual, and responsible-assessment constraints.
 - [Godot-first implementation plan](superpowers/plans/2026-07-15-vibeproof-godot-first-candidate-flow.md) - current test-first delivery plan with scoring deferred.

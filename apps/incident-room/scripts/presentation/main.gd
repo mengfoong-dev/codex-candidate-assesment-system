@@ -6,17 +6,10 @@ const EventLoggerScript = preload("res://scripts/persistence/event_logger.gd")
 const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summary_builder.gd")
 
 @onready var room: Node3D = $IncidentRoom
-@onready var player: CharacterBody3D = $IncidentRoom/Player
-@onready var hud: Control = $UI/HUD
-@onready var station_hint: Label = $UI/HUD/Margin/Layout/StationHint
-@onready var persistence_warning: Label = $UI/HUD/Margin/Layout/PersistenceWarning
-@onready var message_label: Label = $UI/HUD/Margin/Layout/Message
+@onready var player: Node = $IncidentRoom/Player
+@onready var workspace: BrowserWorkspace = $UI/Workspace
+@onready var office: OfficeLayer = $UI/OfficeLayer
 @onready var title_screen: Control = $UI/TitleScreen
-@onready var briefing_panel: Control = $UI/BriefingPanel
-@onready var investigation_panel: Control = $UI/InvestigationPanel
-@onready var hypothesis_panel: Control = $UI/HypothesisPanel
-@onready var release_panel: Control = $UI/ReleasePanel
-@onready var summary_panel: Control = $UI/UnscoredSummary
 
 var _scenario: Dictionary = {}
 var _logger_factory := Callable()
@@ -24,7 +17,8 @@ var _summary_writer := Callable()
 var _logger: RefCounted
 var _session: RefCounted
 var _phase := "title"
-var _current_station_id := ""
+# Presentation-only: "office" (walking the 3D room) vs "desk" (working in the laptop).
+var _view := "office"
 var _current_summary: Dictionary = {}
 var _session_serial := 0
 var _session_id := ""
@@ -39,7 +33,7 @@ func _ready() -> void:
         _scenario = loaded.scenario
     _create_fresh_session()
     _configure_static_ui()
-    _show_phase("title")
+    _set_phase("title")
 
 func configure_dependencies(
         scenario: Dictionary,
@@ -51,15 +45,19 @@ func configure_dependencies(
     _summary_writer = summary_writer
     _create_fresh_session()
     _configure_static_ui()
-    _show_phase("title")
+    _set_phase("title")
 
 func begin_session() -> Dictionary:
     if _phase != "title":
         return _reject("Session can only begin from the title screen")
     var result: Dictionary = _session.open_assessment(true)
     if result.ok:
-        briefing_panel.configure(_scenario)
-        _show_phase("briefing")
+        workspace.configure(_scenario)
+        workspace.set_started(false)
+        office.configure(_scenario)
+        office.set_snapshot(_session.snapshot())
+        _view = "office"
+        _set_phase("briefing")
     return _finish_intent(result)
 
 func submit_initial_hypothesis(hypothesis_id: String, confidence: int) -> Dictionary:
@@ -67,66 +65,51 @@ func submit_initial_hypothesis(hypothesis_id: String, confidence: int) -> Dictio
         return _reject("Initial hypothesis is only available during briefing")
     var result: Dictionary = _session.record_initial_hypothesis(hypothesis_id, confidence)
     if result.ok:
-        _show_phase("room")
+        _set_phase("room")
+        workspace.set_started(true)
     return _finish_intent(result)
 
 func open_station(station_id: String) -> Dictionary:
     if _phase != "room":
-        return _reject("Stations are only available inside the Incident Room")
+        return _reject("Stations are only available inside the workspace")
     if _find_by_id(_scenario.get("stations", []), "station_id", station_id).is_empty():
         return _reject("Unknown station: %s" % station_id)
-    _current_station_id = station_id
-    if station_id == "release_console":
-        release_panel.configure(_scenario, _session.snapshot())
-        _show_modal(release_panel)
-    else:
-        investigation_panel.configure(station_id, _scenario, _session.snapshot())
-        _show_modal(investigation_panel)
+    workspace.set_active_tab("evidence")
     return {"ok": true}
 
 func view_artifact(artifact_id: String) -> Dictionary:
     if _phase != "room":
-        return _reject("Evidence is only available inside the Incident Room")
-    var result: Dictionary = _session.view_evidence(artifact_id)
-    if result.ok and not _current_station_id.is_empty():
-        investigation_panel.configure(_current_station_id, _scenario, _session.snapshot())
-    return _finish_intent(result)
+        return _reject("Evidence is only available inside the workspace")
+    return _finish_intent(_session.view_evidence(artifact_id))
 
 func record_ai_disposition(option_id: String) -> Dictionary:
     if _phase != "room":
-        return _reject("Assistant review is only available inside the Incident Room")
-    var result: Dictionary = _session.record_ai_disposition(option_id)
-    return _finish_intent(result)
+        return _reject("Assistant review is only available inside the workspace")
+    return _finish_intent(_session.record_ai_disposition(option_id))
 
 func open_hypothesis_panel() -> Dictionary:
     if _phase != "room":
-        return _reject("Hypothesis revision is only available inside the Incident Room")
-    hypothesis_panel.configure(_scenario, _session.snapshot())
-    _show_modal(hypothesis_panel)
+        return _reject("Hypothesis revision is only available inside the workspace")
+    _sit()
+    workspace.set_active_tab("submit")
     return {"ok": true}
 
 func submit_revision(hypothesis_id: String, confidence: int, fact_ids: Array) -> Dictionary:
     if _phase != "room":
-        return _reject("Hypothesis revision is only available inside the Incident Room")
-    var result: Dictionary = _session.revise_hypothesis(hypothesis_id, confidence, fact_ids)
-    if result.ok:
-        _close_modals()
-    return _finish_intent(result)
+        return _reject("Hypothesis revision is only available inside the workspace")
+    return _finish_intent(_session.revise_hypothesis(hypothesis_id, confidence, fact_ids))
 
 func request_verification(test_id: String, remediation_id: String) -> Dictionary:
     if _phase != "room":
-        return _reject("Verification is only available inside the Incident Room")
-    var result: Dictionary = _session.record_verification(test_id, remediation_id)
-    if result.ok:
-        release_panel.configure(_scenario, _session.snapshot())
-        _show_modal(release_panel)
-    return _finish_intent(result)
+        return _reject("Verification is only available inside the workspace")
+    return _finish_intent(_session.record_verification(test_id, remediation_id))
 
 func submit_final(submission: Dictionary) -> Dictionary:
     if _phase != "room":
-        return _reject("Final submission is only available inside the Incident Room")
+        return _reject("Final submission is only available inside the workspace")
     var result: Dictionary = _session.submit_final(submission)
     if not result.ok:
+        workspace.set_submit_error(result.get("errors", []))
         return _finish_intent(result)
 
     var event_warning: String = _logger.persistence_warning()
@@ -145,14 +128,16 @@ func submit_final(submission: Dictionary) -> Dictionary:
             event_warning + "\n" if not event_warning.is_empty() else "",
             summary_warning,
         ]
-    summary_panel.configure(_current_summary)
-    _show_phase("summary")
+    _set_phase("summary")
+    workspace.show_report(_current_summary)
     return _finish_intent(result)
 
 func restart_session() -> Dictionary:
     _create_fresh_session()
     _configure_static_ui()
-    _show_phase("title")
+    office.close()
+    _view = "office"
+    _set_phase("title")
     return {"ok": true, "session_id": _session_id}
 
 func current_phase() -> String:
@@ -184,75 +169,98 @@ func _create_fresh_session() -> void:
         )
     _session = CandidateSessionScript.new(_scenario, _logger)
     _current_summary = {}
-    _current_station_id = ""
 
 func _connect_signals() -> void:
     title_screen.start_requested.connect(begin_session)
-    briefing_panel.hypothesis_submitted.connect(submit_initial_hypothesis)
-    player.interaction_requested.connect(open_station)
-    player.nearest_station_changed.connect(_on_nearest_station_changed)
-    player.hypothesis_requested.connect(open_hypothesis_panel)
-    investigation_panel.artifact_viewed.connect(view_artifact)
-    investigation_panel.ai_disposition_selected.connect(record_ai_disposition)
-    hypothesis_panel.revision_submitted.connect(submit_revision)
-    release_panel.verification_requested.connect(request_verification)
-    release_panel.final_submission_requested.connect(submit_final)
-    summary_panel.restart_requested.connect(restart_session)
-    for panel: Control in [investigation_panel, hypothesis_panel, release_panel]:
-        panel.visibility_changed.connect(_sync_player_input)
+    workspace.initial_hypothesis_submitted.connect(submit_initial_hypothesis)
+    workspace.evidence_view_requested.connect(view_artifact)
+    workspace.disposition_submitted.connect(record_ai_disposition)
+    workspace.revision_submitted.connect(submit_revision)
+    workspace.verification_requested.connect(request_verification)
+    workspace.final_submission_requested.connect(submit_final)
+    workspace.restart_requested.connect(restart_session)
+    workspace.leave_requested.connect(_stand)
+    if player != null:
+        player.interaction_requested.connect(_on_interact)
+        player.nearest_station_changed.connect(_on_nearest_station_changed)
+        player.hypothesis_requested.connect(open_hypothesis_panel)
+    office.evidence_view_requested.connect(view_artifact)
+    office.modal_changed.connect(func(_open: bool) -> void: _update_player_input())
 
 func _configure_static_ui() -> void:
     if _scenario.is_empty():
         return
     title_screen.configure(_scenario.get("notices", {}))
-    persistence_warning.text = ""
-    message_label.text = ""
-    station_hint.text = "E interact • 1/2/3 stations • H revise hypothesis"
 
-func _show_phase(next_phase: String) -> void:
-    _phase = next_phase
-    title_screen.visible = next_phase == "title"
-    briefing_panel.visible = next_phase == "briefing"
-    room.visible = next_phase == "room"
-    hud.visible = next_phase == "room"
-    summary_panel.visible = next_phase == "summary"
-    if next_phase != "room":
-        investigation_panel.hide()
-        hypothesis_panel.hide()
-        release_panel.hide()
-    _sync_player_input()
+# --- Office <-> desk presentation loop ---------------------------------------
 
-func _show_modal(panel: Control) -> void:
-    for candidate: Control in [investigation_panel, hypothesis_panel, release_panel]:
-        candidate.visible = candidate == panel
-    _sync_player_input()
-
-func _close_modals() -> void:
-    investigation_panel.hide()
-    hypothesis_panel.hide()
-    release_panel.hide()
-    _sync_player_input()
-
-func _sync_player_input() -> void:
-    if player == null:
+func _on_interact(station_id: String) -> void:
+    if _phase != "briefing" and _phase != "room":
         return
-    var modal_open := investigation_panel.visible or hypothesis_panel.visible or release_panel.visible
-    player.set_input_enabled(_phase == "room" and not modal_open)
+    if _view != "office" or office.is_modal_open():
+        return
+    match station_id:
+        "my_desk":
+            _sit()
+        "senior":
+            office.open_senior()
+        _:
+            office.open_station(station_id)
 
 func _on_nearest_station_changed(station_id: String) -> void:
-    if station_id.is_empty():
-        station_hint.text = "E interact • 1/2/3 stations • H revise hypothesis"
+    office.show_hint(_prompt_for(station_id))
+
+func _sit() -> void:
+    if _phase != "briefing" and _phase != "room":
         return
-    var station := _find_by_id(_scenario.get("stations", []), "station_id", station_id)
-    station_hint.text = "E open %s • 1/2/3 quick access • H revise hypothesis" % station.get("title", station_id)
+    office.close()
+    _view = "desk"
+    _update_presentation()
+
+func _stand() -> void:
+    if _phase != "briefing" and _phase != "room":
+        return
+    _view = "office"
+    _update_presentation()
+
+func _prompt_for(station_id: String) -> String:
+    match station_id:
+        "":
+            return "Click to walk, or WASD  ·  click / press E to interact"
+        "my_desk":
+            return "Press E — sit at your laptop 💻"
+        "senior":
+            return "Press E — talk to Sam, your senior ☕"
+        _:
+            var station := _find_by_id(_scenario.get("stations", []), "station_id", station_id)
+            return "Press E — inspect %s" % str(station.get("title", station_id))
+
+func _set_phase(next_phase: String) -> void:
+    _phase = next_phase
+    _update_presentation()
+
+func _update_presentation() -> void:
+    var working := _phase == "briefing" or _phase == "room"
+    var at_desk := _view == "desk"
+    title_screen.visible = _phase == "title"
+    room.visible = _phase != "summary"
+    workspace.visible = (working and at_desk) or _phase == "summary"
+    office.visible = working and not at_desk
+    if office.visible:
+        office.show_hint(_prompt_for(""))
+    _update_player_input()
+
+func _update_player_input() -> void:
+    if player == null or not player.has_method("set_input_enabled"):
+        return
+    var can_move := (_phase == "briefing" or _phase == "room") and _view == "office" and not office.is_modal_open()
+    player.set_input_enabled(can_move)
 
 func _finish_intent(result: Dictionary) -> Dictionary:
-    if not result.get("ok", false):
-        var errors: Variant = result.get("errors", [])
-        message_label.text = str(errors[0]) if not errors.is_empty() else "That action is not available."
-    else:
-        message_label.text = ""
-    persistence_warning.text = _logger.persistence_warning()
+    if _session != null and _phase != "title":
+        var snapshot: Dictionary = _session.snapshot()
+        workspace.refresh(snapshot)
+        office.set_snapshot(snapshot)
     return result
 
 func _write_summary(contents: String) -> Error:
