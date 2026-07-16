@@ -554,7 +554,7 @@ async def test_cohere_adapter_reconstructs_streamed_tool_arguments_and_usage():
     # Cohere only receives required-input read/write tools, so strict mode can prevent
     # malformed provider-side tool generation.
     assert client.calls[0]["strict_tools"] is True
-    assert client.calls[0]["thinking"] == {"type": "disabled"}
+    assert "thinking" not in client.calls[0]
 
 
 @pytest.mark.asyncio
