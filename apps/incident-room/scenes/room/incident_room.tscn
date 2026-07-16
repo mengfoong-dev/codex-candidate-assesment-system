@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://scenes/stations/observability_station_visual.tscn" id="5_obs"]
 [ext_resource type="PackedScene" path="res://scenes/stations/developer_station_visual.tscn" id="6_dev"]
 [ext_resource type="PackedScene" path="res://scenes/stations/release_station_visual.tscn" id="7_rel"]
+[ext_resource type="PackedScene" path="res://scenes/player/player_visual.tscn" id="8_senior"]
+[ext_resource type="PackedScene" uid="uid://bvo4lptnqfnyu" path="res://assets/third_party/kaykit-furniture-bits/table_medium_long.gltf" id="9_desk"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -29,6 +31,16 @@ size = Vector3(16, 1, 0.2)
 
 [sub_resource type="BoxShape3D" id="RightBoundaryShape"]
 size = Vector3(0.2, 1, 10)
+
+[sub_resource type="BoxMesh" id="LaptopMesh"]
+size = Vector3(0.5, 0.34, 0.03)
+
+[sub_resource type="StandardMaterial3D" id="LaptopScreen"]
+shading_mode = 0
+albedo_color = Color(0.1, 0.78, 0.95, 1)
+emission_enabled = true
+emission = Color(0.1, 0.78, 0.95, 1)
+emission_energy_multiplier = 0.55
 
 [node name="IncidentRoom" type="Node3D"]
 
@@ -101,6 +113,31 @@ station_title = "3  RELEASE CONSOLE"
 accent_color = Color(0.24, 0.82, 0.49, 1)
 
 [node name="Landmark" parent="ReleaseConsole" instance=ExtResource("7_rel")]
+
+[node name="Senior" type="Node3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4.8, 0.05, 1.8)
+
+[node name="Body" parent="Senior" instance=ExtResource("8_senior")]
+
+[node name="Trigger" parent="Senior" instance=ExtResource("2_station")]
+station_id = "senior"
+station_title = "Talk to Sam"
+accent_color = Color(0.66, 0.42, 0.94, 1)
+
+[node name="MyDesk" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 2.6)
+
+[node name="Table" parent="MyDesk" instance=ExtResource("9_desk")]
+
+[node name="Laptop" type="MeshInstance3D" parent="MyDesk"]
+transform = Transform3D(1, 0, 0, 0, 0.9, 0.44, 0, -0.44, 0.9, 0, 1.06, -0.12)
+mesh = SubResource("LaptopMesh")
+surface_material_override/0 = SubResource("LaptopScreen")
+
+[node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
+station_id = "my_desk"
+station_title = "Sit at your laptop"
+accent_color = Color(0.1, 0.78, 0.95, 1)
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector3(-1.5, 0.05, 2.8)

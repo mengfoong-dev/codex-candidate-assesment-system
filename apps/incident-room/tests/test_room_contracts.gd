@@ -49,7 +49,11 @@ func run(tree: SceneTree) -> Array[String]:
             station_ids.append(str(station_id))
             t.assert_true(area.has_signal("interaction_requested"), "%s emits interaction intent" % station_id)
     station_ids.sort()
-    t.assert_equal(station_ids, ["developer_desk", "observability_wall", "release_console"], "three stable station IDs")
+    # The three scenario evidence stations must stay present. The room may also carry
+    # extra navigation interactables (the senior NPC, the player's own desk), so this
+    # checks the scenario stations are all there rather than requiring an exact set.
+    for required_id: String in ["developer_desk", "observability_wall", "release_console"]:
+        t.assert_true(station_ids.has(required_id), "scenario station present: %s" % required_id)
 
     for action: String in REQUIRED_ACTIONS:
         t.assert_true(InputMap.has_action(action), "input action exists: %s" % action)

@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/room/incident_room.tscn" id="2_room"]
 [ext_resource type="PackedScene" path="res://scenes/ui/title_screen.tscn" id="3_title"]
 [ext_resource type="PackedScene" path="res://scenes/ui/browser_workspace.tscn" id="4_workspace"]
+[ext_resource type="PackedScene" path="res://scenes/ui/office_layer.tscn" id="5_office"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -16,5 +17,8 @@ visible = false
 [node name="Workspace" parent="UI" instance=ExtResource("4_workspace")]
 visible = false
 demo_mode = false
+
+[node name="OfficeLayer" parent="UI" instance=ExtResource("5_office")]
+visible = false
 
 [node name="TitleScreen" parent="UI" instance=ExtResource("3_title")]
