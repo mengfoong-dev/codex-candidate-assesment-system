@@ -26,13 +26,13 @@ var _current_summary: Dictionary = {}
 var _session_serial := 0
 var _session_id := ""
 
-# Where the player sits at the desk and the seated camera framing. The desk is the
-# diorama's big built-in white desk (~x=1.6) against the bookshelf (-Z) wall. The player
-# sits turned to face the room (+Z, toward the camera) so you see your character, with the
-# desk, monitor and bookshelf wall behind — the wall backs the shot, so no open void shows.
-const DESK_SEAT := Transform3D(Basis.IDENTITY, Vector3(1.6, 0.45, 0.35))
-const DESK_CAM_POS := Vector3(1.6, 1.95, 4.4)
-const DESK_CAM_LOOK := Vector3(1.6, 0.8, -0.4)
+# Where the player sits and the seated camera framing, at a bullpen desk in the isometric
+# office (desk ~x=-4.6, chair ~x=-5.3, monitor ~x=-4.6, all near z=3.4). The player sits in
+# the office chair facing +X toward the monitor; the camera frames over the shoulder from
+# behind (-X), looking past the player at the screen with the office as backdrop.
+const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(-5.15, 0.42, 3.37))
+const DESK_CAM_POS := Vector3(-6.9, 1.9, 5.3)
+const DESK_CAM_LOOK := Vector3(-4.9, 0.85, 3.1)
 
 var _desk_hud: Control
 
