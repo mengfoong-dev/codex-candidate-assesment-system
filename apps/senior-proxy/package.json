@@ -1,0 +1,14 @@
+{
+  "name": "vibeproof-senior-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tiny zero-dependency proxy that gives the 3D office 'senior' NPC a live LLM voice without exposing an API key to the game client.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}
