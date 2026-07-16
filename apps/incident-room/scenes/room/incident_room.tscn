@@ -1,16 +1,11 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
-[ext_resource type="PackedScene" path="res://scenes/player/player_visual.tscn" id="8_senior"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
 [ext_resource type="PackedScene" uid="uid://dbph8hxieq235" path="res://assets/third_party/office-room-15/office_room_15.glb" id="18_room"]
 [ext_resource type="Script" path="res://scripts/presentation/mesh_collider.gd" id="21_collider"]
-[ext_resource type="Mesh" uid="uid://ct0wwua8701fu" path="res://assets/third_party/vnb-office-set/Office_Desk_1.obj" id="22_sdesk"]
-[ext_resource type="Mesh" uid="uid://do7o868e5cnsb" path="res://assets/third_party/vnb-office-set/Chair_A.obj" id="23_schair"]
-
-[sub_resource type="BoxShape3D" id="SamDeskShape"]
-size = Vector3(1.5, 0.95, 0.75)
+[ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -78,28 +73,10 @@ shape = SubResource("WallShape")
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 2.65, 1.5, 0)
 shape = SubResource("WallShape")
 
-[node name="SamDesk" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.35, 0, 1.7)
-
-[node name="Desk" type="MeshInstance3D" parent="SamDesk"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.55)
-mesh = ExtResource("22_sdesk")
-
-[node name="Chair" type="MeshInstance3D" parent="SamDesk"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0.05)
-mesh = ExtResource("23_schair")
-
-[node name="Body" type="StaticBody3D" parent="SamDesk"]
-
-[node name="Collision" type="CollisionShape3D" parent="SamDesk/Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.475, -0.55)
-shape = SubResource("SamDeskShape")
-
 [node name="Senior" type="Node3D" parent="."]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -1.35, 0.42, 1.65)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.8, 0.82, 0.5)
 
-[node name="Body" parent="Senior" instance=ExtResource("8_senior")]
-start_animation = "sit"
+[node name="Body" parent="Senior" instance=ExtResource("24_senior")]
 
 [node name="Trigger" parent="Senior" instance=ExtResource("2_station")]
 station_id = "senior"

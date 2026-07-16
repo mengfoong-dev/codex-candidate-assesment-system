@@ -35,6 +35,15 @@ try {
   Expand-Archive -LiteralPath $zip -DestinationPath $expanded
   $glbDir = Join-Path $expanded 'Models\GLB format'
   Copy-Item -LiteralPath (Join-Path $glbDir 'character-female-a.glb') -Destination $kenneyTarget -Force
+  # A visually distinct second character for the senior NPC (shares the same colormap atlas).
+  $seniorGlb = Join-Path $glbDir 'character-male-b.glb'
+  if (-not (Test-Path -LiteralPath $seniorGlb)) {
+    $seniorGlb = (Get-ChildItem -LiteralPath $glbDir -Filter 'character-male-*.glb' | Select-Object -First 1).FullName
+  }
+  if ($null -eq $seniorGlb -or -not (Test-Path -LiteralPath $seniorGlb)) {
+    $seniorGlb = (Get-ChildItem -LiteralPath $glbDir -Filter 'character-female-b*.glb' | Select-Object -First 1).FullName
+  }
+  Copy-Item -LiteralPath $seniorGlb -Destination $kenneyTarget -Force
   # The GLB references its shared atlas at the relative path 'Textures/colormap.png'; preserve that layout.
   $colormap = Get-ChildItem -LiteralPath $glbDir -Recurse -Filter 'colormap.png' | Select-Object -First 1
   if ($null -eq $colormap) { throw 'Kenney colormap.png not found in GLB format folder.' }

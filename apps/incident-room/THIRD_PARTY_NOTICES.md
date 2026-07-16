@@ -19,10 +19,10 @@ Cozy Toy Office furniture uses props from KayKit: Furniture Bits 1.0 by Kay Lous
 
 ## Kenney Mini Characters 1.0
 
-The animated employee uses `character-female-a.glb` from Kenney Mini Characters 1.0 by Kenney, released under CC0-1.0.
+The animated characters use `character-female-a.glb` (player) and `character-male-b.glb` (senior NPC) from Kenney Mini Characters 1.0 by Kenney, released under CC0-1.0.
 
 - Canonical source: <https://kenney.nl/assets/mini-characters>.
-- Selected files only: `character-female-a.glb` under `assets/third_party/kenney-mini-characters/`; the full download is verified against a pinned SHA-256 but not vendored.
+- Selected files only: `character-female-a.glb`, `character-male-b.glb`, and the shared `Textures/colormap.png` under `assets/third_party/kenney-mini-characters/`; the full download is verified against a pinned SHA-256 but not vendored.
 - Local license copy: `assets/third_party/kenney-mini-characters/LICENSE.txt`.
 - Regenerate with `scripts/development/acquire_art_assets.ps1`.
 
