@@ -38,10 +38,13 @@ func _unhandled_input(event: InputEvent) -> void:
             if _drag_dist < 10.0:  # negligible movement => a tap, so walk there
                 _walk_to_screen_point(event.position)
     elif event is InputEventMouseMotion and _pointer_down:
-        _drag_dist += event.relative.length()
+        # screen_relative is resolution-independent (unlike relative), so drag-look feels
+        # consistent across the web canvas / HiDPI — Godot mouse-look best practice.
+        var look: Vector2 = event.screen_relative
+        _drag_dist += look.length()
         var camera := get_node_or_null(camera_path)
-        if camera != null and camera.has_method("add_orbit"):
-            camera.add_orbit(-event.relative.x * 0.006, event.relative.y * 0.02)
+        if camera != null and camera.has_method("look_drag"):
+            camera.look_drag(look)
 
 func _walk_to_screen_point(screen_pos: Vector2) -> void:
     var camera := get_node_or_null(camera_path) as Camera3D
