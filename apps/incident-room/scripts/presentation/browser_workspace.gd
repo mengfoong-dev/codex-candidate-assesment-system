@@ -112,7 +112,7 @@ func _ready() -> void:
     notepad.pressed.connect(func() -> void: notepad_requested.emit())
     chrome_row.add_child(notepad)
     var leave := Button.new()
-    leave.text = "⟵ Leave desk"
+    leave.text = "⟵ Back to desk"
     leave.focus_mode = Control.FOCUS_ALL
     leave.add_theme_font_size_override("font_size", 13)
     leave.pressed.connect(func() -> void: leave_requested.emit())
