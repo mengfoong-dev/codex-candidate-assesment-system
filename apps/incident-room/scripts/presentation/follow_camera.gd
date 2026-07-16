@@ -25,6 +25,9 @@ var _pitch := 0.0
 var _blend := 0.0        ## 0 = third-person, 1 = first-person
 var _blend_target := 0.0
 var _third_pos := Vector3.ZERO
+var _focus_active := false
+var _focus_transform := Transform3D.IDENTITY
+var _focus_weight := 0.0  ## eased 0->1 while focusing on a fixed view (e.g. the desk)
 
 func _ready() -> void:
     _target = get_node_or_null(target_path) as Node3D
@@ -40,6 +43,14 @@ func toggle_mode() -> void:
 
 func is_first_person() -> bool:
     return _blend_target > 0.5
+
+## Glide to and hold a fixed camera transform (the desk close-up). clear_focus() eases back.
+func focus_on(xform: Transform3D) -> void:
+    _focus_transform = xform
+    _focus_active = true
+
+func clear_focus() -> void:
+    _focus_active = false
 
 ## Drag-look from a screen-relative delta (resolution-independent, equal x/y sensitivity).
 ## Yaw always rotates; vertical tilts the first-person pitch or raises the third-person view.
@@ -77,4 +88,11 @@ func _physics_process(delta: float) -> void:
     _third_pos = _third_pos.lerp(desired, clampf(follow_speed * delta, 0.0, 1.0))
 
     var w := smoothstep(0.0, 1.0, _blend)
-    global_transform = _third_transform().interpolate_with(_first_transform(), w)
+    var base := _third_transform().interpolate_with(_first_transform(), w)
+
+    # Ease toward the focus view (desk close-up) when active, and back out when cleared.
+    _focus_weight = move_toward(_focus_weight, 1.0 if _focus_active else 0.0, blend_speed * delta)
+    if _focus_weight <= 0.001:
+        global_transform = base
+    else:
+        global_transform = base.interpolate_with(_focus_transform, smoothstep(0.0, 1.0, _focus_weight))

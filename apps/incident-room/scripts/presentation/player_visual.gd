@@ -20,9 +20,11 @@ func _ready() -> void:
     else:
         set_moving(false)
 
+var _seated := false
+
 func set_moving(moving: bool) -> void:
-    if not start_animation.is_empty():
-        return  # seated/posed NPC: never switch to walk/idle
+    if not start_animation.is_empty() or _seated:
+        return  # seated/posed: never switch to walk/idle
     var requested := walk_animation if moving else idle_animation
     if requested == _current or _animation_player == null:
         return
@@ -31,3 +33,13 @@ func set_moving(moving: bool) -> void:
         return
     _animation_player.play(requested, 0.15)
     _current = requested
+
+## Toggle a seated pose on/off at runtime (used when the player sits at the desk).
+func set_seated(seated: bool) -> void:
+    _seated = seated
+    if _animation_player == null:
+        return
+    var clip := "sit" if seated else idle_animation
+    if _animation_player.has_animation(clip):
+        _animation_player.play(clip, 0.2)
+        _current = clip
