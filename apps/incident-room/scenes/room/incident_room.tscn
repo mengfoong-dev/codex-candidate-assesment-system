@@ -153,16 +153,19 @@ character = ExtResource("36_ma")
 transform = Transform3D(-0.239, 0, -0.971, 0, 1, 0, 0.971, 0, -0.239, -8.18, 0.42, 3.43)
 script = ExtResource("30_cw")
 character = ExtResource("33_fd")
+extra_yaw = 3.14159
 
 [node name="CW3" type="Node3D" parent="Coworkers"]
 transform = Transform3D(0.53, 0, -0.848, 0, 1, 0, 0.848, 0, 0.53, -5.02, 0.42, 0.46)
 script = ExtResource("30_cw")
 character = ExtResource("37_mc")
+extra_yaw = 3.14159
 
 [node name="CW4" type="Node3D" parent="Coworkers"]
 transform = Transform3D(0.148, 0, -0.989, 0, 1, 0, 0.989, 0, 0.148, -2.29, 0.42, 1.38)
 script = ExtResource("30_cw")
 character = ExtResource("35_ff")
+extra_yaw = 3.14159
 
 [node name="CW5" type="Node3D" parent="Coworkers"]
 transform = Transform3D(-0.99, 0, -0.144, 0, 1, 0, 0.144, 0, -0.99, -1.16, 0.42, 2.39)
