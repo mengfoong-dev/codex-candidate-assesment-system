@@ -38,6 +38,8 @@ const TAB_DEFS := [
 ]
 
 @export var demo_mode := false
+## Live in-workspace copilot endpoint (the senior-proxy assistant route).
+@export var assistant_proxy_url := "https://senior-proxy-production.up.railway.app/api/assistant/chat"
 
 @onready var _tabs_box: HBoxContainer = $Frame/TabStrip/Tabs
 @onready var _host: Control = $Frame/Content/PanelHost
@@ -62,6 +64,12 @@ var _evidence_buttons: Dictionary = {}
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
 var _disposition_status: Label
+var _assistant_http: HTTPRequest
+var _assistant_log: RichTextLabel
+var _assistant_input: LineEdit
+var _assistant_send: Button
+var _assistant_history: Array = []
+var _assistant_sending := false
 
 var _tests_remediation: OptionButton
 var _test_result_labels: Dictionary = {}
@@ -92,6 +100,9 @@ var _report_notices: RichTextLabel
 
 func _ready() -> void:
     _apply_page_theme()
+    _assistant_http = HTTPRequest.new()
+    add_child(_assistant_http)
+    _assistant_http.request_completed.connect(_on_assistant_response)
     var leave := Button.new()
     leave.text = "⟵ Leave desk"
     leave.focus_mode = Control.FOCUS_ALL
@@ -317,17 +328,35 @@ func _refresh_evidence(snapshot: Dictionary) -> void:
 func _build_assistant_page() -> void:
     var body := _page_body("assistant")
     var interaction: Dictionary = _scenario.get("ai_interaction", {})
-    var prompt: Dictionary = interaction.get("prompt", {})
-    var response: Dictionary = interaction.get("response", {})
     body.add_child(_heading("AI Assistant", 27, INK))
-    body.add_child(_heading("Scripted offline assistant · %s" % str(response.get("model_label", "")), 14, MUTED))
-    body.add_child(_bubble("You", str(prompt.get("text", "")), Color(0.9, 0.92, 0.98, 1)))
-    body.add_child(_bubble("Assistant", str(response.get("text", "")), Color(0.93, 0.88, 0.99, 1)))
+    body.add_child(_heading("Live copilot — recorded. It reasons about the code/evidence; it won't hand you the answer.", 14, MUTED))
+    _assistant_log = RichTextLabel.new()
+    _assistant_log.bbcode_enabled = true
+    _assistant_log.fit_content = true
+    _assistant_log.scroll_active = true
+    _assistant_log.custom_minimum_size = Vector2(0, 240)
+    _assistant_log.add_theme_color_override("default_color", INK)
+    body.add_child(_assistant_log)
+    _assistant_history.clear()
+    _assistant_say("Assistant", "Hi — I'm your workspace copilot. Ask me about the trace, the logs, or the orchestrator code and I'll help you reason it through.", ACCENT["assistant"])
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 8)
+    body.add_child(row)
+    _assistant_input = LineEdit.new()
+    _assistant_input.placeholder_text = "Ask the assistant about the incident or the code…"
+    _assistant_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _assistant_input.focus_mode = Control.FOCUS_ALL
+    row.add_child(_assistant_input)
+    _assistant_send = _flat_button("Send")
+    _assistant_send.custom_minimum_size = Vector2(90, 0)
+    row.add_child(_assistant_send)
+    _assistant_input.text_submitted.connect(func(_t: String) -> void: _send_assistant())
+    _assistant_send.pressed.connect(_send_assistant)
     body.add_child(HSeparator.new())
-    body.add_child(_heading("How did you handle this suggestion?", 16, INK))
+    body.add_child(_heading("How did you handle the assistant's input?", 16, INK))
     _disposition_option = _option(interaction.get("dispositions", []), "option_id", "disposition", true)
     body.add_child(_disposition_option)
-    _disposition_confirm = _flat_button("Record how I handled the suggestion")
+    _disposition_confirm = _flat_button("Record how I handled the assistant")
     _disposition_confirm.disabled = true
     body.add_child(_disposition_confirm)
     _disposition_status = _heading("", 15, ACCENT["assistant"])
@@ -336,6 +365,60 @@ func _build_assistant_page() -> void:
     _disposition_confirm.pressed.connect(func() -> void:
         if _disposition_option.selected >= 0:
             disposition_submitted.emit(str(_disposition_option.get_item_metadata(_disposition_option.selected))))
+
+func _send_assistant() -> void:
+    if _assistant_sending or _assistant_input == null:
+        return
+    var text := _assistant_input.text.strip_edges()
+    if text.is_empty():
+        return
+    _assistant_input.text = ""
+    _assistant_say("You", text, INK)
+    _assistant_history.append({"role": "user", "content": text})
+    _assistant_sending = true
+    _assistant_send.disabled = true
+    _assistant_say("Assistant", "…", MUTED)
+    var payload := {"messages": _assistant_history, "task": _assistant_context()}
+    var headers := PackedStringArray(["Content-Type: application/json"])
+    var err := _assistant_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+    if err != OK:
+        _finish_assistant("(The copilot is offline — try the request trace on the Evidence tab and the code on Files & Tests.)")
+
+func _on_assistant_response(_result: int, code: int, _headers: PackedStringArray, resp: PackedByteArray) -> void:
+    if not _assistant_sending:
+        return
+    var reply := ""
+    if code == 200:
+        var parsed: Variant = JSON.parse_string(resp.get_string_from_utf8())
+        if parsed is Dictionary:
+            reply = str(parsed.get("reply", ""))
+    _finish_assistant(reply if not reply.is_empty() else "(The copilot is offline — try the request trace on the Evidence tab and the code on Files & Tests.)")
+
+func _finish_assistant(reply: String) -> void:
+    _assistant_history.append({"role": "assistant", "content": reply})
+    _assistant_sending = false
+    if _assistant_send != null:
+        _assistant_send.disabled = false
+    if _assistant_log != null:
+        var lines := _assistant_log.text.split("\n", false)
+        if lines.size() > 0 and lines[lines.size() - 1].contains("…"):
+            lines.remove_at(lines.size() - 1)
+        _assistant_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
+    _assistant_say("Assistant", reply, ACCENT["assistant"])
+
+func _assistant_context() -> String:
+    var parts := PackedStringArray([str(_scenario.get("brief", ""))])
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    if not orchestrator.is_empty():
+        parts.append("src/homepage_orchestrator.ts:")
+        for line: Variant in orchestrator.get("content", []):
+            parts.append(str(line))
+    return "\n".join(parts)
+
+func _assistant_say(speaker: String, text: String, color: Color) -> void:
+    if _assistant_log == null:
+        return
+    _assistant_log.text += "[color=#%s][b]%s[/b][/color]  %s\n" % [color.to_html(false), speaker, text]
 
 func _refresh_assistant(snapshot: Dictionary) -> void:
     if _disposition_status == null:
