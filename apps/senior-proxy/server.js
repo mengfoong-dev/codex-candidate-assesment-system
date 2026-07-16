@@ -1,5 +1,7 @@
-// Senior NPC proxy: keeps the API key server-side and gives the 3D office "senior"
-// a live LLM voice. Zero dependencies — Node 18+ (global fetch). Run: npm start.
+// VibeProof proxy: keeps the API key server-side. Two roles behind one server:
+//   POST /api/senior/chat     -> "Sam", the senior who briefs/clarifies the task (3D office)
+//   POST /api/assistant/chat  -> the in-workspace engineering copilot ("ChatGPT but recorded")
+// Zero dependencies — Node 18+ (global fetch). Run: npm start.
 import http from "node:http";
 
 const PROVIDER = (process.env.PROVIDER || "openai").toLowerCase();
@@ -7,7 +9,7 @@ const PORT = process.env.PORT || 8080;
 const ALLOWED = (process.env.ALLOWED_ORIGINS || "*").split(",").map((s) => s.trim());
 const MODEL = process.env.MODEL || (PROVIDER === "anthropic" ? "claude-sonnet-4-5" : "gpt-4o-mini");
 
-const SYSTEM_PROMPT = [
+const SENIOR_PROMPT = [
   "You are Sam, a warm, encouraging senior on-call software engineer mentoring a newer",
   "engineer during a live incident. The incident: the homepage p95 latency jumped from",
   "180ms to 850ms right after a recent release. Your job is to help the player CLARIFY the",
@@ -18,6 +20,17 @@ const SYSTEM_PROMPT = [
   "deflect with a guiding question instead of stating it. Stay in character.",
 ].join(" ");
 
+const ASSISTANT_PROMPT = [
+  "You are a general engineering copilot inside a candidate's incident-debugging workspace —",
+  "like ChatGPT, but this session is recorded. The candidate is investigating why the",
+  "homepage p95 latency rose from 180ms to 850ms after a release. Reason about any code,",
+  "logs, or traces the candidate shares or asks about, exactly like a real assistant would.",
+  "Be genuinely helpful and technical, but do NOT declare a single definitive root cause as",
+  "settled fact and do NOT tell them exactly what to submit — guide their own reasoning:",
+  "suggest what to check, discuss trade-offs (concurrency vs required ordering, partial-failure",
+  "handling, verification). Keep replies concise (2-5 sentences). You have no hidden answer key.",
+].join(" ");
+
 function applyCors(res, origin) {
   const allow = ALLOWED.includes("*") ? "*" : ALLOWED.includes(origin) ? origin : ALLOWED[0];
   res.setHeader("Access-Control-Allow-Origin", allow || "*");
@@ -25,7 +38,7 @@ function applyCors(res, origin) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-async function callOpenAI(messages) {
+async function callOpenAI(messages, systemPrompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not set");
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -33,9 +46,9 @@ async function callOpenAI(messages) {
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: MODEL,
-      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-      max_tokens: 250,
-      temperature: 0.7,
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      max_tokens: 300,
+      temperature: 0.6,
     }),
   });
   if (!r.ok) throw new Error(`OpenAI ${r.status}: ${await r.text()}`);
@@ -43,7 +56,7 @@ async function callOpenAI(messages) {
   return (data.choices?.[0]?.message?.content || "").trim();
 }
 
-async function callAnthropic(messages) {
+async function callAnthropic(messages, systemPrompt) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -53,7 +66,7 @@ async function callAnthropic(messages) {
       "anthropic-version": "2023-06-01",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: 250, system: SYSTEM_PROMPT, messages }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 300, system: systemPrompt, messages }),
   });
   if (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`);
   const data = await r.json();
@@ -65,32 +78,39 @@ function sendJson(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
+const ROUTES = {
+  "/api/senior/chat": SENIOR_PROMPT,
+  "/api/assistant/chat": ASSISTANT_PROMPT,
+};
+
 const server = http.createServer((req, res) => {
   applyCors(res, req.headers.origin || "");
   if (req.method === "OPTIONS") return res.writeHead(204).end();
   if (req.method === "GET" && req.url === "/health") {
-    return sendJson(res, 200, { ok: true, provider: PROVIDER, model: MODEL });
+    return sendJson(res, 200, { ok: true, provider: PROVIDER, model: MODEL, routes: Object.keys(ROUTES) });
   }
-  if (req.method === "POST" && req.url === "/api/senior/chat") {
+  const systemPrompt = req.method === "POST" ? ROUTES[req.url] : undefined;
+  if (systemPrompt) {
     let body = "";
     req.on("data", (c) => {
       body += c;
-      if (body.length > 100_000) req.destroy();
+      if (body.length > 120_000) req.destroy();
     });
     req.on("end", async () => {
       try {
         const parsed = body ? JSON.parse(body) : {};
-        const messages = Array.isArray(parsed.messages) ? parsed.messages.slice(-12) : [];
+        const messages = Array.isArray(parsed.messages) ? parsed.messages.slice(-14) : [];
         if (parsed.task) {
-          messages.unshift({ role: "user", content: `(Task context: ${String(parsed.task).slice(0, 2000)})` });
+          messages.unshift({ role: "user", content: `(Workspace context: ${String(parsed.task).slice(0, 4000)})` });
         }
         if (messages.length === 0) return sendJson(res, 400, { error: "no messages" });
-        const reply = PROVIDER === "anthropic" ? await callAnthropic(messages) : await callOpenAI(messages);
+        const reply = PROVIDER === "anthropic"
+          ? await callAnthropic(messages, systemPrompt)
+          : await callOpenAI(messages, systemPrompt);
         sendJson(res, 200, { reply });
       } catch (e) {
-        // Never leak the key or a stack trace to the client.
         console.error("chat error:", e?.message || e);
-        sendJson(res, 502, { error: "senior is unavailable right now" });
+        sendJson(res, 502, { error: "assistant is unavailable right now" });
       }
     });
     return;
@@ -99,5 +119,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`senior-proxy listening on :${PORT} (provider=${PROVIDER}, model=${MODEL})`);
+  console.log(`vibeproof proxy on :${PORT} (provider=${PROVIDER}, model=${MODEL})`);
 });
