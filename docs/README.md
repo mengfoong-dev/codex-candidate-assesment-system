@@ -16,6 +16,11 @@ VibeProof is an AI-allowed Ownership Challenge for software-engineering candidat
 
 - [Evidence and scoring](assessment/evidence-and-scoring.md) - observable events, rubric, Proof Replay, and human-review boundaries.
 
+## Backend API
+
+- [FastAPI API access guide](backend/API_ACCESS.md) - start the API, share it safely on a private network, configure CORS, and smoke-test it with peers.
+- [API contract](backend/00-api-contract.md) - frozen endpoint, request, response, event-stream, and error-envelope contract.
+
 ## Research and decisions
 
 - [Research, validation, and market](research/validation-and-market.md) - evidence, competitors, assumptions, and validation roadmap.

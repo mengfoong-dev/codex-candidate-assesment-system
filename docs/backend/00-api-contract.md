@@ -6,6 +6,8 @@ Terminology: `UBIQUITOUS_LANGUAGE.md`. Design rationale: `docs/superpowers/specs
 
 ## Conventions
 
+For local-network peer setup, CORS configuration, and smoke tests, see [API access guide](API_ACCESS.md).
+
 - IDs: session IDs are UUID4 strings; all scenario/artifact/hypothesis/remediation/test IDs use the frozen vocabulary from `docs/superpowers/plans/2026-07-15-vibeproof-incident-room-mvp.md` §Frozen IDs.
 - Errors: every non-2xx response is `{"error": {"code": "<machine_code>", "message": "<human text>"}}`.
 - No auth. CORS allows the frontend dev origin(s) via env var `CORS_ORIGINS`.
@@ -65,9 +67,11 @@ Snapshot: session status, current hypothesis + confidence, viewed artifact IDs, 
 
 ### `POST /api/sessions/{id}/events`
 
+For `decision_recorded`, the payload requires `action` and `rationale`, with optional `risk`.
+
 Frontend-observed actions. Body: `{"event_type": "…", "payload": { }}`. The backend stamps the envelope (sequence, timestamps).
 
-Allowed frontend-reported types (whitelist — everything else `422`): `evidence_viewed`, `hypothesis_recorded`, `hypothesis_revised`, `search_performed`, `ai_suggestion_dispositioned`.
+Allowed frontend-reported types (whitelist — everything else `422`): `evidence_viewed`, `hypothesis_recorded`, `hypothesis_revised`, `search_performed`, `ai_suggestion_dispositioned`, `decision_recorded`.
 
 Backend-recorded types (rejected if the frontend sends them): `assessment_opened`, `ai_prompt_submitted`, `ai_response_received`, `test_executed`, `final_submission`, `technical_error`.
 

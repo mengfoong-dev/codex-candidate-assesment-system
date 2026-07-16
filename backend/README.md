@@ -38,6 +38,21 @@ uvicorn src.main:app --reload
 pytest
 ```
 
+## API docs and peer access
+
+The running API exposes Swagger UI at `/docs`, ReDoc at `/redoc`, and its OpenAPI document at
+`/openapi.json`. The endpoint contract is in
+[docs/backend/00-api-contract.md](../docs/backend/00-api-contract.md).
+
+To share a local backend with teammates on the same private network, start Uvicorn with
+`--host 0.0.0.0`, configure their exact browser origins in `CORS_ORIGINS`, and share
+`http://<host-lan-ip>:8000/docs` plus `http://<host-lan-ip>:8000/api`. Follow the full,
+security-conscious setup and troubleshooting steps in
+[API access guide](../docs/backend/API_ACCESS.md).
+
+This MVP has no authentication. Keep shared instances on a trusted private network; CORS is
+not an access-control mechanism and this service must not be publicly exposed as-is.
+
 Scoring layers stay provenance-separated per decisions D006/D007/D009: Layer 1 deterministic
 (scored, cites event IDs), Layer 2 LLM rubric (labeled AI analysis), Layer 3 context indices
 (computed, never scored).
