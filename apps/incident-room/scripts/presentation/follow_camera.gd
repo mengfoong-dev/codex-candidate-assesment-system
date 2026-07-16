@@ -13,6 +13,9 @@ extends Camera3D
 @export var follow_speed := 8.0
 @export var eye_height := 1.55
 @export var blend_speed := 3.5  ## how fast the view switch eases (higher = quicker)
+## Radians of rotation per screen pixel of drag — equal for yaw and pitch (FPS best practice).
+@export var look_sensitivity := 0.005
+@export var tilt_limit := 1.4  ## clamp first-person pitch so it can't flip over
 
 var _target: Node3D
 var _visual: Node3D
@@ -38,13 +41,14 @@ func toggle_mode() -> void:
 func is_first_person() -> bool:
     return _blend_target > 0.5
 
-## Drag input: yaw always; vertical tilts pitch (first-person) or height (third-person).
-func add_orbit(delta_yaw: float, delta_vertical: float) -> void:
-    _yaw = wrapf(_yaw + delta_yaw, -PI, PI)
+## Drag-look from a screen-relative delta (resolution-independent, equal x/y sensitivity).
+## Yaw always rotates; vertical tilts the first-person pitch or raises the third-person view.
+func look_drag(screen_rel: Vector2) -> void:
+    _yaw = wrapf(_yaw - screen_rel.x * look_sensitivity, -PI, PI)
     if _blend_target > 0.5:
-        _pitch = clampf(_pitch - delta_vertical * 2.5, -1.1, 0.9)
+        _pitch = clampf(_pitch - screen_rel.y * look_sensitivity, -tilt_limit, tilt_limit)
     else:
-        _height_adj = clampf(_height_adj + delta_vertical, -1.2, 3.5)
+        _height_adj = clampf(_height_adj + screen_rel.y * 0.012, -1.2, 3.5)
 
 func _third_offset() -> Vector3:
     var off := Basis(Vector3.UP, _yaw) * offset
