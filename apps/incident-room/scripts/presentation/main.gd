@@ -27,12 +27,15 @@ var _session_serial := 0
 var _session_id := ""
 
 # Where the player sits at the desk (facing the monitor, legs under the desk) and the
-# desk close-up camera framing the monitor. The built-in desk sits at ~(1.75, -0.5).
+# seated first-person camera framing the desktop. The built-in desk sits at ~(1.75, -0.5).
 const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(1.75, 0.45, 0.5))
 const DESK_CAM_POS := Vector3(1.75, 2.5, 3.4)
 const DESK_CAM_LOOK := Vector3(1.75, 0.95, -0.4)
 
+var _desk_hud: Control
+
 func _ready() -> void:
+    _build_desk_hud()
     _connect_signals()
     if _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
@@ -99,7 +102,9 @@ func record_ai_disposition(option_id: String) -> Dictionary:
 func open_hypothesis_panel() -> Dictionary:
     if _phase != "room":
         return _reject("Hypothesis revision is only available inside the workspace")
-    _sit()
+    if _view != "desk":
+        _sit()
+    _open_desk_pc()
     workspace.set_active_tab("submit")
     return {"ok": true}
 
@@ -194,8 +199,9 @@ func _connect_signals() -> void:
     workspace.verification_requested.connect(request_verification)
     workspace.final_submission_requested.connect(submit_final)
     workspace.restart_requested.connect(restart_session)
-    workspace.leave_requested.connect(_stand)
+    workspace.leave_requested.connect(_back_to_desk)
     workspace.notepad_requested.connect(func() -> void: notepad.open_pad())
+    notepad.closed.connect(_update_presentation)
     if player != null:
         player.interaction_requested.connect(_on_interact)
         player.nearest_station_changed.connect(_on_nearest_station_changed)
@@ -243,17 +249,22 @@ func _sit() -> void:
     player.global_transform = DESK_SEAT
     if player.has_method("set_seated"):
         player.set_seated(true)
-    # Glide the camera to the desk close-up; reveal the PC once it arrives.
+    # Glide the camera from third-person (you see yourself sit) into a seated first-person
+    # view of the desk. The PC and notepad stay closed — the desk is now an interactive hub.
     var cam := room.get_node_or_null("Camera3D")
     if cam != null and cam.has_method("focus_on"):
         cam.focus_on(Transform3D(Basis.IDENTITY, DESK_CAM_POS).looking_at(DESK_CAM_LOOK, Vector3.UP))
     _update_presentation()
-    get_tree().create_timer(0.55).timeout.connect(_open_desk_pc)
 
 func _open_desk_pc() -> void:
     if _view != "desk":
         return
     _desk_pc_open = true
+    _update_presentation()
+
+func _back_to_desk() -> void:
+    # Close the PC and return to the seated first-person desk hub (still seated).
+    _desk_pc_open = false
     _update_presentation()
 
 func _stand() -> void:
@@ -292,9 +303,53 @@ func _update_presentation() -> void:
     room.visible = _phase != "summary"
     workspace.visible = (working and at_desk and _desk_pc_open) or _phase == "summary"
     office.visible = working and not at_desk
+    if _desk_hud != null:
+        _desk_hud.visible = working and at_desk and not _desk_pc_open and not notepad.visible
     if office.visible:
         office.show_hint(_prompt_for(""))
     _update_player_input()
+
+func _build_desk_hud() -> void:
+    # The seated desk hub: buttons to open the PC, the notepad, or get up. Shown only
+    # while seated at the desk with nothing open.
+    _desk_hud = Control.new()
+    _desk_hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    _desk_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    $UI.add_child(_desk_hud)
+    var center := CenterContainer.new()
+    center.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+    center.offset_top = -108
+    center.offset_bottom = -28
+    _desk_hud.add_child(center)
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 12)
+    center.add_child(row)
+    var pc_btn := _hud_button("💻  Open PC")
+    pc_btn.pressed.connect(_open_desk_pc)
+    row.add_child(pc_btn)
+    var note_btn := _hud_button("📝  Notepad")
+    note_btn.pressed.connect(func() -> void: notepad.open_pad())
+    row.add_child(note_btn)
+    var up_btn := _hud_button("⬆  Get up")
+    up_btn.pressed.connect(_stand)
+    row.add_child(up_btn)
+    _desk_hud.visible = false
+
+func _hud_button(text: String) -> Button:
+    var b := Button.new()
+    b.text = text
+    b.focus_mode = Control.FOCUS_ALL
+    b.custom_minimum_size = Vector2(170, 54)
+    b.add_theme_font_size_override("font_size", 16)
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.12, 0.16, 0.3, 0.94)
+    style.set_corner_radius_all(10)
+    style.set_content_margin_all(10)
+    b.add_theme_stylebox_override("normal", style)
+    b.add_theme_stylebox_override("hover", style)
+    b.add_theme_stylebox_override("pressed", style)
+    b.add_theme_color_override("font_color", Color(0.96, 0.94, 0.9, 1))
+    return b
 
 func _update_player_input() -> void:
     if player == null or not player.has_method("set_input_enabled"):
