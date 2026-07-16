@@ -98,6 +98,7 @@ var _submit_status: Label
 
 var _report_heading: Label
 var _report_status: Label
+var _report_score: RichTextLabel
 var _report_details: RichTextLabel
 var _report_notices: RichTextLabel
 
@@ -156,6 +157,37 @@ func show_report(summary: Dictionary) -> void:
     _populate_report(summary)
     _refresh_tab_states()
     set_active_tab("report")
+
+## Backend grading (set by the coordinator when a grading backend is configured).
+func show_backend_pending() -> void:
+    _report_available = true
+    if _report_score != null:
+        _report_score.text = "[b]Grading…[/b]  sending your session to the assessment backend."
+    _refresh_tab_states()
+    set_active_tab("report")
+
+func show_backend_score(result: Dictionary) -> void:
+    if _report_score == null:
+        return
+    var total := float(result.get("total", 0.0))
+    var maxv := float(result.get("max", 0.0))
+    var pct := int(round(total / maxv * 100.0)) if maxv > 0.0 else 0
+    var lines := PackedStringArray([
+        "[b]Graded by the assessment backend[/b]",
+        "Deterministic score: %.1f / %.1f  (%d%%)" % [total, maxv, pct],
+    ])
+    for c: Variant in result.get("criteria", []):
+        var cd: Dictionary = c
+        var status := str(cd.get("status", ""))
+        var mark := "✓" if status == "met" else ("—" if status == "excluded" else "✗")
+        lines.append("  %s %s" % [mark, str(cd.get("label", cd.get("criterion_id", "")))])
+    _report_score.text = "\n".join(lines)
+    if _report_heading != null:
+        _report_heading.text = "Proof Replay — graded"
+
+func show_backend_error(message: String) -> void:
+    if _report_score != null:
+        _report_score.text = "[b]Backend grading unavailable[/b]  %s\nYour session is saved; a reviewer can grade it manually." % message
 
 func refresh(snapshot: Dictionary) -> void:
     _refresh_brief(snapshot)
@@ -797,6 +829,8 @@ func _build_report_page() -> void:
     body.add_child(_report_heading)
     _report_status = _heading("", 15, ACCENT["report"])
     body.add_child(_report_status)
+    _report_score = _richtext("", 120)
+    body.add_child(_report_score)
     _report_details = _richtext("", 200)
     body.add_child(_report_details)
     body.add_child(HSeparator.new())
