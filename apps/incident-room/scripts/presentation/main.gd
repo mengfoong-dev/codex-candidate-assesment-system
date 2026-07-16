@@ -31,11 +31,11 @@ var _session_id := ""
 # Player sits behind the workstation (at +Z) facing -Z toward the monitor and the open
 # room beyond. Over-the-shoulder desk framing (from outside the cutaway looking in) —
 # a true in-room first-person view sees the diorama's open void, so we frame from behind.
-const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(0.3, 0.45, 2.0))
-# Over-the-shoulder desk framing. (True first-person is not viable in this cutaway
-# diorama — an eye-level view either fills with the monitor or shows the open void.)
-const DESK_CAM_POS := Vector3(0.3, 2.3, 4.3)
-const DESK_CAM_LOOK := Vector3(0.3, 0.9, 1.1)
+const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI), Vector3(0, 0.45, 3.15))
+# Seated first-person: eye at the seated player looking -Z across the enclosed room
+# (over the monitor into the office). Works now that the room has 4 walls + ceiling.
+const DESK_CAM_POS := Vector3(0, 1.85, 3.45)
+const DESK_CAM_LOOK := Vector3(0, 0.85, 1.4)
 
 var _desk_hud: Control
 

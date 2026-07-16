@@ -85,6 +85,18 @@ func _physics_process(delta: float) -> void:
 
     # Smoothly trail the third-person anchor even while blended, so returning is stable.
     var desired := _target.global_position + _third_offset()
+    # Spring-arm: in the enclosed room, pull the camera in if a wall/ceiling is between
+    # it and the player so it never ends up outside or clipped through geometry.
+    var pivot := _target.global_position + Vector3.UP * look_height
+    var space := get_world_3d().direct_space_state
+    if space != null:
+        var q := PhysicsRayQueryParameters3D.create(pivot, desired)
+        q.collision_mask = 1
+        if _target is CollisionObject3D:
+            q.exclude = [(_target as CollisionObject3D).get_rid()]
+        var hit := space.intersect_ray(q)
+        if not hit.is_empty():
+            desired = (hit.position as Vector3) + ((pivot - desired).normalized() * 0.25)
     _third_pos = _third_pos.lerp(desired, clampf(follow_speed * delta, 0.0, 1.0))
 
     var w := smoothstep(0.0, 1.0, _blend)
