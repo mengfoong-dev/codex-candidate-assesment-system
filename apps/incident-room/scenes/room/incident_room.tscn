@@ -1,10 +1,12 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="PackedScene" path="res://scenes/room/cozy_office_shell.tscn" id="3_shell"]
 [ext_resource type="PackedScene" path="res://scenes/player/player_visual.tscn" id="8_senior"]
 [ext_resource type="PackedScene" uid="uid://bvo4lptnqfnyu" path="res://assets/third_party/kaykit-furniture-bits/table_medium_long.gltf" id="9_desk"]
+[ext_resource type="PackedScene" uid="uid://b0rd0g2itixlf" path="res://assets/third_party/kaykit-furniture-bits/chair_C.gltf" id="10_chair"]
+[ext_resource type="PackedScene" path="res://scenes/room/office_furnishing.tscn" id="11_furnish"]
 
 [sub_resource type="Environment" id="Environment_room"]
 background_mode = 1
@@ -37,6 +39,19 @@ albedo_color = Color(0.1, 0.78, 0.95, 1)
 emission_enabled = true
 emission = Color(0.1, 0.78, 0.95, 1)
 emission_energy_multiplier = 0.55
+
+[sub_resource type="BoxMesh" id="DeskMonBody"]
+size = Vector3(0.52, 0.34, 0.05)
+
+[sub_resource type="BoxMesh" id="DeskMonStand"]
+size = Vector3(0.05, 0.16, 0.05)
+
+[sub_resource type="BoxMesh" id="DeskMonBase"]
+size = Vector3(0.22, 0.02, 0.14)
+
+[sub_resource type="StandardMaterial3D" id="DeskMonDark"]
+albedo_color = Color(0.11, 0.11, 0.14, 1)
+roughness = 0.6
 
 [node name="IncidentRoom" type="Node3D"]
 
@@ -95,12 +110,30 @@ station_title = "Talk to Sam"
 accent_color = Color(0.66, 0.42, 0.94, 1)
 
 [node name="MyDesk" type="Node3D" parent="."]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.6, 0, 2.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 2.6)
 
 [node name="Table" parent="MyDesk" instance=ExtResource("9_desk")]
 
-[node name="Laptop" type="MeshInstance3D" parent="MyDesk"]
-transform = Transform3D(1, 0, 0, 0, 0.9, 0.44, 0, -0.44, 0.9, 0, 1.06, -0.12)
+[node name="Chair" parent="MyDesk" instance=ExtResource("10_chair")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0.95)
+
+[node name="MonBase" type="MeshInstance3D" parent="MyDesk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.02, -0.35)
+mesh = SubResource("DeskMonBase")
+surface_material_override/0 = SubResource("DeskMonDark")
+
+[node name="MonStand" type="MeshInstance3D" parent="MyDesk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.12, -0.35)
+mesh = SubResource("DeskMonStand")
+surface_material_override/0 = SubResource("DeskMonDark")
+
+[node name="MonBody" type="MeshInstance3D" parent="MyDesk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.34, -0.35)
+mesh = SubResource("DeskMonBody")
+surface_material_override/0 = SubResource("DeskMonDark")
+
+[node name="MonScreen" type="MeshInstance3D" parent="MyDesk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.34, -0.38)
 mesh = SubResource("LaptopMesh")
 surface_material_override/0 = SubResource("LaptopScreen")
 
@@ -108,6 +141,8 @@ surface_material_override/0 = SubResource("LaptopScreen")
 station_id = "my_desk"
 station_title = "Sit at your laptop"
 accent_color = Color(0.1, 0.78, 0.95, 1)
+
+[node name="Furnishing" parent="." instance=ExtResource("11_furnish")]
 
 [node name="Player" parent="." instance=ExtResource("1_player")]
 position = Vector3(-1.5, 0.05, 2.8)
