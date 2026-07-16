@@ -2,7 +2,11 @@
 
 All live LLM flows use Cohere Command A+ with `COHERE_MODEL=command-a-plus-05-2026`:
 
-- The FastAPI candidate simulation streams Cohere Chat V2 text and function calls.
+- The FastAPI candidate simulation streams Cohere Chat V2 text and function calls. It disables
+  Command A+ thinking for this bounded candidate-facing turn so its response budget is available
+  for visible assistant text and workspace tool calls. Cohere receives strict `read_file` and
+  `write_file` functions only; the TSX client obtains the sandbox inventory from the deterministic
+  `POST /sessions` response and `GET /sessions/{id}/files` endpoint.
 - The senior and workspace-assistant proxy uses Cohere Chat V2 at `/v2/chat`.
 - The Layer 2 rubric panel is one Cohere grader per dimension and records
   `consensus: "single"` with Cohere model provenance.
@@ -18,6 +22,11 @@ leaves the panel unavailable and the deterministic grading/report safeguards con
 When an operator explicitly enables it, Groq and NVIDIA NIM may be used only after the Cohere
 panel is wholly unavailable; their existing provenance and median/single consensus behavior is
 retained.
+
+The Cohere rubric uses Chat V2 JSON object mode and disables thinking before parsing visible JSON
+content. Application-level validation enforces the rubric object shape, citations, and score bounds;
+this avoids Command A+'s current JSON Schema-mode endpoint rejection and its unsupported numeric
+range keywords.
 
 ## Railway proxy configuration
 

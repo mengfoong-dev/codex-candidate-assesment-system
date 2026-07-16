@@ -84,7 +84,8 @@ def _dimension_prompt(dimension: dict, digest: str) -> str:
         f"'{dimension['dimension']}'. Use only the recorded evidence digest below - never invent "
         f"events. Score 1-5 using these anchors: 1 = {anchors[1]}; 3 = {anchors[3]}; 5 = {anchors[5]}.\n\n"
         f"Evidence digest:\n{digest}\n\n"
-        'Generate a JSON object with score, justification, and cited_event_ids. Only cite event IDs '
+        'Return only one JSON object with exactly these keys: "score" (integer 1-5), '
+        '"justification" (string), and "cited_event_ids" (array of strings). Only cite event IDs '
         "that appear in the digest above."
     )
 
@@ -92,7 +93,9 @@ def _dimension_prompt(dimension: dict, digest: str) -> str:
 _SCORE_SCHEMA = {
     "type": "object",
     "properties": {
-        "score": {"type": "integer", "minimum": 1, "maximum": 5},
+        # Cohere's JSON Schema subset does not support numeric minimum/maximum. The range is
+        # enforced by _grade_once after parsing instead.
+        "score": {"type": "integer"},
         "justification": {"type": "string"},
         "cited_event_ids": {"type": "array", "items": {"type": "string"}},
     },
@@ -110,6 +113,15 @@ _QUESTIONS_SCHEMA = {
 }
 
 
+def _first_text_content(content_blocks: object) -> str:
+    """Extract the visible text block while safely ignoring any Cohere thinking blocks."""
+    for block in content_blocks or []:
+        text = block.get("text") if isinstance(block, dict) else getattr(block, "text", None)
+        if isinstance(text, str) and text:
+            return text
+    return ""
+
+
 async def _cohere_json_once(
     vendor_cfg: GraderConfig, prompt: str, schema: dict, *, temperature: float
 ) -> dict | None:
@@ -123,12 +135,16 @@ async def _cohere_json_once(
         response = client.chat(
             model=vendor_cfg.model,
             messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object", "json_schema": schema},
+            # Command A+ currently rejects JSON Schema mode at this endpoint. JSON object mode
+            # still guarantees valid JSON; _grade_once and the narrative/question parsers retain
+            # the application-side shape and value validation.
+            response_format={"type": "json_object"},
+            thinking={"type": "disabled"},
             temperature=temperature,
         )
         if inspect.isawaitable(response):
             response = await response
-        content = response.message.content[0].text
+        content = _first_text_content(response.message.content)
         return json.loads(content)
     except Exception:
         return None
@@ -185,7 +201,8 @@ async def _grade_narrative_once(vendor_cfg: GraderConfig, digest: str) -> str | 
     prompt = (
         "Write a 3-5 sentence description of this candidate's investigation style (breadth-first vs "
         "depth-first, evidence-led vs AI-led). This is descriptive only - never a score, ranking, or "
-        f"right/wrong judgment.\n\nEvidence digest:\n{digest}\n\nGenerate a JSON object with text."
+        f"right/wrong judgment.\n\nEvidence digest:\n{digest}\n\n"
+        'Return only one JSON object with exactly one key: "text".'
     )
     data = await _json_once(vendor_cfg, prompt, _NARRATIVE_SCHEMA, temperature=0.3)
     text = str(data.get("text", "")).strip() if data else ""
@@ -200,7 +217,8 @@ async def _grade_questions_once(
         "criteria they missed and any flagged rubric dimensions below. Ask about reasoning - never phrase "
         "these as a verdict or recommendation.\n"
         f"Missed criteria: {missed_labels}\nFlagged dimensions: {flagged_dimensions}\n\n"
-        f"Evidence digest:\n{digest}\n\nGenerate a JSON object with questions."
+        f"Evidence digest:\n{digest}\n\n"
+        'Return only one JSON object with exactly one key: "questions", an array of strings.'
     )
     data = await _json_once(vendor_cfg, prompt, _QUESTIONS_SCHEMA, temperature=0.3)
     questions = [str(question) for question in data.get("questions", [])] if data else []

@@ -10,7 +10,7 @@ Depends on: briefs 00, 03; formulas and rubric anchors in brief 04. Terminology:
 submit → load events + final_submission + scenario
        → asyncio.gather(
            rule_grader(events, submission, scenario),      # pure function
-           rubric_panel(events, submission, scenario),     # 14 LLM calls, parallel
+           rubric_panel(events, submission, scenario),     # 7 Cohere calls, parallel
            context_indices(events, layer1_total)           # pure functions *
          )
        → write scoring_results rows → status = graded
@@ -44,12 +44,13 @@ Equivalent-order fairness: conditions test *precedence and presence*, never a sp
 
 ## Layer 2 — RubricPanel (LLM, labeled AI analysis)
 
-7 dimensions × 2 vendors = 14 parallel calls; plus 1 thinking-style narrative (single call, cheaper vendor). Dimensions and rubric anchors: brief 04.
+Seven Cohere Command A+ calls run in parallel, one per dimension; separate Cohere calls produce the thinking-style narrative and interview questions. Dimensions and rubric anchors: brief 04.
 
-- **Vendors:** Groq and NVIDIA NIM, both via the `openai` SDK with per-vendor `base_url`/`api_key` (env: `GROQ_API_KEY`, `NIM_API_KEY`, model IDs `GROQ_GRADER_MODEL`, `NIM_GRADER_MODEL`). One thin `Grader` dataclass, two configs — no LiteLLM.
+- **Primary provider:** Cohere Chat V2 (`COHERE_API_KEY`, `COHERE_MODEL`). Each dimension has one primary grader; its stored result reports `consensus: "single"` and `flagged: false`.
+- **Fallback providers:** Groq and NVIDIA NIM configuration remains available only when `AI_PANEL_FALLBACK_ENABLED=true` *and* the entire Cohere panel is unavailable. Fallback retains its existing median/single and provider-provenance semantics; it is never an active second vote beside Cohere.
 - **Input per call:** the dimension's rubric + a compact evidence digest (relevant event excerpts only — prompts, hypotheses, dispositions, submission rationale), never the full raw log.
-- **Output:** forced JSON: `{"score": 1-5, "justification": str, "cited_event_ids": [str]}`. Non-parsing output → one retry → that grader's row dropped.
-- **Consensus:** median of available scores (with 2 vendors = their mean); `|a−b| ≥ 2` sets `flagged: true` (human review). One vendor down → `consensus: "single"`. Both down → layer omitted, report notes deterministic-only fallback (D007).
+- **Output:** Cohere JSON-object mode with application-side schema and score-range validation: `{"score": 1-5, "justification": str, "cited_event_ids": [str]}`. Non-parsing output is retried once, then that row is dropped.
+- **Availability:** a successful Cohere panel is always single-provider. If Cohere is wholly unavailable and fallback is disabled or unavailable, the layer is omitted and the report notes deterministic-only fallback (D007).
 - **Provenance stored per row:** vendor, model ID, `rubric_version`, justification, cited events. LLM boundary rules apply: graders judge recorded evidence only, never invent events, never output an employment recommendation.
 
 ## Layer 3 — ContextIndices (pure formulas, never scored)
@@ -58,12 +59,12 @@ Compute E_p, EPI, Investigation Entropy, Hypothesis Convergence, AI Reliance Rat
 
 ## Interview-question suggestions
 
-One additional LLM call (either vendor) generating 3–5 targeted follow-up questions from missed criteria and flagged dimensions — the D007-sanctioned LLM use. Stored in `detail` of a `layer='llm_rubric'`, `criterion_id='interview_questions'` row; failures are silent (nice-to-have).
+One additional Cohere call generates 3–5 targeted follow-up questions from missed criteria and flagged dimensions. When the opt-in fallback panel is active, its selected fallback provider may generate them instead. Stored in `detail` of a `layer='llm_rubric'`, `criterion_id='interview_questions'` row; failures are silent (nice-to-have).
 
 ## Definition of done
 
 - Golden-path test: scripted event fixture of a strong session → rules 1–6 met, 10–11 high, no negatives.
 - Contrast test: blind-acceptance fixture → rule 8 fires with the disposition event cited.
 - Outage test: excluded criteria drop from max; normalization stays correct.
-- Panel test with faked vendors: median, single-vendor, both-down, and flag paths all covered.
+- Panel tests cover Cohere single-grader results, disabled fallback, enabled Cohere-outage fallback, provenance, and unchanged human-review safeguards.
 - Every `scoring_results` row has non-empty `evidence_refs` for Layer 1 met/missed.

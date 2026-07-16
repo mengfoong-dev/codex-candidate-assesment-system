@@ -59,3 +59,18 @@ Scoring layers stay provenance-separated per decisions D006/D007/D009: Layer 1 d
 
 See [Cohere runtime configuration](../docs/backend/COHERE_RUNTIME.md) for the live-provider,
 fallback, local, and Railway setup.
+
+## Interactive five-turn candidate simulation
+
+Add a newly rotated `COHERE_API_KEY` to the ignored `backend/.env`, then run this
+single command from the repository root:
+
+```powershell
+.\tools\run-interactive-simulation.ps1
+```
+
+It creates an isolated sandbox session, accepts exactly five candidate prompts,
+renders the scenario and each streamed agent/sandbox event before accepting the next prompt,
+runs scripted checks for the remediation you submit, and prints the Layer 1 deterministic score,
+Layer 2 Cohere rubric, and Layer 3 context indices. The same POST/SSE contract is ready for the
+teammate-owned TSX frontend: [frontend stream handoff](../docs/backend/00-api-contract.md#frontend-flow-tsx-handoff).

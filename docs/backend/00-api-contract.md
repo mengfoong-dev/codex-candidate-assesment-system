@@ -85,11 +85,75 @@ Body: `{"content": "candidate prompt text"}`. Response: `text/event-stream`:
 event: token         data: {"text": "…"}                      (repeats)
 event: tool_use      data: {"tool": "write_file", "path": "…"}
 event: file_updated  data: {"path": "…", "source": "ai"}
-event: done          data: {"response_id": "…", "usage": {"input_tokens": 812, "output_tokens": 344}}
+event: done          data: {"response_id": "…", "usage": {"input_tokens": 812, "output_tokens": 344}, "turn_limit": 5}
 event: error         data: {"code": "llm_unavailable", "message": "…"}
 ```
 
 Records `ai_prompt_submitted` before the call and `ai_response_received` (with usage) after; file writes also update `session_files`. See brief 02.
+
+The server accepts **at most five** candidate prompts per session. A sixth POST begins as an SSE
+response and emits exactly one terminal record:
+
+```text
+event: error         data: {"code": "candidate_turn_limit_reached", "message": "This assessment accepts a maximum of 5 candidate prompts."}
+```
+
+The client must wait for terminal `done` or `error` before enabling the next prompt. On
+`file_updated`, refetch `GET /sessions/{id}/files/{path}` to show the latest sandbox content.
+
+### Frontend flow (TSX handoff)
+
+1. `POST /sessions` creates the isolated workspace and returns the candidate-safe scenario plus
+   the initial `files` inventory. Render `scenario.title`, `scenario.role`, `scenario.brief`, and
+   the sandbox files before the first prompt. This call also records `assessment_opened`, so
+   assessment capture has begun. Keep the inventory current with `GET /sessions/{id}/files`;
+   Cohere receives read/write tools only, while listing is deterministic in this API.
+2. For each of the five turns, `POST /messages` and render its SSE records as they arrive. Do not
+   queue multiple prompts while a stream is active.
+3. After the fifth terminal `done`, disable chat input, collect the final submission, run the
+   selected scripted tests, `POST /submit`, and `GET /report` to render the three score layers.
+
+`EventSource` cannot issue this POST request. Use `fetch()` and read `response.body` instead:
+
+```ts
+export type SimulationEvent =
+  | { event: "token"; data: { text: string } }
+  | { event: "tool_use"; data: { tool: string; path: string } }
+  | { event: "file_updated"; data: { path: string; source: "ai" } }
+  | { event: "done"; data: { response_id: string; usage: { input_tokens: number; output_tokens: number }; turn_limit: 5 } }
+  | { event: "error"; data: { code: string; message: string } };
+
+export async function sendCandidateMessage(
+  apiBase: string,
+  sessionId: string,
+  content: string,
+  onEvent: (event: SimulationEvent) => void,
+): Promise<void> {
+  const response = await fetch(`${apiBase}/sessions/${sessionId}/messages`, {
+    method: "POST",
+    headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok || !response.body) throw new Error("Unable to start the coding-agent stream.");
+
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    buffer += value;
+    let delimiter = buffer.indexOf("\\n\\n");
+    while (delimiter >= 0) {
+      const record = buffer.slice(0, delimiter);
+      buffer = buffer.slice(delimiter + 2);
+      const event = record.match(/^event: (.+)$/m)?.[1];
+      const data = record.match(/^data: (.+)$/m)?.[1];
+      if (event && data) onEvent({ event, data: JSON.parse(data) } as SimulationEvent);
+      delimiter = buffer.indexOf("\\n\\n");
+    }
+  }
+}
+```
 
 ### `GET /api/sessions/{id}/files` · `GET /api/sessions/{id}/files/{path}`
 

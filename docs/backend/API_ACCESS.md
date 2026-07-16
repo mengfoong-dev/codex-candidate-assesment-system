@@ -161,6 +161,12 @@ For example:
 `done`, or `error` events. Use `fetch` and read the response stream in browser clients; the
 browser `EventSource` API cannot make this POST request.
 
+Each session accepts no more than five candidate prompts. After the fifth `done` event, disable
+the prompt control, then submit the candidate conclusion and retrieve `/report`. A sixth request
+returns a terminal SSE error record with code `candidate_turn_limit_reached`; it does not call the
+coding model or add a sixth prompt to scoring evidence. The implementation-ready TypeScript stream
+parser and full sequence are in [the API contract](00-api-contract.md#frontend-flow-tsx-handoff).
+
 The complete final-submission schema, SSE event format, response examples, frozen scenario
 IDs, and evaluation-report shape are in [00-api-contract.md](00-api-contract.md). The live
 `/docs` page is authoritative for the Pydantic-generated schema of the running version.
