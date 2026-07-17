@@ -3,6 +3,10 @@ extends RefCounted
 const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
 const TestSupport = preload("res://tests/test_support.gd")
 
+# NOTE: frontend-only contract. Decoy screens (cache/scaling/changelog) were added to the
+# frontend scenario for discernment; the deployed backend grader still uses its own 4-artifact
+# scenario, so decoy views are dropped grader-side until the backend is synced (see the
+# streamlined-fix-first-flow spec). Keep this list in step with data/scenarios only.
 const EXPECTED_FACT_IDS: Array[String] = [
     "homepage_p95_increased",
     "cpu_not_saturated",
@@ -18,6 +22,12 @@ const EXPECTED_FACT_IDS: Array[String] = [
     "sequential_awaits_in_code",
     "calls_are_independent_in_code",
     "required_ordering_must_remain",
+    "redis_hit_rate_baseline",
+    "redis_healthy_otherwise",
+    "cpu_headroom_ample",
+    "no_scaling_events",
+    "release_added_recommendations_call",
+    "no_infra_or_db_change",
 ]
 
 const EXPECTED_CRITERION_POINTS := {
@@ -47,7 +57,7 @@ func _assert_frozen_contract(t: RefCounted, scenario: Dictionary) -> void:
     t.assert_equal(scenario.scenario_id, "homepage_latency", "scenario id")
     t.assert_equal(scenario.scenario_version, "1.0.0", "scenario version")
     t.assert_equal(scenario.stations.map(func(item): return item.station_id), ["observability_wall", "developer_desk", "release_console"], "station ids")
-    t.assert_equal(scenario.artifacts.size(), 4, "artifact count")
+    t.assert_equal(scenario.artifacts.size(), 7, "artifact count (4 real + 3 decoys)")
     var fact_ids: Array[String] = []
     for artifact in scenario.artifacts:
         for fact in artifact.facts:

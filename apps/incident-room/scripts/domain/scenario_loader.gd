@@ -44,8 +44,8 @@ static func validate_scenario(scenario: Dictionary) -> PackedStringArray:
         errors.append("Unsupported scenario version")
     if scenario.get("schema_version", "") != "1.0.0":
         errors.append("Unsupported scenario schema version")
-    if typeof(scenario.get("artifacts", null)) != TYPE_ARRAY or scenario.get("artifacts", []).size() != 4:
-        errors.append("Scenario must define exactly four artifacts")
+    if typeof(scenario.get("artifacts", null)) != TYPE_ARRAY or scenario.get("artifacts", []).size() < 4:
+        errors.append("Scenario must define at least four artifacts")
     errors.append_array(_validate_normalized_integer_fields(scenario))
     errors.append_array(_validate_unique_ids_and_references(scenario))
     return errors
@@ -168,7 +168,7 @@ static func _validate_unique_ids_and_references(scenario: Dictionary) -> PackedS
             var artifact: Dictionary = artifact_value
             if not station_ids.has(str(artifact.get("station_id", ""))):
                 errors.append("Artifact references unknown station: %s" % artifact.get("station_id", ""))
-            if not ["metrics", "logs", "trace", "source_code"].has(artifact.get("evidence_type", "")):
+            if not ["metrics", "logs", "trace", "source_code", "cache", "scaling", "changelog"].has(artifact.get("evidence_type", "")):
                 errors.append("Artifact has unsupported evidence type: %s" % artifact.get("evidence_type", ""))
             var local_fact_ids := _collect_unique_ids(artifact.get("facts", []), "fact_id", "fact", errors)
             for fact_id in local_fact_ids:
