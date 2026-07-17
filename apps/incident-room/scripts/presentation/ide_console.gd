@@ -19,6 +19,8 @@ signal prompt_submitted(text: String)
 
 ## Live in-workspace copilot endpoint (the senior-proxy assistant route).
 @export var assistant_proxy_url := "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
+## Sandboxed test runner (hauxuen's Docker proxy). Grades the candidate's code for real.
+@export var test_runner_url := "https://proxy.leehaoxuen.com/api/assistant/test"
 ## Kept for the future agentic-SSE upgrade above; unused on the web target today.
 @export var backend_base_url := "https://vibeproof-backend-production.up.railway.app"
 
@@ -70,6 +72,7 @@ var _terminal_lines: Array = []
 var _active_path := EDITOR_TAB
 var _thinking_card: Control
 var _busy := false
+var _request_kind := "chat"  # "chat" | "test" — routes the shared _http reply in _on_reply
 var _paused_by_us := false
 
 func _ready() -> void:
@@ -100,11 +103,14 @@ func reset() -> void:
 		card.queue_free()
 	_thinking_card = null
 	_busy = false
+	_request_kind = "chat"
 	if is_instance_valid(_input):
 		_input.editable = true
 		_input.clear()
 	if is_instance_valid(_send):
 		_send.disabled = false
+	if is_instance_valid(_run_tests):
+		_run_tests.disabled = false
 	_seed_from_scenario()  # re-reads pristine source into the editor
 	_terminal_status.text = "Ready"
 	_terminal_log("[color=#8b949e]Workspace ready. Ask Copilot for a change, then run tests to validate it.[/color]")
@@ -321,18 +327,45 @@ func _on_test_selected(index: int) -> void:
 		_show_file(str(_test_list.get_item_metadata(index)))
 
 func _on_run_tests() -> void:
+	if _busy:
+		return
 	if _active_path == EDITOR_TAB:
 		_files[EDITOR_TAB] = _editor.text
+	_busy = true
+	_request_kind = "test"
+	_send.disabled = true
+	_run_tests.disabled = true
+	_terminal_status.text = "Running"
 	_terminal_log("[color=#8b949e]$ npm test -- watch_page_orchestrator[/color]")
-	if str(_files.get(EDITOR_TAB, "")).contains("Promise.all"):
-		_terminal_status.text = "Passed"
-		_terminal_log("[color=#3fb950]✓[/color] tests/watch_page_orchestrator.test.ts (4/4 passed)")
-		_terminal_log("[color=#3fb950]✓[/color] correctness regression  [color=#8b949e]fixtures preserved[/color]")
-		_terminal_log("[color=#3fb950]✓[/color] p95 latency target  [color=#8b949e]independent fetches parallelized[/color]")
-	else:
-		_terminal_status.text = "Needs changes"
-		_terminal_log("[color=#f85149]✗[/color] expected the independent lookups to use Promise.all")
-		_terminal_log("[color=#8b949e]1 failed, 3 passed. Review the source and run again.[/color]")
+	_terminal_log("[color=#79c0ff]›[/color] running isolated scenario tests in the sandbox…")
+	var payload := {"code": str(_files.get(EDITOR_TAB, ""))}
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err := _http.request(test_runner_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	if err != OK:
+		_apply_test_result({"status": "unavailable", "error": "could not reach the test runner"})
+
+## Render a real sandbox test result into the terminal. Reached via _on_reply when
+## _request_kind == "test" (the shared _http is also used by the chat assistant).
+func _apply_test_result(result: Dictionary) -> void:
+	_busy = false
+	_request_kind = "chat"
+	_send.disabled = false
+	_run_tests.disabled = false
+	if str(result.get("status", "unavailable")) == "unavailable":
+		_terminal_status.text = "Error"
+		_terminal_log("[color=#f85149]✗[/color] tests unavailable: %s" % _escape(str(result.get("error", "unknown error"))))
+		return
+	for test: Variant in result.get("tests", []):
+		var row: Dictionary = test
+		var passed := str(row.get("status", "")) == "passed"
+		var line := "[color=%s]%s[/color] %s" % ["#3fb950" if passed else "#f85149", "✓" if passed else "✗", _escape(str(row.get("name", "test")))]
+		var msg := str(row.get("message", ""))
+		if not passed and not msg.is_empty():
+			line += "  [color=#8b949e]%s[/color]" % _escape(msg.split("\n")[0])
+		_terminal_log(line)
+	var ok := str(result.get("status", "")) == "passed"
+	_terminal_status.text = "Passed" if ok else "Needs changes"
+	_terminal_log("[color=%s]%d passed, %d failed[/color]" % ["#3fb950" if ok else "#8b949e", int(result.get("passed", 0)), int(result.get("failed", 0))])
 
 # --- prompt -> assistant -> apply ---------------------------------------
 
@@ -371,6 +404,13 @@ func _task_context() -> String:
 
 func _on_reply(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if not _busy:
+		return
+	if _request_kind == "test":
+		var parsed_test: Variant = JSON.parse_string(body.get_string_from_utf8())
+		if code == 200 and parsed_test is Dictionary:
+			_apply_test_result(parsed_test)
+		else:
+			_apply_test_result({"status": "unavailable", "error": "test runner returned HTTP %d" % code})
 		return
 	var reply := ""
 	if code == 200:
