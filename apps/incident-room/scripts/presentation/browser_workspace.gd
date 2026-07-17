@@ -64,6 +64,15 @@ var _brief_status: Label
 var _evidence_detail: VBoxContainer
 var _evidence_buttons: Dictionary = {}
 
+# Cosmetic live incident ticker: p95 pegged red + pulsing until the correct fix is validated,
+# then flips green once. Not reactive to code edits (no guess-and-check oracle).
+var _p95_panel: PanelContainer
+var _p95_label: Label
+var _p95_pulse: Tween
+var _p95_resolved := false
+var _p95_now_ms := 0
+var _p95_fixed_ms := 0
+
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
 var _disposition_status: Label
@@ -111,6 +120,7 @@ func _ready() -> void:
     leave.add_theme_font_size_override("font_size", 13)
     leave.pressed.connect(func() -> void: leave_requested.emit())
     chrome_row.add_child(leave)
+    _build_p95_ticker(chrome_row)
     if demo_mode and _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
         if loaded.ok:
@@ -133,6 +143,9 @@ func configure(scenario: Dictionary) -> void:
     _build_tests_page()
     _build_submit_page()
     _build_report_page()
+    _p95_now_ms = _scan_metric_ms()
+    _p95_fixed_ms = _scan_fixed_ms()
+    _set_p95_unresolved()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
     set_active_tab("brief")
 
@@ -185,6 +198,85 @@ func refresh(snapshot: Dictionary) -> void:
     _refresh_assistant(snapshot)
     _refresh_tests(snapshot)
     _refresh_submit(snapshot)
+    _refresh_p95(snapshot)
+
+# --- Live incident p95 ticker ------------------------------------------------
+
+func _build_p95_ticker(chrome_row: HBoxContainer) -> void:
+    _p95_panel = PanelContainer.new()
+    var sb := StyleBoxFlat.new()
+    sb.set_corner_radius_all(8)
+    sb.content_margin_left = 12
+    sb.content_margin_right = 12
+    sb.content_margin_top = 6
+    sb.content_margin_bottom = 6
+    _p95_panel.add_theme_stylebox_override("panel", sb)
+    _p95_label = Label.new()
+    _p95_label.add_theme_font_size_override("font_size", 13)
+    _p95_panel.add_child(_p95_label)
+    chrome_row.add_child(_p95_panel)
+    chrome_row.move_child(_p95_panel, 0)
+    _set_p95_unresolved()
+
+func _set_p95_unresolved() -> void:
+    if _p95_panel == null:
+        return
+    _p95_resolved = false
+    _p95_panel.modulate.a = 1.0
+    var sb := _p95_panel.get_theme_stylebox("panel") as StyleBoxFlat
+    sb.bg_color = Color(0.62, 0.16, 0.19)
+    _p95_label.add_theme_color_override("font_color", Color(1, 0.9, 0.9))
+    _p95_label.text = "⚠  watch page p95: %s" % (("%d ms" % _p95_now_ms) if _p95_now_ms > 0 else "high")
+    if _p95_pulse != null and _p95_pulse.is_valid():
+        _p95_pulse.kill()
+    _p95_pulse = create_tween().set_loops()
+    _p95_pulse.tween_property(_p95_panel, "modulate:a", 0.5, 0.7)
+    _p95_pulse.tween_property(_p95_panel, "modulate:a", 1.0, 0.7)
+
+func _resolve_p95() -> void:
+    if _p95_resolved or _p95_panel == null:
+        return
+    _p95_resolved = true
+    if _p95_pulse != null and _p95_pulse.is_valid():
+        _p95_pulse.kill()
+    _p95_panel.modulate.a = 1.0
+    var sb := _p95_panel.get_theme_stylebox("panel") as StyleBoxFlat
+    sb.bg_color = Color(0.13, 0.5, 0.3)
+    _p95_label.text = "✓  watch page p95: %s" % (("%d ms" % _p95_fixed_ms) if _p95_fixed_ms > 0 else "recovered")
+
+## Flip the ticker green once a p95 validation passes (correct remediation). Cosmetic:
+## it never reacts to raw code edits, only to a recorded, passing validation.
+func _refresh_p95(snapshot: Dictionary) -> void:
+    for action: Dictionary in snapshot.get("verification_actions", []):
+        if str(action.get("test_id", "")) != "p95_latency":
+            continue
+        var displayed: Dictionary = action.get("displayed_result", {})
+        if str(displayed.get("status", "")) == "passed":
+            _resolve_p95()
+            return
+
+func _scan_metric_ms() -> int:
+    for artifact: Dictionary in _scenario.get("artifacts", []):
+        if str(artifact.get("evidence_type", "")) == "metrics":
+            var content: Array = artifact.get("content", [])
+            return _first_ms(str(content[0])) if not content.is_empty() else 0
+    return 0
+
+func _scan_fixed_ms() -> int:
+    for test_case: Dictionary in _scenario.get("tests", []):
+        if str(test_case.get("test_id", "")) == "p95_latency":
+            var by_rem: Dictionary = test_case.get("results_by_remediation", {})
+            for rid: String in by_rem:
+                var r: Dictionary = by_rem[rid]
+                if str(r.get("status", "")) == "passed":
+                    return _first_ms(str(r.get("actual_result", "")))
+    return 0
+
+func _first_ms(text: String) -> int:
+    var re := RegEx.new()
+    re.compile("([0-9]+)\\s*ms")
+    var m := re.search(text)
+    return int(m.get_string(1)) if m != null else 0
 
 func set_active_tab(key: String) -> void:
     if not _pages.has(key):
