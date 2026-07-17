@@ -90,6 +90,13 @@ func run(_tree: SceneTree) -> Array[String]:
     t.assert_false(rejected.submit_final({"root_cause_id": "cpu_saturation"}).ok, "incomplete submission rejected")
     t.assert_equal(rejected.ordered_events().size(), 2, "rejected intents do not write events")
 
+    # Layer-2 review: the candidate's raw prompt/question text is captured as (unscored) events.
+    t.assert_true(rejected.record_senior_question("what changed in the release?").ok, "senior question logs")
+    t.assert_true(rejected.record_ai_prompt("parallelize the awaits safely?").ok, "ai prompt logs")
+    var late_types := rejected.ordered_events().map(func(e): return e.event_type)
+    t.assert_true(late_types.has("candidate_senior_question"), "senior question recorded for Proof Replay")
+    t.assert_true(late_types.has("candidate_ai_prompt"), "ai prompt recorded for Proof Replay")
+
     return t.failures
 
 func _complete_submission() -> Dictionary:

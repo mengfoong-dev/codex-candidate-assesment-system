@@ -15,6 +15,7 @@ signal final_submission_requested(submission: Dictionary)
 signal restart_requested
 signal leave_requested
 signal notepad_requested
+signal assistant_requested
 
 const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
 
