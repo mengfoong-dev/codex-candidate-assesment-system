@@ -24,6 +24,18 @@ The Railway deployment is a static browser build. Candidate evidence remains in 
 
 The [Godot Incident Room application](apps/incident-room/README.md) contains the independently loadable game, scenario, local evidence contract, and tests.
 
+## Run it
+
+**No build required.** The current candidate flow runs in the browser: **[vibeproof-web-production.up.railway.app](https://vibeproof-web-production.up.railway.app)**. Evidence stays in that browser's local storage; nothing is sent to a backend.
+
+**Run locally.** The Godot Incident Room is a self-contained Godot 4.7.1 project under `apps/incident-room`. The [Incident Room README](apps/incident-room/README.md) has the pinned toolchain, the headless import step, and the test-suite command. In short:
+
+```powershell
+# from the repo root, after installing Godot 4.7.1 Standard (see the app README for the pinned path)
+& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --headless --path apps/incident-room --import
+& "$env:LOCALAPPDATA\VibeProof\Godot\4.7.1\Godot_v4.7.1-stable_win64_console.exe" --headless --path apps/incident-room --script res://tests/run_tests.gd
+```
+
 ## How we built it with Codex + GPT-5.6
 
 Codex (GPT-5.6) was our primary engineering agent. In our aggregate [usage log](docs/hackathon/codex-usage/sessions.csv), **114 of 137 recorded sessions were Codex**, and it carried the work end to end:
@@ -104,3 +116,7 @@ Historical product explorations and source material are preserved in the [archiv
 VibeProof records candidate actions, prompts, tests, decisions, explanations, and responses to evidence. It does not claim access to private thoughts, reliably determine who generated code, or predict future job performance without validation.
 
 Final hiring decisions remain with people. The prototype provides transparent evidence for a human reviewer and requires future reliability, fairness, accessibility, and job-related validation before high-stakes use.
+
+## License
+
+Released under the [MIT License](LICENSE).
