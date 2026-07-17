@@ -1,5 +1,6 @@
 extends RefCounted
 
+const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
 const WORKSPACE_PATH := "res://scenes/ui/browser_workspace.tscn"
 const TITLE_PATH := "res://scenes/ui/title_screen.tscn"
 const WORKSPACE_SIGNALS := [
@@ -53,12 +54,23 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
 
     workspace.configure(scenario)
     var tabs := workspace.get_node("Frame/TabStrip/Tabs")
-    t.assert_true(tabs.get_child_count() >= 4, "workspace builds the candidate tabs")
+    t.assert_true(tabs.get_child_count() >= 5, "workspace builds the five backend tabs")
+    var has_home_tab := false
+    for child: Node in tabs.get_children():
+        if child is Button and (child as Button).text == "Home":
+            has_home_tab = true
+    t.assert_true(has_home_tab, "workspace has a Home navigation tab")
     var has_codex_tab := false
     for child: Node in tabs.get_children():
         if child is Button and (child as Button).text == "Codex":
             has_codex_tab = true
-    t.assert_true(has_codex_tab, "workspace has the single Codex AI tab")
+    t.assert_true(has_codex_tab, "workspace has a Codex navigation tab")
+    workspace.set_active_tab("prompting")
+    var prompting_page := workspace.get_node("Frame/Content/PanelHost/Page_prompting")
+    t.assert_true(prompting_page.find_children("*", "CodeEdit", true, false).size() > 0, "codex page exposes a code editor")
+    t.assert_true(prompting_page.find_children("*", "LineEdit", true, false).size() > 0, "codex page exposes a prompt input")
+    t.assert_true(_collect_text(prompting_page).contains("Run"), "codex page exposes a run action")
+    t.assert_true(_collect_text(prompting_page).contains("Submit"), "codex page exposes a submit action")
 
     # Brief tab exposes every hypothesis; Submit tab exposes the submission options.
     workspace.set_started(true)

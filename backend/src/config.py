@@ -1,7 +1,7 @@
 """Application settings, loaded from environment / .env via pydantic-settings.
 
 Why pydantic-settings over os.getenv: it validates types (int/list/bool) at startup and gives
-one typed object instead of scattered string lookups — a misconfigured value fails loudly on
+one typed object instead of scattered string lookups - a misconfigured value fails loudly on
 boot, not mid-request.
 """
 import json
@@ -68,5 +68,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Cached singleton — Settings reads the env once; every caller shares the same object."""
+    """Cached singleton - Settings reads the env once; every caller shares the same object."""
     return Settings()

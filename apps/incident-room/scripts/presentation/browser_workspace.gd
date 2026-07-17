@@ -17,6 +17,8 @@ signal leave_requested
 signal notepad_requested
 signal assistant_requested
 
+const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
+
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
 const INK := Color(0.13, 0.17, 0.31, 1)
@@ -33,6 +35,11 @@ const ACCENT := {
     "report": Color(0.98, 0.7, 0.25, 1),
 }
 const TAB_DEFS := [
+    {"key": "home", "label": "Home"},
+    {"key": "brief", "label": "Brief"},
+    {"key": "prompting", "label": "Codex"},
+    {"key": "evidence", "label": "Evidence"},
+    {"key": "assistant", "label": "Assistant"},
     {"key": "evidence", "label": "Investigate"},
     {"key": "assistant", "label": "Codex"},
     {"key": "tests", "label": "Files & Tests"},
@@ -75,6 +82,25 @@ var _p95_fixed_ms := 0
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
 var _disposition_status: Label
+var _codex_http: HTTPRequest
+var _codex_editor: CodeEdit
+var _codex_chat_scroll: ScrollContainer
+var _codex_chat_log: VBoxContainer
+var _codex_input: LineEdit
+var _codex_send: Button
+var _codex_run_output: RichTextLabel
+var _codex_run_button: Button
+var _codex_submit_button: Button
+var _codex_history: Array = []
+var _codex_busy := false
+var _codex_dirty := true
+var _codex_submitted := false
+var _assistant_http: HTTPRequest
+var _assistant_log: RichTextLabel
+var _assistant_input: LineEdit
+var _assistant_send: Button
+var _assistant_history: Array = []
+var _assistant_sending := false
 
 var _tests_remediation: OptionButton
 var _test_result_labels: Dictionary = {}
@@ -100,12 +126,17 @@ var _submit_status: Label
 
 var _report_heading: Label
 var _report_status: Label
-var _report_score: RichTextLabel
 var _report_details: RichTextLabel
 var _report_notices: RichTextLabel
 
 func _ready() -> void:
     _apply_page_theme()
+    _codex_http = HTTPRequest.new()
+    add_child(_codex_http)
+    _codex_http.request_completed.connect(_on_codex_response)
+    _assistant_http = HTTPRequest.new()
+    add_child(_assistant_http)
+    _assistant_http.request_completed.connect(_on_assistant_response)
     var chrome_row := $Frame/Chrome/ChromeRow as HBoxContainer
     var notepad := Button.new()
     notepad.text = "📝 Notepad"
@@ -136,6 +167,9 @@ func configure(scenario: Dictionary) -> void:
         child.queue_free()
     _pages.clear()
     _build_tabs()
+    _build_home_page()
+    _build_brief_page()
+    _build_prompting_page_v2()
     _build_evidence_page()
     _build_assistant_page()
     _build_tests_page()
@@ -145,6 +179,7 @@ func configure(scenario: Dictionary) -> void:
     _p95_fixed_ms = _scan_fixed_ms()
     _set_p95_unresolved()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
+    set_active_tab("home")
     set_active_tab("evidence")
 
 func set_started(started: bool) -> void:
@@ -158,37 +193,6 @@ func show_report(summary: Dictionary) -> void:
     _populate_report(summary)
     _refresh_tab_states()
     set_active_tab("report")
-
-## Backend grading (set by the coordinator when a grading backend is configured).
-func show_backend_pending() -> void:
-    _report_available = true
-    if _report_score != null:
-        _report_score.text = "[b]Grading…[/b]  sending your session to the assessment backend."
-    _refresh_tab_states()
-    set_active_tab("report")
-
-func show_backend_score(result: Dictionary) -> void:
-    if _report_score == null:
-        return
-    var total := float(result.get("total", 0.0))
-    var maxv := float(result.get("max", 0.0))
-    var pct := int(round(total / maxv * 100.0)) if maxv > 0.0 else 0
-    var lines := PackedStringArray([
-        "[b]Graded by the assessment backend[/b]",
-        "Deterministic score: %.1f / %.1f  (%d%%)" % [total, maxv, pct],
-    ])
-    for c: Variant in result.get("criteria", []):
-        var cd: Dictionary = c
-        var status := str(cd.get("status", ""))
-        var mark := "✓" if status == "met" else ("—" if status == "excluded" else "✗")
-        lines.append("  %s %s" % [mark, str(cd.get("label", cd.get("criterion_id", "")))])
-    _report_score.text = "\n".join(lines)
-    if _report_heading != null:
-        _report_heading.text = "Proof Replay — graded"
-
-func show_backend_error(message: String) -> void:
-    if _report_score != null:
-        _report_score.text = "[b]Backend grading unavailable[/b]  %s\nYour session is saved; a reviewer can grade it manually." % message
 
 func refresh(snapshot: Dictionary) -> void:
     _refresh_brief(snapshot)
@@ -312,6 +316,13 @@ func _on_tab_pressed(key: String) -> void:
     # Report tab waits until there's a report.
     if key == "report" and not _report_available:
         return
+    if key != "home" and key != "brief" and key != "report" and not _started:
+        # These tabs unlock once the candidate records an initial hypothesis; send them
+        # to the Brief tab (where that happens) instead of a dead tap.
+        set_active_tab("brief")
+        if _brief_status != null:
+            _brief_status.text = "🔒 Record your initial hypothesis below to unlock the workspace."
+        return
     set_active_tab(key)
 
 func _refresh_tab_states() -> void:
@@ -324,6 +335,7 @@ func _restyle_tabs() -> void:
         var button: Button = _buttons[key]
         var accent: Color = ACCENT.get(key, NAVY)
         var active := key == _active
+        var locked := (key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
         var locked := key == "report" and not _report_available
         button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
@@ -372,27 +384,39 @@ func _page_body(key: String) -> VBoxContainer:
     scroll.add_child(body)
     return body
 
-## Codex keeps its header and columns fixed. Each column owns its own scroll area,
-## so a long problem statement never scrolls the conversation or run output away.
-func _fixed_page_body(key: String) -> VBoxContainer:
-    var page := MarginContainer.new()
-    page.name = "Page_" + key
-    page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    page.add_theme_constant_override("margin_left", 34)
-    page.add_theme_constant_override("margin_top", 24)
-    page.add_theme_constant_override("margin_right", 34)
-    page.add_theme_constant_override("margin_bottom", 24)
-    page.visible = false
-    _host.add_child(page)
-    _pages[key] = page
-    var body := VBoxContainer.new()
-    body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    body.add_theme_constant_override("separation", 10)
-    page.add_child(body)
-    return body
-
 # --- Brief -------------------------------------------------------------------
+
+func _build_home_page() -> void:
+    var body := _page_body("home")
+    body.add_child(_heading("Welcome to VibeProof", 31, NAVY))
+    body.add_child(_heading("Build with AI. Prove you know why it works. This short, AI-allowed engineering Ownership Challenge lets you show how you investigate, verify, and explain technical work.", 17, MUTED))
+
+    var start := _flat_button("Begin incident briefing  →")
+    start.custom_minimum_size = Vector2(0, 46)
+    start.pressed.connect(func() -> void: set_active_tab("brief"))
+    body.add_child(start)
+
+    body.add_child(HSeparator.new())
+    body.add_child(_heading("What you will do", 21, INK))
+    var journey := HBoxContainer.new()
+    journey.add_theme_constant_override("separation", 12)
+    journey.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_child(journey)
+    _add_home_step(journey, "01", "Investigate", "Read the incident brief, inspect the available evidence, and record a working hypothesis.", ACCENT["evidence"])
+    _add_home_step(journey, "02", "Use AI responsibly", "Ask focused questions, then check assumptions before relying on an AI suggestion.", ACCENT["assistant"])
+    _add_home_step(journey, "03", "Explain your decision", "Submit an evidence-backed recommendation with validation steps and known risks.", ACCENT["submit"])
+
+    body.add_child(HSeparator.new())
+    body.add_child(_heading("What VibeProof records", 21, INK))
+    body.add_child(_heading("The session records evidence you inspect, hypotheses you record or revise, AI prompts and responses, verification choices, and your final recommendation. A human reviewer receives a chronological Proof Replay.", 15, MUTED))
+    body.add_child(_heading("What does not affect your result", 17, ACCENT["home"]))
+    body.add_child(_heading("Navigation speed, gaming experience, typing speed, and whether you use AI are not scored. This prototype does not make an employment decision.", 15, MUTED))
+
+func _add_home_step(parent: Container, number: String, title: String, description: String, accent: Color) -> void:
+    var card := _add_workspace_card(parent, number, accent)
+    (card.get_parent() as PanelContainer).custom_minimum_size = Vector2(235, 0)
+    card.add_child(_heading(title, 17, INK))
+    card.add_child(_heading(description, 14, MUTED))
 
 func _build_brief_page() -> void:
     var body := _page_body("brief")
@@ -417,6 +441,379 @@ func _build_brief_page() -> void:
     _brief_confirm.pressed.connect(func() -> void:
         if not _brief_confirm.disabled:
             initial_hypothesis_submitted.emit(str(_brief_option.get_item_metadata(_brief_option.selected)), int(_brief_confidence.value)))
+
+func _build_prompting_page() -> void:
+    var body := _page_body("prompting")
+    body.add_child(_heading("Candidate Prompting", 27, INK))
+    body.add_child(_heading("Use the copilot alongside the evidence workspace. Your prompts and actions are recorded.", 15, MUTED))
+
+    var workspace := HBoxContainer.new()
+    workspace.add_theme_constant_override("separation", 14)
+    workspace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_child(workspace)
+
+    var incident_card := _add_workspace_card(workspace, "Incident brief", ACCENT["brief"])
+    incident_card.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 18, INK))
+    incident_card.add_child(_richtext(str(_scenario.get("brief", "")), 130))
+    incident_card.add_child(HSeparator.new())
+    incident_card.add_child(_heading("Assessment flow", 15, ACCENT["brief"]))
+    incident_card.add_child(_heading("Your initial hypothesis is recorded. Use this screen to investigate it with the copilot and the evidence below.", 14, MUTED))
+
+    var conversation_card := _add_workspace_card(workspace, "Conversation", ACCENT["assistant"])
+    conversation_card.add_child(_heading("Engineering copilot", 18, INK))
+    conversation_card.add_child(_heading("Copilot ready · prompts stay in this assessment session.", 13, MUTED))
+    var chat_scroll := ScrollContainer.new()
+    chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    chat_scroll.custom_minimum_size = Vector2(0, 255)
+    conversation_card.add_child(chat_scroll)
+    var chat_log := VBoxContainer.new()
+    chat_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    chat_log.add_theme_constant_override("separation", 8)
+    chat_scroll.add_child(chat_log)
+    chat_log.add_child(_bubble("You", "Help me understand the latency spike and what I should verify first.", Color(0.88, 0.91, 0.98, 1)))
+    chat_log.add_child(_bubble("Copilot", "Start with the trace and compare it with healthy CPU and database signals. Then inspect the homepage orchestration code.", Color(0.93, 0.88, 0.99, 1)))
+    var chat_row := HBoxContainer.new()
+    chat_row.add_theme_constant_override("separation", 7)
+    conversation_card.add_child(chat_row)
+    var chat_input := LineEdit.new()
+    chat_input.placeholder_text = "Ask the copilot about this incident"
+    chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    chat_input.add_theme_font_size_override("font_size", 14)
+    chat_row.add_child(chat_input)
+    var chat_send := _flat_button("Send")
+    chat_send.custom_minimum_size = Vector2(74, 38)
+    chat_row.add_child(chat_send)
+    var send_prompt := func() -> void:
+        var prompt := chat_input.text.strip_edges()
+        if prompt.is_empty():
+            return
+        chat_log.add_child(_bubble("You", prompt, Color(0.88, 0.91, 0.98, 1)))
+        chat_input.clear()
+        chat_log.add_child(_bubble("Copilot", "Focus on the trace, compare it with the healthy service signals, and use the artifacts on the right to validate your hypothesis.", Color(0.93, 0.88, 0.99, 1)))
+        chat_scroll.scroll_vertical = 100000
+    chat_send.pressed.connect(send_prompt)
+    chat_input.text_submitted.connect(func(_text: String) -> void: send_prompt.call())
+
+    var output_card := _add_workspace_card(workspace, "Evidence and output", ACCENT["evidence"])
+    output_card.add_child(_heading("Homepage signals", 18, INK))
+    output_card.add_child(_heading("p95 latency   180 ms → 850 ms\nCPU usage     35% (healthy)\nDatabase      healthy", 15, INK))
+    output_card.add_child(HSeparator.new())
+    output_card.add_child(_heading("Evidence", 15, ACCENT["evidence"]))
+    var evidence_scroll := ScrollContainer.new()
+    evidence_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    evidence_scroll.custom_minimum_size = Vector2(0, 170)
+    output_card.add_child(evidence_scroll)
+    var evidence_list := VBoxContainer.new()
+    evidence_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    evidence_list.add_theme_constant_override("separation", 7)
+    evidence_scroll.add_child(evidence_list)
+    for artifact: Dictionary in _scenario.get("artifacts", []):
+        evidence_list.add_child(_heading(str(artifact.get("title", "Evidence artifact")), 14, INK))
+        var content: Array = artifact.get("content", [])
+        if not content.is_empty():
+            evidence_list.add_child(_heading("• " + str(content[0]), 13, MUTED))
+    output_card.add_child(HSeparator.new())
+    output_card.add_child(_heading("Result", 15, ACCENT["submit"]))
+    output_card.add_child(_heading("Build an evidence-backed diagnosis, then state a safe remediation, validation plan, and rollback condition in your submission.", 14, MUTED))
+
+func _build_prompting_page_v2() -> void:
+    var body := _page_body("prompting")
+    body.add_child(_heading("Codex", 27, INK))
+    body.add_child(_heading("Prompt the assistant to edit the code inline, tweak it yourself, then run and submit.", 15, MUTED))
+
+    var action_row := HBoxContainer.new()
+    action_row.add_theme_constant_override("separation", 10)
+    action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_child(action_row)
+    var spacer := Control.new()
+    spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    action_row.add_child(spacer)
+    _codex_run_button = _flat_button("Run")
+    _codex_run_button.custom_minimum_size = Vector2(92, 42)
+    action_row.add_child(_codex_run_button)
+    _codex_submit_button = _flat_button("Submit")
+    _codex_submit_button.custom_minimum_size = Vector2(104, 42)
+    action_row.add_child(_codex_submit_button)
+
+    var workspace := HBoxContainer.new()
+    workspace.add_theme_constant_override("separation", 14)
+    workspace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    body.add_child(workspace)
+
+    var problem_card := _add_workspace_card(workspace, "PROBLEM", ACCENT["brief"])
+    (problem_card.get_parent() as PanelContainer).custom_minimum_size = Vector2(320, 0)
+    problem_card.add_child(_heading("%s - %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 24, INK))
+    problem_card.add_child(_richtext(str(_scenario.get("brief", "")), 130))
+    problem_card.add_child(HSeparator.new())
+    problem_card.add_child(_heading("What to include", 15, ACCENT["brief"]))
+    problem_card.add_child(_heading("Keep authentication first and rendering last, and make the independent lookups run concurrently.", 14, MUTED))
+
+    var editor_card := _add_workspace_card(workspace, "src/watch_page_orchestrator.ts", ACCENT["home"])
+    (editor_card.get_parent() as PanelContainer).custom_minimum_size = Vector2(430, 0)
+    _codex_editor = CodeEdit.new()
+    _codex_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _codex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    _codex_editor.custom_minimum_size = Vector2(0, 520)
+    editor_card.add_child(_codex_editor)
+    _style_codex_editor(_codex_editor)
+    _codex_editor.text = _prompting_source_text()
+    _codex_editor.text_changed.connect(func() -> void:
+        _codex_dirty = true
+        _codex_submitted = false
+        _codex_submit_button.disabled = false
+        if _codex_run_output != null and not _codex_busy:
+            _codex_run_output.text = "Code changed since the last run."
+    )
+
+    var right_column := VBoxContainer.new()
+    right_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    right_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    right_column.add_theme_constant_override("separation", 14)
+    workspace.add_child(right_column)
+
+    var conversation_card := _add_workspace_card(right_column, "CODEX", ACCENT["assistant"])
+    conversation_card.add_child(_heading("Codex is ready. Prompts stay in this assessment session.", 13, MUTED))
+    _codex_chat_scroll = ScrollContainer.new()
+    _codex_chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    _codex_chat_scroll.custom_minimum_size = Vector2(0, 250)
+    conversation_card.add_child(_codex_chat_scroll)
+    _codex_chat_log = VBoxContainer.new()
+    _codex_chat_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _codex_chat_log.add_theme_constant_override("separation", 8)
+    _codex_chat_scroll.add_child(_codex_chat_log)
+    _seed_codex_chat()
+    var chat_row := HBoxContainer.new()
+    chat_row.add_theme_constant_override("separation", 8)
+    conversation_card.add_child(chat_row)
+    _codex_input = LineEdit.new()
+    _codex_input.placeholder_text = "Ask Codex about this incident"
+    _codex_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _codex_input.focus_mode = Control.FOCUS_ALL
+    chat_row.add_child(_codex_input)
+    _codex_send = _flat_button("Send")
+    _codex_send.custom_minimum_size = Vector2(84, 38)
+    chat_row.add_child(_codex_send)
+    _codex_send.pressed.connect(_send_codex_prompt)
+    _codex_input.text_submitted.connect(func(_text: String) -> void: _send_codex_prompt())
+
+    var output_card := _add_workspace_card(right_column, "RUN OUTPUT", ACCENT["tests"])
+    _codex_run_output = _richtext("No run yet.\nEdit the code, then select Run.", 180)
+    output_card.add_child(_codex_run_output)
+    _codex_run_button.pressed.connect(_run_codex)
+    _codex_submit_button.pressed.connect(_submit_codex)
+
+func _seed_codex_chat() -> void:
+    _codex_history.clear()
+    var interaction: Dictionary = _scenario.get("ai_interaction", {})
+    var prompt: Dictionary = interaction.get("prompt", {})
+    var response: Dictionary = interaction.get("response", {})
+    var prompt_text := str(prompt.get("text", "How should I change the code?"))
+    var response_text := str(response.get("text", "Run the confirmed-independent calls concurrently and preserve ordering around authentication and rendering."))
+    _codex_chat_log.add_child(_bubble("You", prompt_text, Color(0.88, 0.91, 0.98, 1)))
+    _codex_chat_scroll.scroll_vertical = 100000
+    _codex_history.append({"role": "user", "content": prompt_text})
+    _codex_history.append({"role": "assistant", "content": response_text})
+    _apply_codex_reply(response_text, true)
+
+func _send_codex_prompt() -> void:
+    if _codex_busy or _codex_input == null:
+        return
+    var prompt := _codex_input.text.strip_edges()
+    if prompt.is_empty():
+        return
+    _codex_input.clear()
+    _codex_chat_log.add_child(_bubble("You", prompt, Color(0.88, 0.91, 0.98, 1)))
+    _codex_chat_scroll.scroll_vertical = 100000
+    _codex_history.append({"role": "user", "content": prompt})
+    _codex_busy = true
+    _codex_send.disabled = true
+    var payload := {"messages": _codex_history, "task": _codex_context()}
+    var headers := PackedStringArray(["Content-Type: application/json"])
+    var err := _codex_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+    if err != OK:
+        _finish_codex_prompt(_codex_offline_reply())
+
+func _on_codex_response(_result: int, code: int, _headers: PackedStringArray, resp: PackedByteArray) -> void:
+    if not _codex_busy:
+        return
+    var reply := ""
+    if code == 200:
+        var parsed: Variant = JSON.parse_string(resp.get_string_from_utf8())
+        if parsed is Dictionary:
+            reply = str(parsed.get("reply", ""))
+    _finish_codex_prompt(reply if not reply.is_empty() else _codex_offline_reply())
+
+func _finish_codex_prompt(reply: String) -> void:
+    _codex_history.append({"role": "assistant", "content": reply})
+    _codex_busy = false
+    if _codex_send != null:
+        _codex_send.disabled = false
+    _apply_codex_reply(reply, true)
+
+func _apply_codex_reply(reply: String, update_output: bool) -> void:
+    _codex_chat_log.add_child(_bubble("Codex", reply, Color(0.93, 0.88, 0.99, 1)))
+    _codex_chat_scroll.scroll_vertical = 100000
+    var code := _extract_code(reply)
+    if not code.is_empty() and _codex_editor != null:
+        _codex_editor.text = code
+        _codex_dirty = true
+        _codex_submitted = false
+        _codex_submit_button.disabled = false
+    if update_output and _codex_run_output != null:
+        _codex_run_output.text = "Codex updated the code. Run it to validate the change."
+
+func _codex_context() -> String:
+    var parts := PackedStringArray([str(_scenario.get("brief", ""))])
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    if not orchestrator.is_empty():
+        parts.append("src/watch_page_orchestrator.ts:")
+        for line: Variant in orchestrator.get("content", []):
+            parts.append(str(line))
+    if _codex_editor != null:
+        parts.append("Current editor contents:")
+        parts.append(_codex_editor.text)
+    parts.append("Reply with a short explanation and, if changing code, a full fenced ts block.")
+    return "\n".join(parts)
+
+func _run_codex() -> void:
+    if _codex_editor == null or _codex_run_output == null:
+        return
+    var analysis := _analyze_codex_code(_codex_editor.text)
+    _codex_dirty = false
+    _codex_submitted = false
+    if bool(analysis.get("ok", false)):
+        var remediation_id := str(analysis.get("remediation_id", "parallelize_confirmed_independent_calls"))
+        var lines := PackedStringArray([str(analysis.get("message", "Run complete."))])
+        for test: Dictionary in _scenario.get("tests", []):
+            var test_id := str(test.get("test_id", ""))
+            var result := _scripted_test_result(test_id, remediation_id)
+            if result.is_empty():
+                continue
+            lines.append("%s: %s" % [str(test.get("title", test_id)), str(result.get("actual_result", "recorded"))])
+        _codex_run_output.text = "\n".join(lines)
+    else:
+        _codex_run_output.text = str(analysis.get("message", "The code still looks sequential."))
+
+func _submit_codex() -> void:
+    if _codex_editor == null or _codex_run_output == null:
+        return
+    if _codex_dirty:
+        _run_codex()
+    _codex_submitted = true
+    _codex_run_output.text += "\n\nSubmitted locally for the current session."
+    _codex_submit_button.disabled = false
+
+func _analyze_codex_code(code: String) -> Dictionary:
+    var text := code.replace("\r", "")
+    var auth_index := text.find("requireAuthenticatedUser")
+    var promise_index := text.find("Promise.all")
+    var render_index := text.rfind("renderWatchPage")
+    var details_index := text.find("getVideoDetails")
+    var rec_index := text.find("getRecommendations")
+    var comments_index := text.find("getComments")
+    if auth_index >= 0 and promise_index > auth_index and render_index > promise_index and details_index >= 0 and rec_index >= 0 and comments_index >= 0:
+        return {
+            "ok": true,
+            "remediation_id": "parallelize_confirmed_independent_calls",
+            "message": "Independent lookups are run concurrently while authentication and rendering stay ordered.",
+        }
+    if promise_index < 0:
+        return {"ok": false, "message": "The code still awaits the three lookups one after another."}
+    if auth_index < 0 or render_index < 0:
+        return {"ok": false, "message": "Keep authentication first and rendering last."}
+    return {"ok": false, "message": "The concurrent block does not preserve the required ordering."}
+
+func _scripted_test_result(test_id: String, remediation_id: String) -> Dictionary:
+    var test := _lookup(_scenario.get("tests", []), "test_id", test_id)
+    if test.is_empty():
+        return {}
+    var results: Dictionary = test.get("results_by_remediation", {})
+    return results.get(remediation_id, {})
+
+func _prompting_source_text() -> String:
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    var lines := PackedStringArray()
+    for line: Variant in orchestrator.get("content", []):
+        lines.append(str(line))
+    if lines.is_empty():
+        lines = PackedStringArray([
+            "await requireAuthenticatedUser(userId);",
+            "const details = await getVideoDetails(videoId);",
+            "const recommendations = await getRecommendations(videoId);",
+            "const comments = await getComments(videoId);",
+            "return renderWatchPage({ details, recommendations, comments });",
+        ])
+    return "\n".join(lines)
+
+func _prompting_reference_fix() -> String:
+    return "\n".join(PackedStringArray([
+        "await requireAuthenticatedUser(userId);",
+        "const [details, recommendations, comments] = await Promise.all([",
+        "  getVideoDetails(videoId),",
+        "  getRecommendations(videoId),",
+        "  getComments(videoId),",
+        "]);",
+        "return renderWatchPage({ details, recommendations, comments });",
+    ]))
+
+func _codex_offline_reply() -> String:
+    return "Codex is offline. Run only confirmed-independent calls concurrently, preserve required ordering, and apply the reference fix.\n```ts\n%s\n```" % _prompting_reference_fix()
+
+func _extract_code(reply: String) -> String:
+    var start := reply.find("```")
+    if start < 0:
+        return ""
+    var after := reply.find("\n", start)
+    if after < 0:
+        return ""
+    var end := reply.find("```", after + 1)
+    if end < 0:
+        return ""
+    return reply.substr(after + 1, end - after - 1).strip_edges()
+
+func _style_codex_editor(editor: CodeEdit) -> void:
+    var editor_box := StyleBoxFlat.new()
+    editor_box.bg_color = Color(0.12, 0.14, 0.19, 1)
+    editor_box.corner_radius_top_left = 8
+    editor_box.corner_radius_top_right = 8
+    editor_box.corner_radius_bottom_left = 8
+    editor_box.corner_radius_bottom_right = 8
+    editor_box.content_margin_left = 10
+    editor_box.content_margin_top = 8
+    editor_box.content_margin_right = 10
+    editor_box.content_margin_bottom = 8
+    editor.add_theme_stylebox_override("normal", editor_box)
+    editor.add_theme_stylebox_override("focus", editor_box)
+    editor.add_theme_stylebox_override("read_only", editor_box)
+    editor.add_theme_color_override("font_color", Color(0.9, 0.93, 0.98, 1))
+    editor.add_theme_color_override("font_readonly_color", Color(0.9, 0.93, 0.98, 1))
+    editor.add_theme_color_override("line_number_color", Color(0.55, 0.6, 0.72, 1))
+    editor.add_theme_color_override("current_line_color", Color(0.18, 0.21, 0.28, 0.7))
+    editor.add_theme_color_override("caret_color", Color(0.92, 0.94, 0.98, 1))
+    editor.add_theme_font_size_override("font_size", 15)
+    editor.syntax_highlighter = _codex_highlighter()
+
+func _codex_highlighter() -> CodeHighlighter:
+    var hl := CodeHighlighter.new()
+    hl.number_color = Color(0.71, 0.83, 0.66, 1)
+    hl.symbol_color = Color(0.9, 0.9, 0.9, 1)
+    hl.function_color = Color(0.86, 0.86, 0.58, 1)
+    hl.member_variable_color = Color(0.62, 0.81, 0.98, 1)
+    var kw := Color(0.35, 0.6, 0.9, 1)
+    var ctl := Color(0.77, 0.52, 0.85, 1)
+    for word: String in ["const", "let", "var", "function", "class", "interface", "type", "enum", "import", "export", "from", "new", "extends", "implements", "readonly", "void", "string", "number", "boolean", "Promise"]:
+        hl.add_keyword_color(word, kw)
+    for word: String in ["return", "await", "async", "if", "else", "for", "while", "try", "catch", "throw", "break", "continue"]:
+        hl.add_keyword_color(word, ctl)
+    var string_color := Color(0.9, 0.56, 0.44, 1)
+    hl.add_color_region("\"", "\"", string_color)
+    hl.add_color_region("'", "'", string_color)
+    hl.add_color_region("`", "`", string_color)
+    var comment_color := Color(0.4, 0.62, 0.38, 1)
+    hl.add_color_region("//", "", comment_color, true)
+    hl.add_color_region("/*", "*/", comment_color, false)
+    return hl
 
 func _update_brief_confirm() -> void:
     # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
@@ -581,6 +978,30 @@ func _refresh_evidence(snapshot: Dictionary) -> void:
 func _build_assistant_page() -> void:
     var body := _page_body("assistant")
     var interaction: Dictionary = _scenario.get("ai_interaction", {})
+    body.add_child(_heading("AI Assistant", 27, INK))
+    body.add_child(_heading("Live copilot — recorded. It reasons about the code/evidence; it won't hand you the answer.", 14, MUTED))
+    _assistant_log = RichTextLabel.new()
+    _assistant_log.bbcode_enabled = true
+    _assistant_log.fit_content = true
+    _assistant_log.scroll_active = true
+    _assistant_log.custom_minimum_size = Vector2(0, 240)
+    _assistant_log.add_theme_color_override("default_color", INK)
+    body.add_child(_assistant_log)
+    _assistant_history.clear()
+    _assistant_say("Assistant", "Hi — I'm your workspace copilot. Ask me about the trace, the logs, or the orchestrator code and I'll help you reason it through.", ACCENT["assistant"])
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 8)
+    body.add_child(row)
+    _assistant_input = LineEdit.new()
+    _assistant_input.placeholder_text = "Ask the assistant about the incident or the code…"
+    _assistant_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _assistant_input.focus_mode = Control.FOCUS_ALL
+    row.add_child(_assistant_input)
+    _assistant_send = _flat_button("Send")
+    _assistant_send.custom_minimum_size = Vector2(90, 0)
+    row.add_child(_assistant_send)
+    _assistant_input.text_submitted.connect(func(_t: String) -> void: _send_assistant())
+    _assistant_send.pressed.connect(_send_assistant)
     body.add_child(_heading("Codex — your AI copilot", 27, INK))
     body.add_child(_heading("Open the Codex console to read the source and ask Codex to help you resolve the incident. It reasons over the code and evidence and proposes fixes — it won't hand you the answer. Every prompt is recorded.", 14, MUTED))
     var open_console := _flat_button("Open Codex console  ➡")
@@ -601,6 +1022,60 @@ func _build_assistant_page() -> void:
         if _disposition_option.selected >= 0:
             disposition_submitted.emit(str(_disposition_option.get_item_metadata(_disposition_option.selected))))
 
+func _send_assistant() -> void:
+    if _assistant_sending or _assistant_input == null:
+        return
+    var text := _assistant_input.text.strip_edges()
+    if text.is_empty():
+        return
+    _assistant_input.text = ""
+    _assistant_say("You", text, INK)
+    _assistant_history.append({"role": "user", "content": text})
+    _assistant_sending = true
+    _assistant_send.disabled = true
+    _assistant_say("Assistant", "…", MUTED)
+    var payload := {"messages": _assistant_history, "task": _assistant_context()}
+    var headers := PackedStringArray(["Content-Type: application/json"])
+    var err := _assistant_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+    if err != OK:
+        _finish_assistant("(The copilot is offline — try the request trace on the Evidence tab and the code on Files & Tests.)")
+
+func _on_assistant_response(_result: int, code: int, _headers: PackedStringArray, resp: PackedByteArray) -> void:
+    if not _assistant_sending:
+        return
+    var reply := ""
+    if code == 200:
+        var parsed: Variant = JSON.parse_string(resp.get_string_from_utf8())
+        if parsed is Dictionary:
+            reply = str(parsed.get("reply", ""))
+    _finish_assistant(reply if not reply.is_empty() else "(The copilot is offline — try the request trace on the Evidence tab and the code on Files & Tests.)")
+
+func _finish_assistant(reply: String) -> void:
+    _assistant_history.append({"role": "assistant", "content": reply})
+    _assistant_sending = false
+    if _assistant_send != null:
+        _assistant_send.disabled = false
+    if _assistant_log != null:
+        var lines := _assistant_log.text.split("\n", false)
+        if lines.size() > 0 and lines[lines.size() - 1].contains("…"):
+            lines.remove_at(lines.size() - 1)
+        _assistant_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
+    _assistant_say("Assistant", reply, ACCENT["assistant"])
+
+func _assistant_context() -> String:
+    var parts := PackedStringArray([str(_scenario.get("brief", ""))])
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    if not orchestrator.is_empty():
+        parts.append("src/homepage_orchestrator.ts:")
+        for line: Variant in orchestrator.get("content", []):
+            parts.append(str(line))
+    return "\n".join(parts)
+
+func _assistant_say(speaker: String, text: String, color: Color) -> void:
+    if _assistant_log == null:
+        return
+    _assistant_log.text += "[color=#%s][b]%s[/b][/color]  %s\n" % [color.to_html(false), speaker, text]
+
 func _refresh_assistant(snapshot: Dictionary) -> void:
     if _disposition_status == null:
         return
@@ -615,7 +1090,7 @@ func _build_tests_page() -> void:
     # Seeded workspace file: the faulty homepage orchestrator the candidate is debugging.
     var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
     if not orchestrator.is_empty():
-        body.add_child(_heading("📄  src/watch_page_orchestrator.ts", 16, INK))
+        body.add_child(_heading("📄  src/homepage_orchestrator.ts", 16, INK))
         var code_panel := PanelContainer.new()
         var code_style := StyleBoxFlat.new()
         code_style.bg_color = Color(0.16, 0.18, 0.26, 1)
@@ -633,7 +1108,7 @@ func _build_tests_page() -> void:
         code.text = "\n".join(numbered)
         code_panel.add_child(code)
         body.add_child(code_panel)
-        body.add_child(_heading("The watch-page lookups run one after another (await … await …). Read the trace on the Evidence tab.", 13, MUTED))
+        body.add_child(_heading("The homepage lookups run one after another (await … await …). Read the trace on the Evidence tab.", 13, MUTED))
         body.add_child(HSeparator.new())
     body.add_child(_heading("Validation tests — run against a remediation to see the scripted result.", 15, MUTED))
     body.add_child(_heading("Remediation to validate", 15, INK))
@@ -814,8 +1289,6 @@ func _build_report_page() -> void:
     body.add_child(_report_heading)
     _report_status = _heading("", 15, ACCENT["report"])
     body.add_child(_report_status)
-    _report_score = _richtext("", 120)
-    body.add_child(_report_score)
     _report_details = _richtext("", 200)
     body.add_child(_report_details)
     body.add_child(HSeparator.new())
@@ -961,35 +1434,6 @@ func _add_workspace_card(parent: Container, title: String, accent: Color) -> VBo
     var content := VBoxContainer.new()
     content.add_theme_constant_override("separation", 9)
     panel.add_child(content)
-    content.add_child(_heading(title, 14, accent))
-    return content
-
-func _add_scrollable_workspace_card(parent: Container, title: String, accent: Color) -> VBoxContainer:
-    var panel := PanelContainer.new()
-    panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    var style := StyleBoxFlat.new()
-    style.bg_color = CARD
-    style.set_corner_radius_all(12)
-    style.set_border_width_all(1)
-    style.border_color = accent
-    style.border_width_top = 4
-    panel.add_theme_stylebox_override("panel", style)
-    parent.add_child(panel)
-    var scroll := ScrollContainer.new()
-    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-    panel.add_child(scroll)
-    var margins := MarginContainer.new()
-    margins.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    margins.add_theme_constant_override("margin_left", 16)
-    margins.add_theme_constant_override("margin_right", 16)
-    margins.add_theme_constant_override("margin_top", 14)
-    margins.add_theme_constant_override("margin_bottom", 16)
-    scroll.add_child(margins)
-    var content := VBoxContainer.new()
-    content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    content.add_theme_constant_override("separation", 9)
-    margins.add_child(content)
     content.add_child(_heading(title, 14, accent))
     return content
 
