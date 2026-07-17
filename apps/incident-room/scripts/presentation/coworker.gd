@@ -19,9 +19,16 @@ func _ready() -> void:
 		var b := body as Node3D
 		b.scale = Vector3.ONE * character_scale
 		b.rotate_y(extra_yaw)
-	add_child(body)
+	# Wrap the body in a breathing node so the seated pose isn't a frozen mannequin. The bob lives
+	# on the parent; the AnimationPlayer inside the body drives the skeleton, so they don't fight.
+	var bob := IdleBob.new()
+	add_child(bob)
+	bob.add_child(body)
 	var players := body.find_children("*", "AnimationPlayer", true, false)
 	if not players.is_empty():
 		var ap := players[0] as AnimationPlayer
 		if ap.has_animation(pose):
 			ap.play(pose)
+			ap.seek(0.0, true)  # force the sit pose onto the skeleton before we capture it
+	# Hands-and-head "working" motion; captures the sit pose, then owns the skeleton.
+	DeskActivity.attach_to(body)

@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/player_visual.gd" id="1_visual"]
 [ext_resource type="PackedScene" uid="uid://tm2knt3rdu1j" path="res://assets/third_party/kenney-mini-characters/character-male-b.glb" id="2_character"]
+[ext_resource type="Script" path="res://scripts/presentation/idle_bob.gd" id="3_bob"]
 
 [sub_resource type="CylinderMesh" id="BlobMesh"]
 top_radius = 0.4
@@ -19,7 +20,10 @@ albedo_color = Color(0.02, 0.03, 0.06, 0.35)
 script = ExtResource("1_visual")
 start_animation = "sit"
 
-[node name="Character" parent="." instance=ExtResource("2_character")]
+[node name="Bob" type="Node3D" parent="."]
+script = ExtResource("3_bob")
+
+[node name="Character" parent="Bob" instance=ExtResource("2_character")]
 transform = Transform3D(1.28, 0, 0, 0, 1.28, 0, 0, 0, 1.28, 0, 0, 0)
 
 [node name="BlobShadow" type="MeshInstance3D" parent="."]
