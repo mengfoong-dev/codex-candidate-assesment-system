@@ -24,6 +24,19 @@ The Railway deployment is a static browser build. Candidate evidence remains in 
 
 The [Godot Incident Room application](apps/incident-room/README.md) contains the independently loadable game, scenario, local evidence contract, and tests.
 
+## How we built it with Codex + GPT-5.6
+
+Codex (GPT-5.6) was our primary engineering agent. In our aggregate [usage log](docs/hackathon/codex-usage/sessions.csv), **114 of 137 recorded sessions were Codex**, and it carried the work end to end:
+
+- **Product and assessment design** — the Ownership Challenge format, the Homepage Latency Spike scenario, and the responsible-assessment evidence boundary.
+- **Documentation architecture** — Codex audited, designed, planned, and executed the full documentation migration and the repository-wide reference update.
+- **The Godot Incident Room** — office-layout and camera comparisons, the interaction design and art direction, the MVP implementation plan (a single 171-minute Codex session), the initial scaffold and scenario loader (91 minutes), and promoting the Godot project to the primary application path (61 minutes).
+- **Builds and deployment** — the verified Windows and single-threaded Web exports and the Railway deployment were implemented and shipped in Codex sessions.
+
+We also used Claude Code alongside Codex on parts of the work, including the backend MVP design. Full per-session detail — goals, outcomes, and timing — is in [`docs/hackathon/codex-usage/`](docs/hackathon/codex-usage/) (see [outcomes](docs/hackathon/codex-usage/outcomes.md) and the [session log](docs/hackathon/codex-usage/sessions.csv)).
+
+The evidence that matters is not prompt count. It is the chain Codex helped us build: problem framing → research validation → Ownership Challenge → observable candidate evidence → Proof Replay → human interview.
+
 ## What we are building
 
 VibeProof presents a short, realistic engineering **Ownership Challenge**. The candidate works through an incident using code, metrics, logs, traces, tests, and an AI assistant. The platform records observable evidence from the investigation and produces a **Proof Replay** for a human reviewer.
