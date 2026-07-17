@@ -12,9 +12,9 @@ const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summ
 @onready var notepad: Notepad = $UI/Notepad
 @onready var title_screen: Control = $UI/TitleScreen
 
-## Base URL of the FastAPI grading backend (e.g. https://vibeproof-backend-...up.railway.app).
-## Empty = offline prototype: keep the local unscored summary and skip backend grading.
-@export var backend_base_url := ""
+## Base URL of the FastAPI grading backend. Empty = offline prototype (local unscored
+## summary only); set = submit is graded by the backend and the real score is shown.
+@export var backend_base_url := "https://vibeproof-backend-production.up.railway.app"
 
 var _grader: BackendGrader
 var _last_submission: Dictionary = {}
