@@ -18,9 +18,8 @@ var _stored_email := ""
 
 func _ready() -> void:
 	_start.pressed.connect(_on_continue)
-	_email.text_submitted.connect(func(_t): _on_continue())
 	_enter.pressed.connect(_on_enter)
-	_email.grab_focus.call_deferred()
+	_start.grab_focus.call_deferred()
 
 func configure(scenario: Dictionary) -> void:
 	var notices: Dictionary = scenario.get("notices", {})
@@ -42,13 +41,8 @@ func configure(scenario: Dictionary) -> void:
 	])
 
 func _on_continue() -> void:
-	var email := _email.text.strip_edges()
-	if not _is_valid_email(email):
-		_hint.text = "Enter a valid email to start (e.g. you@company.com)."
-		_email.grab_focus()
-		return
 	_hint.text = ""
-	_stored_email = email
+	_stored_email = ""
 	_entry.visible = false
 	_story.visible = true
 	_enter.grab_focus.call_deferred()
