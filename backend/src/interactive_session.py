@@ -145,6 +145,14 @@ async def run_guided_session(
     sandbox_files = [str(file["path"]) for file in created["files"]]
     _emit_scenario_start(scenario=scenario, sandbox_files=sandbox_files, emit=emit)
 
+    # ADR 0001: when the true on-disk sandbox is active, tell the operator where the real files
+    # live so they can open/edit them directly between turns (a genuine modification the next
+    # `run test` will grade). No-op under the default DB backend.
+    from src.workspace import sandbox as _sandbox
+
+    if _sandbox.enabled():
+        emit(f"True sandbox directory (real files — edit them directly between turns): {_sandbox.session_dir(session_id)}")
+
     prompt_iterator = iter(prompts) if prompts is not None else None
     completed_turns = 0
     for turn_number in range(1, MAX_CANDIDATE_TURNS + 1):

@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     default_scenario_id: str = "homepage_latency"
     default_scenario_version: str = "1.0.0"
 
+    # --- Workspace backend (ADR 0001 — opt-in override of decision D006 "nothing executes") ---
+    # "db" (default): Virtual Workspace = session_files rows, no code ever runs (D006 intact — this
+    #   is what the web MVP always uses). "fs": a real per-session directory on disk where the AI's
+    #   write_file lands as a real file and `run test` runs a real `vitest run`. Only the local
+    #   interactive CLI sets this; leaving it unset keeps production behavior byte-for-byte.
+    workspace_backend: str = "db"
+    # Where the on-disk sandboxes live when workspace_backend="fs". None -> a stable folder under
+    # the OS temp dir, so the Node toolchain is installed once and reused across CLI runs.
+    workspace_sandbox_root: Path | None = None
+
     # --- Cohere Command A+ (simulation + primary grading panel) ---
     cohere_api_key: str | None = None
     cohere_model: str = "command-a-plus-05-2026"
