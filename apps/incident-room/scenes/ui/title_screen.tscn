@@ -1,6 +1,70 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/title_screen.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/ui/entry_hero.png" id="2_hero"]
+
+[sub_resource type="Gradient" id="ScrimGrad"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.02, 0.03, 0.055, 0.94, 0.02, 0.03, 0.055, 0.55, 0.02, 0.03, 0.055, 0.08)
+
+[sub_resource type="GradientTexture2D" id="ScrimTex"]
+gradient = SubResource("ScrimGrad")
+fill_from = Vector2(0, 0)
+fill_to = Vector2(1, 0)
+
+[sub_resource type="StyleBoxFlat" id="Field"]
+bg_color = Color(0.06, 0.08, 0.12, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.5, 0.62, 0.7)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="CTA"]
+bg_color = Color(0.95, 0.62, 0.22, 1)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+content_margin_left = 20.0
+content_margin_top = 14.0
+content_margin_right = 20.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxFlat" id="CTAHover"]
+bg_color = Color(1, 0.7, 0.32, 1)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+content_margin_left = 20.0
+content_margin_top = 14.0
+content_margin_right = 20.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxFlat" id="Card"]
+bg_color = Color(0.04, 0.055, 0.08, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.36, 0.46, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 34.0
+content_margin_top = 30.0
+content_margin_right = 34.0
+content_margin_bottom = 30.0
 
 [node name="TitleScreen" type="Control"]
 layout_mode = 3
@@ -11,60 +75,183 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Hero" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.055, 0.071, 0.11, 1)
+texture = ExtResource("2_hero")
+expand_mode = 1
+stretch_mode = 6
 mouse_filter = 2
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Scrim" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 180.0
-offset_top = 90.0
-offset_right = -180.0
-offset_bottom = -90.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 40
-theme_override_constants/margin_top = 32
-theme_override_constants/margin_right = 40
-theme_override_constants/margin_bottom = 32
+texture = SubResource("ScrimTex")
+expand_mode = 1
+stretch_mode = 6
+mouse_filter = 2
 
-[node name="Layout" type="VBoxContainer" parent="Margin"]
+[node name="Entry" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 96
+theme_override_constants/margin_top = 72
+theme_override_constants/margin_right = 96
+theme_override_constants/margin_bottom = 64
+
+[node name="Col" type="VBoxContainer" parent="Entry"]
 layout_mode = 2
-theme_override_constants/separation = 18
+size_flags_horizontal = 0
+size_flags_vertical = 1
+custom_minimum_size = Vector2(560, 0)
+theme_override_constants/separation = 14
 
-[node name="Eyebrow" type="Label" parent="Margin/Layout"]
+[node name="Eyebrow" type="Label" parent="Entry/Col"]
 layout_mode = 2
-text = "VIBEPROOF • OFFLINE CANDIDATE PROTOTYPE"
+theme_override_colors/font_color = Color(0.98, 0.66, 0.3, 1)
+theme_override_font_sizes/font_size = 15
+text = "INCIDENT  ·  P1  ·  ON-CALL"
 
-[node name="Heading" type="Label" parent="Margin/Layout"]
+[node name="Heading" type="Label" parent="Entry/Col"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 42
-text = "Incident Room"
+theme_override_colors/font_color = Color(0.95, 0.97, 0.99, 1)
+theme_override_font_sizes/font_size = 60
+text = "The homepage is slow."
 
-[node name="Subheading" type="Label" parent="Margin/Layout"]
+[node name="Stakes" type="Label" parent="Entry/Col"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Homepage latency investigation"
+theme_override_colors/font_color = Color(0.74, 0.8, 0.86, 1)
+theme_override_font_sizes/font_size = 19
+text = "p95 latency jumped 180 ms → 850 ms after the last release. CPU is fine. Users are complaining. You just got paged."
+autowrap_mode = 2
+custom_minimum_size = Vector2(540, 0)
 
-[node name="Notices" type="RichTextLabel" parent="Margin/Layout"]
-custom_minimum_size = Vector2(0, 210)
+[node name="Spacer1" type="Control" parent="Entry/Col"]
 layout_mode = 2
-size_flags_vertical = 3
-text = "This prototype supports human review and does not make an employment decision.\n\nResults are scenario-specific evidence, not a validated psychometric judgment.\n\nNavigation speed and game-control performance are not scored."
-fit_content = true
+custom_minimum_size = Vector2(0, 10)
 
-[node name="Start" type="Button" parent="Margin/Layout"]
-custom_minimum_size = Vector2(0, 56)
+[node name="LoginLabel" type="Label" parent="Entry/Col"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.68, 0.75, 1)
+theme_override_font_sizes/font_size = 13
+text = "SIGN IN TO START YOUR SESSION"
+
+[node name="Row" type="HBoxContainer" parent="Entry/Col"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Email" type="LineEdit" parent="Entry/Col/Row"]
+visible = false
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.96, 0.98, 1)
+theme_override_colors/font_placeholder_color = Color(0.5, 0.57, 0.64, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("Field")
+theme_override_styles/focus = SubResource("Field")
+placeholder_text = "you@company.com"
+
+[node name="Start" type="Button" parent="Entry/Col/Row"]
 layout_mode = 2
 focus_mode = 2
-text = "Begin incident briefing"
+theme_override_colors/font_color = Color(0.1, 0.06, 0.02, 1)
+theme_override_colors/font_hover_color = Color(0.1, 0.06, 0.02, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("CTA")
+theme_override_styles/hover = SubResource("CTAHover")
+theme_override_styles/pressed = SubResource("CTA")
+theme_override_styles/focus = SubResource("CTAHover")
+text = "Continue  →"
 
+text = "Start assessment"
+
+[node name="Hint" type="Label" parent="Entry/Col"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.4, 0.36, 1)
+theme_override_font_sizes/font_size = 13
+text = ""
+
+[node name="Spacer2" type="Control" parent="Entry/Col"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Notices" type="RichTextLabel" parent="Entry/Col"]
+custom_minimum_size = Vector2(560, 66)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.5, 0.57, 0.63, 1)
+theme_override_font_sizes/normal_font_size = 12
+bbcode_enabled = true
+fit_content = true
+text = "Human-reviewed prototype — no automated hiring decision. AI use is allowed and expected. Navigation is not scored."
+
+[node name="Story" type="MarginContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 96
+theme_override_constants/margin_top = 80
+theme_override_constants/margin_right = 96
+theme_override_constants/margin_bottom = 72
+
+[node name="Card" type="PanelContainer" parent="Story"]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+custom_minimum_size = Vector2(720, 0)
+theme_override_styles/panel = SubResource("Card")
+
+[node name="CardCol" type="VBoxContainer" parent="Story/Card"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SEyebrow" type="Label" parent="Story/Card/CardCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.66, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+text = "MISSION BRIEF"
+
+[node name="STitle" type="Label" parent="Story/Card/CardCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.97, 0.99, 1)
+theme_override_font_sizes/font_size = 30
+text = "Homepage Latency Spike"
+
+[node name="SBody" type="RichTextLabel" parent="Story/Card/CardCol"]
+custom_minimum_size = Vector2(680, 250)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.82, 0.87, 0.91, 1)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_font_sizes/bold_font_size = 16
+bbcode_enabled = true
+fit_content = true
+text = ""
+
+[node name="SEnter" type="Button" parent="Story/Card/CardCol"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(0.1, 0.06, 0.02, 1)
+theme_override_colors/font_hover_color = Color(0.1, 0.06, 0.02, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("CTA")
+theme_override_styles/hover = SubResource("CTAHover")
+theme_override_styles/pressed = SubResource("CTA")
+theme_override_styles/focus = SubResource("CTAHover")
+text = "Walk into the office  →"

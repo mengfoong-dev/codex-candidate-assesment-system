@@ -53,7 +53,16 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
 
     workspace.configure(scenario)
     var tabs := workspace.get_node("Frame/TabStrip/Tabs")
-    t.assert_true(tabs.get_child_count() >= 5, "workspace builds the five backend tabs")
+    t.assert_true(tabs.get_child_count() >= 6, "workspace builds the candidate and backend tabs")
+    var has_home_tab := false
+    var has_prompting_tab := false
+    for child: Node in tabs.get_children():
+        if child is Button and (child as Button).text == "Home":
+            has_home_tab = true
+        if child is Button and (child as Button).text == "Codex":
+            has_prompting_tab = true
+    t.assert_true(has_home_tab, "workspace preserves the Home navigation tab")
+    t.assert_true(has_prompting_tab, "workspace has the Codex prompting tab")
 
     # Brief tab exposes every hypothesis; Submit tab exposes the submission options.
     workspace.set_started(true)

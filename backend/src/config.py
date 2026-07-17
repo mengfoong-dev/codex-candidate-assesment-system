@@ -1,13 +1,16 @@
 """Application settings, loaded from environment / .env via pydantic-settings.
 
 Why pydantic-settings over os.getenv: it validates types (int/list/bool) at startup and gives
-one typed object instead of scattered string lookups — a misconfigured value fails loudly on
+one typed object instead of scattered string lookups - a misconfigured value fails loudly on
 boot, not mid-request.
 """
+import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -16,7 +19,27 @@ class Settings(BaseSettings):
     )
 
     # --- HTTP / CORS ---
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # NoDecode: parse the raw env string ourselves so a misquoted value (comma-separated,
+    # or "[https://a]" with the quotes stripped by a shell/CLI) can't crash startup.
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173", "http://localhost:3000"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            text = str(parsed)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        text = text.strip().lstrip("[").rstrip("]")
+        return [part.strip().strip('"').strip("'") for part in text.split(",") if part.strip()]
 
     # --- Database (Postgres later = swap this string only, per decision B5) ---
     database_url: str = "sqlite+aiosqlite:///./vibeproof.db"
@@ -49,5 +72,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Cached singleton — Settings reads the env once; every caller shares the same object."""
+    """Cached singleton - Settings reads the env once; every caller shares the same object."""
     return Settings()

@@ -17,6 +17,21 @@ The animated characters use the `character-female-{a-f}.glb` and `character-male
 - Local license copy: `assets/third_party/kenney-mini-characters/LICENSE.txt`.
 - Regenerate with `scripts/development/acquire_art_assets.ps1`.
 
+## Noto Sans + Noto Emoji (UI font)
+
+The project-wide UI font (`assets/ui/default_font.tres`, wired via `gui/theme/custom_font`)
+is a `FontVariation` combining **Noto Sans** (base, normal/Latin text) and **Noto Emoji**
+(monochrome, fallback) so the emoji used as icons in labels — e.g. `💻 Open PC`,
+`📝 Notepad`, `⬆ Get up` — render as glyphs instead of "tofu" boxes. Both fonts are
+embedded with `allow_system_fallback` disabled so rendering is identical on Desktop and
+Web (the Web export has no system fonts to borrow).
+
+- Sources: Google Fonts / `google/fonts` — `ofl/notosans/NotoSans[wdth,wght].ttf` and
+  `ofl/notoemoji/NotoEmoji[wght].ttf`, copyright Google LLC.
+- License: SIL Open Font License 1.1 (both).
+- Vendored as `assets/third_party/fonts/NotoSans.ttf` and `assets/third_party/fonts/NotoEmoji.ttf`.
+- Local license copy: `assets/third_party/fonts/OFL.txt`.
+
 ## Isometric Office (open-plan)
 
 The active 3D office environment is "Isometric office" by **Companion_Cube**, licensed
