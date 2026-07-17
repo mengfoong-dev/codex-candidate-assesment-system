@@ -122,6 +122,7 @@ func _send() -> void:
     if text.is_empty():
         return
     _chat_input.text = ""
+    _chat_input.grab_focus.call_deferred()  # Enter submits but shouldn't drop the cursor — keep typing
     _say("You", text, INK)
     _history.append({"role": "user", "content": text})
     _sending = true
@@ -159,6 +160,8 @@ func _finish_reply(reply: String) -> void:
             lines.remove_at(lines.size() - 1)
         _chat_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
     _say("Sam", reply, SENIOR)
+    if _chat_input != null:
+        _chat_input.grab_focus.call_deferred()  # keep the cursor in the box so you can just keep talking
 
 func _fallback() -> String:
     return "I can't get to my terminal this second — start with the request trace at your desk and see where the time actually goes."

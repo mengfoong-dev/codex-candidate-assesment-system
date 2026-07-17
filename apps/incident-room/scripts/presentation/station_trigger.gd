@@ -19,6 +19,11 @@ func _ready() -> void:
     station_label.modulate = accent_color
     station_label.position.y = label_height
     _landmark = get_node_or_null("Landmark")
+    var lm := _landmark as Node3D
+    if lm != null:
+        lm.position.y = label_height + 0.4  # pip floats just above the name tag
+        if lm.has_method("set_color"):
+            lm.call("set_color", accent_color)
     body_entered.connect(_on_body_entered)
     body_exited.connect(_on_body_exited)
 

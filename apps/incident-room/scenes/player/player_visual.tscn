@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/player_visual.gd" id="1_visual"]
-[ext_resource type="PackedScene" uid="uid://bl6br5lv46pbj" path="res://assets/third_party/kenney-mini-characters/character-female-a.glb" id="2_character"]
+[ext_resource type="PackedScene" uid="uid://dlu5sywmgp2cc" path="res://assets/third_party/kenney-mini-characters/character-male-c.glb" id="2_character"]
 
 [sub_resource type="CylinderMesh" id="BlobMesh"]
 top_radius = 0.4
