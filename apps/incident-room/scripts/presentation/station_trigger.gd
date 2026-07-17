@@ -14,7 +14,6 @@ signal interaction_requested(station_id: String)
 
 @onready var station_label: Label3D = $StationLabel
 
-var _landmark: Node = null
 var _active := false
 var _t := 0.0
 var _overlay: StandardMaterial3D
@@ -25,12 +24,6 @@ func _ready() -> void:
     station_label.text = station_title
     station_label.modulate = accent_color
     station_label.position.y = label_height
-    _landmark = get_node_or_null("Landmark")
-    var lm := _landmark as Node3D
-    if lm != null:
-        lm.position.y = label_height + 0.4  # pip floats just above the name tag
-        if lm.has_method("set_color"):
-            lm.call("set_color", accent_color)
     # Additive, unshaded overlay drawn over the object's own texture — brightens it in the
     # accent colour (a "glow") without replacing its material. Per-MeshInstance3D, so only
     # this station's object lights up. Alpha is pulsed in _process while in range.
@@ -52,10 +45,8 @@ func _process(delta: float) -> void:
     var pulse := 0.5 + 0.5 * sin(_t * 5.0)
     _overlay.albedo_color.a = 0.32 + 0.34 * pulse
 
-func _set_landmark_active(active: bool) -> void:
+func _set_active(active: bool) -> void:
     _active = active
-    if _landmark != null and _landmark.has_method("set_active"):
-        _landmark.set_active(active)
     if active and not _gathered:
         _gather_highlight_meshes()
     for m in _highlight_meshes:
@@ -109,9 +100,9 @@ func _world_box(m: MeshInstance3D) -> Array:
 func _on_body_entered(body: Node3D) -> void:
     if body.has_method("register_station"):
         body.register_station(self)
-    _set_landmark_active(true)
+    _set_active(true)
 
 func _on_body_exited(body: Node3D) -> void:
     if body.has_method("unregister_station"):
         body.unregister_station(self)
-    _set_landmark_active(false)
+    _set_active(false)

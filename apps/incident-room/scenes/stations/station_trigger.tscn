@@ -1,22 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/station_trigger.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/presentation/landmark.gd" id="2"]
 
 [sub_resource type="BoxShape3D" id="StationShape"]
 size = Vector3(3.2, 2.0, 2.0)
-
-[sub_resource type="SphereMesh" id="OrbMesh"]
-radius = 0.09
-height = 0.18
-radial_segments = 16
-rings = 8
-
-[sub_resource type="StandardMaterial3D" id="OrbMat"]
-resource_local_to_scene = true
-transparency = 1
-shading_mode = 0
-albedo_color = Color(0.2, 0.75, 0.95, 0.4)
 
 [node name="StationTrigger" type="Area3D"]
 collision_layer = 0
@@ -34,10 +21,3 @@ font_size = 42
 outline_size = 8
 text = "Station"
 billboard = 1
-
-[node name="Landmark" type="Node3D" parent="."]
-script = ExtResource("2")
-
-[node name="Orb" type="MeshInstance3D" parent="Landmark"]
-mesh = SubResource("OrbMesh")
-material_override = SubResource("OrbMat")
