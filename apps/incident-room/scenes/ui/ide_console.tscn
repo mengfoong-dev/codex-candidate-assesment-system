@@ -1,0 +1,124 @@
+[gd_scene load_steps=2 format=3 uid="uid://bideconsolevibe0"]
+
+[ext_resource type="Script" path="res://scripts/presentation/ide_console.gd" id="1_ide"]
+
+[node name="IDEConsole" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_ide")
+
+[node name="Body" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+
+[node name="BG" type="ColorRect" parent="Body"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.117647, 0.117647, 0.117647, 1)
+
+[node name="Margin" type="MarginContainer" parent="Body"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="Rows" type="VBoxContainer" parent="Body/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleBar" type="HBoxContainer" parent="Body/Margin/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Body/Margin/Rows/TitleBar"]
+layout_mode = 2
+text = "CODEX  —  src/watch_page_orchestrator.ts"
+
+[node name="Spacer" type="Control" parent="Body/Margin/Rows/TitleBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Close" type="Button" parent="Body/Margin/Rows/TitleBar"]
+layout_mode = 2
+text = "✕  Close  ( ` )"
+
+[node name="Split" type="HSplitContainer" parent="Body/Margin/Rows"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 210
+
+[node name="FileRail" type="ItemList" parent="Body/Margin/Rows/Split"]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+
+[node name="Right" type="VSplitContainer" parent="Body/Margin/Rows/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+split_offset = -190
+
+[node name="Editor" type="CodeEdit" parent="Body/Margin/Rows/Split/Right"]
+layout_mode = 2
+size_flags_vertical = 3
+gutters_draw_line_numbers = true
+gutters_draw_fold_gutter = false
+
+[node name="Term" type="PanelContainer" parent="Body/Margin/Rows/Split/Right"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+
+[node name="TV" type="VBoxContainer" parent="Body/Margin/Rows/Split/Right/Term"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Scroll" type="RichTextLabel" parent="Body/Margin/Rows/Split/Right/Term/TV"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+
+[node name="PromptRow" type="HBoxContainer" parent="Body/Margin/Rows/Split/Right/Term/TV"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Caret" type="Label" parent="Body/Margin/Rows/Split/Right/Term/TV/PromptRow"]
+layout_mode = 2
+text = "▸"
+
+[node name="Input" type="LineEdit" parent="Body/Margin/Rows/Split/Right/Term/TV/PromptRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Ask Codex to change the code…  (e.g. \"make the awaits run in parallel\")"
+
+[node name="Hint" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -240.0
+offset_top = -44.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+text = "  `  Codex IDE  "
+horizontal_alignment = 1
+vertical_alignment = 1

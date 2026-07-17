@@ -57,10 +57,6 @@ class Settings(BaseSettings):
     sim_max_tokens: int = 1024
     sim_temperature: float = 0.2
 
-    # --- Candidate chat provider (Gemini) ---
-    gemini_api_key: str | None = None
-    gemini_chat_model: str = "gemini-2.5-flash-lite"
-
     # --- Grading panel: Groq + NVIDIA NIM, both OpenAI-compatible (one client, base-URL swap) ---
     groq_api_key: str | None = None
     groq_base_url: str = "https://api.groq.com/openai/v1"
