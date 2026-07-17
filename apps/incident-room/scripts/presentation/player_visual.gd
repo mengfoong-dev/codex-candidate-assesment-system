@@ -21,7 +21,10 @@ func _ready() -> void:
                 _animation_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
     if not start_animation.is_empty() and _animation_player != null and _animation_player.has_animation(start_animation):
         _animation_player.play(start_animation)
+        _animation_player.seek(0.0, true)  # force the pose onto the skeleton before capture
         _current = start_animation
+        # Posed NPC (e.g. Sam): add the same hands-and-head "working" motion the coworkers get.
+        DeskActivity.attach_to(self)
     else:
         set_moving(false)
 
