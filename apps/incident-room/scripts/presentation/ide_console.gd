@@ -1,8 +1,8 @@
 class_name IDEConsole
 extends Control
 
-## In-game "Codex" IDE: a dark, VS Code-style editor + terminal over the incident source code.
-## The candidate reads/edits the real scenario source and asks "Codex" (the senior-proxy assistant)
+## In-game "Codex" IDE: a Claude-style split workspace with prompting on the left and
+## editable incident source on the right. The candidate asks "Codex" (the senior-proxy assistant)
 ## to change it; a fenced ```code``` block in the reply is applied straight into the editor.
 ##
 ## Self-contained by design: owns its own show/hide (backtick or the Close button), pauses the
@@ -38,19 +38,29 @@ const AMBER := Color("dcdcaa")
 
 @onready var _body: Control = $Body
 @onready var _hint: Label = $Hint
+@onready var _brand: Label = $Body/Margin/Rows/TitleBar/Brand
 @onready var _title: Label = $Body/Margin/Rows/TitleBar/Title
 @onready var _close: Button = $Body/Margin/Rows/TitleBar/Close
-@onready var _file_rail: ItemList = $Body/Margin/Rows/Split/FileRail
-@onready var _editor: CodeEdit = $Body/Margin/Rows/Split/Right/Editor
-@onready var _term: PanelContainer = $Body/Margin/Rows/Split/Right/Term
-@onready var _scroll: RichTextLabel = $Body/Margin/Rows/Split/Right/Term/TV/Scroll
-@onready var _input: LineEdit = $Body/Margin/Rows/Split/Right/Term/TV/PromptRow/Input
+@onready var _file_path: Label = $Body/Margin/Rows/Split/Code/Header/FilePath
+@onready var _file_rail: ItemList = $Body/Margin/Rows/Split/Code/Header/FileRail
+@onready var _source_label: Label = $Body/Margin/Rows/Split/Code/Header/SourceLabel
+@onready var _saved: Label = $Body/Margin/Rows/Split/Code/Header/Saved
+@onready var _editor: CodeEdit = $Body/Margin/Rows/Split/Code/WorkArea/Editor
+@onready var _terminal: PanelContainer = $Body/Margin/Rows/Split/Code/WorkArea/Terminal
+@onready var _terminal_output: RichTextLabel = $Body/Margin/Rows/Split/Code/WorkArea/Terminal/Column/Output
+@onready var _terminal_status: Label = $Body/Margin/Rows/Split/Code/WorkArea/Terminal/Column/Header/Status
+@onready var _conversation: PanelContainer = $Body/Margin/Rows/Split/Conversation
+@onready var _composer: PanelContainer = $Body/Margin/Rows/Split/Conversation/Column/Composer
+@onready var _scroll: RichTextLabel = $Body/Margin/Rows/Split/Conversation/Column/Scroll
+@onready var _input: TextEdit = $Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow/Input
+@onready var _send: Button = $Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow/Send
 
 var _http: HTTPRequest
 var _files := {}          # path -> source text
 var _brief := ""
 var _history: Array = []  # [{role, content}] sent to the assistant
-var _lines: Array = []    # terminal scrollback (bbcode lines)
+var _lines: Array = []    # conversation transcript (bbcode lines)
+var _terminal_lines: Array = []
 var _busy := false
 var _paused_by_us := false
 
@@ -60,11 +70,11 @@ func _ready() -> void:
 	_http.request_completed.connect(_on_reply)
 	_apply_theme()
 	_close.pressed.connect(hide_console)
-	_input.text_submitted.connect(_on_submit)
-	_file_rail.item_selected.connect(func(i: int) -> void: _show_file(_file_rail.get_item_text(i)))
+	_input.gui_input.connect(_on_prompt_input)
+	_send.pressed.connect(func() -> void: _on_submit(_input.text))
 	_seed_from_scenario()
 	_hint.visible = false  # PC-only now: opened from the workspace, not a floating backtick hint
-	_greet()
+	_terminal_log("[color=#8b949e]Workspace ready. Use the assessment Run control to validate your change.[/color]")
 
 ## Clear every per-candidate trace (chat history, terminal scrollback, edited source) so the
 ## next session starts clean. Called by main.restart_session — the console is a persistent scene
@@ -72,18 +82,17 @@ func _ready() -> void:
 func reset() -> void:
 	_history.clear()
 	_lines.clear()
+	_terminal_lines.clear()
 	_busy = false
 	if is_instance_valid(_input):
 		_input.editable = true
 		_input.clear()
+	if is_instance_valid(_send):
+		_send.disabled = false
 	_seed_from_scenario()  # re-reads pristine source into the editor
-	_greet()
+	_terminal_status.text = "Ready"
+	_terminal_log("[color=#8b949e]Workspace ready. Use the assessment Run control to validate your change.[/color]")
 	hide_console()
-
-func _greet() -> void:
-	_log("[color=#858585]Codex online. Read the source on the left, then ask for a change below.[/color]")
-	if not _brief.is_empty():
-		_log("[color=#858585]incident: %s[/color]" % _escape(_brief))
 
 # --- show / hide ---------------------------------------------------------
 
@@ -121,7 +130,9 @@ func hide_console() -> void:
 
 func _apply_theme() -> void:
 	var mono: Font = load(FONT_PATH) if ResourceLoader.exists(FONT_PATH) else null
-	var editor_box := _flat(BG, 10, 8)
+	var editor_box := _flat(BG, 18, 16)
+	editor_box.border_color = Color("30363d")
+	editor_box.set_border_width_all(1)
 	_editor.add_theme_stylebox_override("normal", editor_box)
 	_editor.add_theme_stylebox_override("focus", editor_box)
 	_editor.add_theme_stylebox_override("read_only", editor_box)
@@ -132,17 +143,55 @@ func _apply_theme() -> void:
 	_editor.add_theme_color_override("caret_color", Color("aeafad"))
 	_editor.add_theme_font_size_override("font_size", 15)
 	_editor.syntax_highlighter = _ts_highlighter()
-	_term.add_theme_stylebox_override("panel", _flat(PANEL, 10, 8))
-	_scroll.add_theme_color_override("default_color", Color("cccccc"))
+	var conversation_box := _flat(Color("111827"), 18, 16)
+	conversation_box.border_color = Color("30363d")
+	conversation_box.set_border_width_all(1)
+	conversation_box.set_corner_radius_all(10)
+	_conversation.add_theme_stylebox_override("panel", conversation_box)
+	var composer_box := _flat(Color("0d1117"), 12, 10)
+	composer_box.border_color = Color("30363d")
+	composer_box.set_border_width_all(1)
+	composer_box.set_corner_radius_all(8)
+	_composer.add_theme_stylebox_override("panel", composer_box)
+	var terminal_box := _flat(Color("0d1117"), 14, 10)
+	terminal_box.border_color = Color("30363d")
+	terminal_box.set_border_width_all(1)
+	terminal_box.set_corner_radius_all(8)
+	_terminal.add_theme_stylebox_override("panel", terminal_box)
+	_scroll.add_theme_color_override("default_color", Color("c9d1d9"))
 	_scroll.add_theme_font_size_override("normal_font_size", 14)
-	_title.add_theme_color_override("font_color", MUTED)
+	_scroll.add_theme_constant_override("line_separation", 7)
+	_terminal_output.add_theme_color_override("default_color", Color("8b949e"))
+	_terminal_output.add_theme_font_size_override("normal_font_size", 13)
+	_terminal_status.add_theme_color_override("font_color", Color("8b949e"))
+	_brand.add_theme_color_override("font_color", Color("f0f6fc"))
+	_brand.add_theme_font_size_override("font_size", 20)
+	_title.add_theme_color_override("font_color", Color("8b949e"))
+	_title.add_theme_font_size_override("font_size", 16)
+	_source_label.add_theme_color_override("font_color", Color("8b949e"))
+	_source_label.add_theme_font_size_override("font_size", 12)
+	_file_path.add_theme_color_override("font_color", Color("f0f6fc"))
+	_file_path.add_theme_font_size_override("font_size", 16)
+	_saved.add_theme_color_override("font_color", Color("3fb950"))
 	_hint.add_theme_color_override("font_color", Color("cccccc"))
 	_hint.add_theme_stylebox_override("normal", _flat(Color(0.09, 0.09, 0.09, 0.85), 8, 4))
+	var input_box := _flat(Color("161b22"), 14, 12)
+	input_box.set_corner_radius_all(8)
+	_input.add_theme_stylebox_override("normal", input_box)
+	_input.add_theme_stylebox_override("focus", input_box)
+	_input.add_theme_color_override("font_color", Color("f0f6fc"))
+	_input.add_theme_color_override("font_placeholder_color", Color("7d8590"))
+	var send_box := _flat(Color("238636"), 12, 8)
+	send_box.set_corner_radius_all(6)
+	_send.add_theme_stylebox_override("normal", send_box)
+	_send.add_theme_stylebox_override("hover", _flat(Color("2ea043"), 12, 8))
+	_send.add_theme_color_override("font_color", Color("ffffff"))
 	if mono != null:
 		_editor.add_theme_font_override("font", mono)
 		_scroll.add_theme_font_override("normal_font", mono)
 		_scroll.add_theme_font_override("bold_font", mono)
-		for c in [_title, _input, _file_rail, _hint]:
+		_terminal_output.add_theme_font_override("normal_font", mono)
+		for c in [_title, _file_path, _input, _hint]:
 			c.add_theme_font_override("font", mono)
 
 func _flat(color: Color, pad_x: int, pad_y: int) -> StyleBoxFlat:
@@ -194,7 +243,7 @@ func _seed_from_scenario() -> void:
 	_files[EDITOR_TAB] = src
 	_file_rail.clear()
 	_file_rail.add_item(EDITOR_TAB)
-	_file_rail.select(0)
+	_file_path.text = EDITOR_TAB
 	_show_file(EDITOR_TAB)
 
 func _lookup(items: Variant, key: String, value: String) -> Dictionary:
@@ -206,9 +255,14 @@ func _lookup(items: Variant, key: String, value: String) -> Dictionary:
 
 func _show_file(path: String) -> void:
 	_editor.text = str(_files.get(path, ""))
-	_title.text = "CODEX  —  %s" % path
+	_file_path.text = path
 
 # --- prompt -> assistant -> apply ---------------------------------------
+
+func _on_prompt_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER and not event.shift_pressed:
+		_on_submit(_input.text)
+		_input.get_viewport().set_input_as_handled()
 
 func _on_submit(text: String) -> void:
 	var prompt := text.strip_edges()
@@ -216,11 +270,14 @@ func _on_submit(text: String) -> void:
 		return
 	_input.clear()
 	prompt_submitted.emit(prompt)
-	_log("[color=#4ec9b0]▸ you[/color]  %s" % _escape(prompt))
+	_log("[color=#79c0ff][b]YOU[/b][/color]\n%s" % _escape(prompt))
 	_history.append({"role": "user", "content": prompt})
 	_busy = true
 	_input.editable = false
-	_log("[color=#858585]codex is thinking…[/color]")
+	_send.disabled = true
+	_terminal_status.text = "Working"
+	_terminal_log("[color=#79c0ff]›[/color] Codex request sent")
+	_log("[color=#8b949e][i]Codex is thinking…[/i][/color]")
 	var payload := {"messages": _history, "task": _task_context()}
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var err := _http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
@@ -251,14 +308,19 @@ func apply_assistant_reply(reply: String) -> void:
 	_history.append({"role": "assistant", "content": reply})
 	_remove_thinking()
 	var prose := _strip_code(reply)
-	_log("[color=#dcdcaa]codex[/color]  %s" % _escape(prose if not prose.strip_edges().is_empty() else reply))
+	_log("[color=#d2a8ff][b]CODEX[/b][/color]\n%s" % _escape(prose if not prose.strip_edges().is_empty() else reply))
 	var code := _extract_code(reply)
 	if not code.is_empty():
 		_files[EDITOR_TAB] = code
 		_editor.text = code
-		_log("[color=#6a9955]✓ applied Codex's edit to %s[/color]" % EDITOR_TAB)
+		_terminal_status.text = "Changed"
+		_terminal_log("[color=#3fb950]✓[/color] Applied Codex change to %s" % EDITOR_TAB)
+	else:
+		_terminal_status.text = "Review"
+		_terminal_log("[color=#8b949e]Codex reply received; no code change applied.[/color]")
 	_busy = false
 	_input.editable = true
+	_send.disabled = false
 
 # --- fenced-code helpers (reused from browser_workspace's proven parser) -
 
@@ -288,10 +350,15 @@ func _log(bbcode_line: String) -> void:
 		_scroll.text = "\n".join(_lines)
 
 func _remove_thinking() -> void:
-	if _lines.size() > 0 and str(_lines[_lines.size() - 1]).contains("thinking…"):
+	if _lines.size() > 0 and str(_lines[_lines.size() - 1]).contains("Codex is thinking"):
 		_lines.remove_at(_lines.size() - 1)
 		if is_instance_valid(_scroll):
 			_scroll.text = "\n".join(_lines)
+
+func _terminal_log(bbcode_line: String) -> void:
+	_terminal_lines.append(bbcode_line)
+	if is_instance_valid(_terminal_output):
+		_terminal_output.text = "\n".join(_terminal_lines)
 
 func _escape(s: String) -> String:
 	return s.replace("[", "[lb]")
