@@ -31,7 +31,7 @@ func configure(scenario: Dictionary) -> void:
 	var brief: String = scenario.get("brief", "")
 	_story_body.text = "\n".join([
 		"[b]What happened[/b]",
-		brief if not brief.is_empty() else "The homepage p95 latency jumped from 180 ms to 850 ms. CPU sits at 35%. The database and downstream services look healthy.",
+		brief if not brief.is_empty() else "VibeTube's watch-page p95 latency jumped from 180 ms to 850 ms. CPU sits at 35%. The database and downstream services look healthy.",
 		"",
 		"[b]Your role[/b]",
 		"You are the on-call engineer. Walk to your desk, open your PC, and investigate with the metrics, logs, traces, source code, and your AI copilot. Record a hypothesis, then verify it.",

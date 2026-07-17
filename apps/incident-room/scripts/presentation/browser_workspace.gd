@@ -431,7 +431,7 @@ func _build_prompting_page() -> void:
 
     # The editor Codex writes into and the candidate edits. Native CodeEdit gives line
     # numbers, caret, and syntax highlight for free, and it runs in the web export.
-    var editor_card := _add_workspace_card(workspace, "src/homepage_orchestrator.ts", ACCENT["tests"])
+    var editor_card := _add_workspace_card(workspace, "src/watch_page_orchestrator.ts", ACCENT["tests"])
     var editor_panel := editor_card.get_parent() as PanelContainer
     editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     editor_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -613,7 +613,7 @@ func _codex_prompt() -> void:
 func _codex_context() -> String:
     var parts := PackedStringArray([
         str(_scenario.get("brief", "")),
-        "The candidate is editing src/homepage_orchestrator.ts. Current contents:",
+        "The candidate is editing src/watch_page_orchestrator.ts. Current contents:",
         _codex_editor.text if is_instance_valid(_codex_editor) else "",
         "When you change the code, reply with the FULL updated file in one ```ts fenced block.",
     ])
@@ -675,12 +675,12 @@ func _extract_code(reply: String) -> String:
 func _reference_fix() -> String:
     return "\n".join(PackedStringArray([
         "await requireAuthenticatedUser(userId);",
-        "const [profile, recommendations, notices] = await Promise.all([",
-        "  getProfile(userId),",
-        "  getRecommendations(userId),",
-        "  getNotices(userId),",
+        "const [details, recommendations, comments] = await Promise.all([",
+        "  getVideoDetails(videoId),",
+        "  getRecommendations(videoId),",
+        "  getComments(videoId),",
         "]);",
-        "return renderHomepage({ profile, recommendations, notices });",
+        "return renderWatchPage({ details, recommendations, comments });",
     ]))
 
 # ponytail: fixed 8ms/char typewriter — good enough for the demo; swap for a Tween if you want easing.
@@ -713,7 +713,7 @@ func _codex_run() -> void:
         return
     var code := _codex_editor.text
     var auth_at := code.find("requireAuthenticatedUser")
-    var render_at := code.find("renderHomepage")
+    var render_at := code.find("renderWatchPage")
     var ordered := auth_at >= 0 and render_at >= 0 and auth_at < render_at
     var concurrent := code.contains("Promise.all")
     var passed := ordered and concurrent
@@ -789,7 +789,7 @@ func _build_assistant_page() -> void:
     _assistant_log.add_theme_color_override("default_color", INK)
     body.add_child(_assistant_log)
     _assistant_history.clear()
-    _assistant_say("Codex", "Ready. I can see src/homepage_orchestrator.ts and the incident evidence. Tell me what to investigate or ask me how to resolve the latency — I'll walk the reasoning with you.", ACCENT["assistant"])
+    _assistant_say("Codex", "Ready. I can see src/watch_page_orchestrator.ts and the incident evidence. Tell me what to investigate or ask me how to resolve the latency — I'll walk the reasoning with you.", ACCENT["assistant"])
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 8)
     body.add_child(row)
@@ -861,7 +861,7 @@ func _assistant_context() -> String:
     var parts := PackedStringArray([str(_scenario.get("brief", ""))])
     var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
     if not orchestrator.is_empty():
-        parts.append("src/homepage_orchestrator.ts:")
+        parts.append("src/watch_page_orchestrator.ts:")
         for line: Variant in orchestrator.get("content", []):
             parts.append(str(line))
     return "\n".join(parts)
@@ -892,7 +892,7 @@ func _add_code_panel(parent: Control) -> void:
     col.add_theme_constant_override("separation", 3)
     panel.add_child(col)
     var header := Label.new()
-    header.text = "src/homepage_orchestrator.ts"
+    header.text = "src/watch_page_orchestrator.ts"
     header.add_theme_color_override("font_color", Color(0.5, 0.82, 0.88, 1))
     header.add_theme_font_size_override("font_size", 13)
     col.add_child(header)
@@ -927,7 +927,7 @@ func _build_tests_page() -> void:
     # Seeded workspace file: the faulty homepage orchestrator the candidate is debugging.
     var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
     if not orchestrator.is_empty():
-        body.add_child(_heading("📄  src/homepage_orchestrator.ts", 16, INK))
+        body.add_child(_heading("📄  src/watch_page_orchestrator.ts", 16, INK))
         var code_panel := PanelContainer.new()
         var code_style := StyleBoxFlat.new()
         code_style.bg_color = Color(0.16, 0.18, 0.26, 1)
@@ -945,7 +945,7 @@ func _build_tests_page() -> void:
         code.text = "\n".join(numbered)
         code_panel.add_child(code)
         body.add_child(code_panel)
-        body.add_child(_heading("The homepage lookups run one after another (await … await …). Read the trace on the Evidence tab.", 13, MUTED))
+        body.add_child(_heading("The watch-page lookups run one after another (await … await …). Read the trace on the Evidence tab.", 13, MUTED))
         body.add_child(HSeparator.new())
     body.add_child(_heading("Validation tests — run against a remediation to see the scripted result.", 15, MUTED))
     body.add_child(_heading("Remediation to validate", 15, INK))

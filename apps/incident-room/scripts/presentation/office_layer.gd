@@ -111,7 +111,7 @@ func open_senior() -> void:
     _body.add_child(_close_button())
     input.text_submitted.connect(func(_t: String) -> void: _send())
     send.pressed.connect(_send)
-    _say("Sam", "Morning! The homepage p95 jumped from 180ms to 850ms right after the last release. Ask me anything, then hop on your laptop when you're ready.", SENIOR)
+    _say("Sam", "Morning! VibeTube's watch page p95 jumped from 180ms to 850ms right after the last release. Ask me anything, then hop on your laptop when you're ready.", SENIOR)
     _open()
     input.grab_focus.call_deferred()
 
