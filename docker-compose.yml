@@ -1,0 +1,26 @@
+services:
+  sandbox-proxy:
+    build:
+      context: ./apps/code-runner
+      dockerfile: Dockerfile.proxy
+    image: vibeproof-sandbox-proxy:latest
+    ports:
+      - "${SANDBOX_PROXY_PORT:-18080}:18080"
+    environment:
+      PORT: "18080"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-*}"
+      TEST_RUNNER_IMAGE: "vibeproof-code-runner:latest"
+      TEST_TIMEOUT_MS: "${TEST_TIMEOUT_MS:-10000}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      code-runner-image:
+        condition: service_completed_successfully
+
+  code-runner-image:
+    build:
+      context: ./apps/code-runner
+    image: vibeproof-code-runner:latest
+    command: ["--version"]
+    entrypoint: ["node"]
+    restart: "no"
