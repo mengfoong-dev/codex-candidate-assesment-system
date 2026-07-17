@@ -129,6 +129,14 @@ shape = SubResource("DeskBox")
 transform = Transform3D(1.4, 0, 0, 0, 1, 0, 0, 0, 1.4, -3.64, 0.6, 8.56)
 shape = SubResource("DeskBox")
 
+[node name="PlayerDesk" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.65, 0.6, 3.5)
+shape = SubResource("DeskBox")
+
+[node name="ReceptionCounter" type="CollisionShape3D" parent="Architecture/Obstacles"]
+transform = Transform3D(1.25, 0, 0, 0, 1, 0, 0, 0, 1.25, -0.94, 0.6, 4.88)
+shape = SubResource("DeskBox")
+
 [node name="Senior" type="Node3D" parent="."]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -2, 0.2, 6.4)
 
@@ -141,7 +149,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1, 0, 3.37)
 station_id = "my_desk"
 station_title = "Your desk — investigate (E)"
 accent_color = Color(0.1, 0.78, 0.95, 1)
-label_height = 1.75
+label_height = 1.2
 
 [node name="Coworkers" type="Node3D" parent="."]
 
@@ -154,7 +162,7 @@ character = ExtResource("36_ma")
 station_id = "senior"
 station_title = "Sam · your senior — talk (E)"
 accent_color = Color(0.66, 0.42, 0.94, 1)
-label_height = 2.95
+label_height = 1.4
 
 [node name="CW2" type="Node3D" parent="Coworkers"]
 transform = Transform3D(-0.239, 0, -0.971, 0, 1, 0, 0.971, 0, -0.239, -8.18, 0.42, 3.43)

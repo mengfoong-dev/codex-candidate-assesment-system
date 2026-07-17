@@ -15,6 +15,7 @@ signal final_submission_requested(submission: Dictionary)
 signal restart_requested
 signal leave_requested
 signal notepad_requested
+signal assistant_requested
 
 const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
 
@@ -39,6 +40,8 @@ const TAB_DEFS := [
     {"key": "prompting", "label": "Codex"},
     {"key": "evidence", "label": "Evidence"},
     {"key": "assistant", "label": "Assistant"},
+    {"key": "evidence", "label": "Investigate"},
+    {"key": "assistant", "label": "Codex"},
     {"key": "tests", "label": "Files & Tests"},
     {"key": "submit", "label": "Submit"},
 ]
@@ -64,8 +67,17 @@ var _brief_confidence_label: Label
 var _brief_confirm: Button
 var _brief_status: Label
 
-var _evidence_detail: RichTextLabel
+var _evidence_detail: VBoxContainer
 var _evidence_buttons: Dictionary = {}
+
+# Cosmetic live incident ticker: p95 pegged red + pulsing until the correct fix is validated,
+# then flips green once. Not reactive to code edits (no guess-and-check oracle).
+var _p95_panel: PanelContainer
+var _p95_label: Label
+var _p95_pulse: Tween
+var _p95_resolved := false
+var _p95_now_ms := 0
+var _p95_fixed_ms := 0
 
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
@@ -138,6 +150,7 @@ func _ready() -> void:
     leave.add_theme_font_size_override("font_size", 13)
     leave.pressed.connect(func() -> void: leave_requested.emit())
     chrome_row.add_child(leave)
+    _build_p95_ticker(chrome_row)
     if demo_mode and _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
         if loaded.ok:
@@ -162,8 +175,12 @@ func configure(scenario: Dictionary) -> void:
     _build_tests_page()
     _build_submit_page()
     _build_report_page()
+    _p95_now_ms = _scan_metric_ms()
+    _p95_fixed_ms = _scan_fixed_ms()
+    _set_p95_unresolved()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
     set_active_tab("home")
+    set_active_tab("evidence")
 
 func set_started(started: bool) -> void:
     _started = started
@@ -183,6 +200,85 @@ func refresh(snapshot: Dictionary) -> void:
     _refresh_assistant(snapshot)
     _refresh_tests(snapshot)
     _refresh_submit(snapshot)
+    _refresh_p95(snapshot)
+
+# --- Live incident p95 ticker ------------------------------------------------
+
+func _build_p95_ticker(chrome_row: HBoxContainer) -> void:
+    _p95_panel = PanelContainer.new()
+    var sb := StyleBoxFlat.new()
+    sb.set_corner_radius_all(8)
+    sb.content_margin_left = 12
+    sb.content_margin_right = 12
+    sb.content_margin_top = 6
+    sb.content_margin_bottom = 6
+    _p95_panel.add_theme_stylebox_override("panel", sb)
+    _p95_label = Label.new()
+    _p95_label.add_theme_font_size_override("font_size", 13)
+    _p95_panel.add_child(_p95_label)
+    chrome_row.add_child(_p95_panel)
+    chrome_row.move_child(_p95_panel, 0)
+    _set_p95_unresolved()
+
+func _set_p95_unresolved() -> void:
+    if _p95_panel == null:
+        return
+    _p95_resolved = false
+    _p95_panel.modulate.a = 1.0
+    var sb := _p95_panel.get_theme_stylebox("panel") as StyleBoxFlat
+    sb.bg_color = Color(0.62, 0.16, 0.19)
+    _p95_label.add_theme_color_override("font_color", Color(1, 0.9, 0.9))
+    _p95_label.text = "⚠  watch page p95: %s" % (("%d ms" % _p95_now_ms) if _p95_now_ms > 0 else "high")
+    if _p95_pulse != null and _p95_pulse.is_valid():
+        _p95_pulse.kill()
+    _p95_pulse = create_tween().set_loops()
+    _p95_pulse.tween_property(_p95_panel, "modulate:a", 0.5, 0.7)
+    _p95_pulse.tween_property(_p95_panel, "modulate:a", 1.0, 0.7)
+
+func _resolve_p95() -> void:
+    if _p95_resolved or _p95_panel == null:
+        return
+    _p95_resolved = true
+    if _p95_pulse != null and _p95_pulse.is_valid():
+        _p95_pulse.kill()
+    _p95_panel.modulate.a = 1.0
+    var sb := _p95_panel.get_theme_stylebox("panel") as StyleBoxFlat
+    sb.bg_color = Color(0.13, 0.5, 0.3)
+    _p95_label.text = "✓  watch page p95: %s" % (("%d ms" % _p95_fixed_ms) if _p95_fixed_ms > 0 else "recovered")
+
+## Flip the ticker green once a p95 validation passes (correct remediation). Cosmetic:
+## it never reacts to raw code edits, only to a recorded, passing validation.
+func _refresh_p95(snapshot: Dictionary) -> void:
+    for action: Dictionary in snapshot.get("verification_actions", []):
+        if str(action.get("test_id", "")) != "p95_latency":
+            continue
+        var displayed: Dictionary = action.get("displayed_result", {})
+        if str(displayed.get("status", "")) == "passed":
+            _resolve_p95()
+            return
+
+func _scan_metric_ms() -> int:
+    for artifact: Dictionary in _scenario.get("artifacts", []):
+        if str(artifact.get("evidence_type", "")) == "metrics":
+            var content: Array = artifact.get("content", [])
+            return _first_ms(str(content[0])) if not content.is_empty() else 0
+    return 0
+
+func _scan_fixed_ms() -> int:
+    for test_case: Dictionary in _scenario.get("tests", []):
+        if str(test_case.get("test_id", "")) == "p95_latency":
+            var by_rem: Dictionary = test_case.get("results_by_remediation", {})
+            for rid: String in by_rem:
+                var r: Dictionary = by_rem[rid]
+                if str(r.get("status", "")) == "passed":
+                    return _first_ms(str(r.get("actual_result", "")))
+    return 0
+
+func _first_ms(text: String) -> int:
+    var re := RegEx.new()
+    re.compile("([0-9]+)\\s*ms")
+    var m := re.search(text)
+    return int(m.get_string(1)) if m != null else 0
 
 func set_active_tab(key: String) -> void:
     if not _pages.has(key):
@@ -215,6 +311,9 @@ func _add_tab_button(key: String, label: String) -> void:
     _buttons[key] = button
 
 func _on_tab_pressed(key: String) -> void:
+    # No investigate-first gate: every tool is open from the start, so the candidate's choice
+    # to gather facts or jump straight to the AI is observable (logged), not forced. Only the
+    # Report tab waits until there's a report.
     if key == "report" and not _report_available:
         return
     if key != "home" and key != "brief" and key != "report" and not _started:
@@ -237,6 +336,7 @@ func _restyle_tabs() -> void:
         var accent: Color = ACCENT.get(key, NAVY)
         var active := key == _active
         var locked := (key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
+        var locked := key == "report" and not _report_available
         button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
         button.add_theme_stylebox_override("hover", _tab_style(active, accent, true))
@@ -323,7 +423,7 @@ func _build_brief_page() -> void:
     body.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 27, INK))
     body.add_child(_richtext(str(_scenario.get("brief", "")), 90))
     body.add_child(HSeparator.new())
-    body.add_child(_heading("Record your initial hypothesis to unlock Evidence, Assistant, Files & Tests, and Submit.", 16, ACCENT["brief"]))
+    body.add_child(_heading("Record your initial hypothesis to unlock Evidence, Codex, Files & Tests, and Submit.", 16, ACCENT["brief"]))
     _brief_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
     body.add_child(_brief_option)
     _brief_confidence = _slider()
@@ -734,27 +834,137 @@ func _refresh_brief(snapshot: Dictionary) -> void:
 
 func _build_evidence_page() -> void:
     var body := _page_body("evidence")
-    body.add_child(_heading("Evidence", 27, INK))
-    body.add_child(_heading("Open any artifact to read it. Every view is recorded in the session timeline.", 15, MUTED))
+    body.add_child(_heading("Investigate", 27, INK))
+    body.add_child(_heading("Open each tool to inspect it. Every view is recorded in your session timeline.", 15, MUTED))
     _evidence_buttons.clear()
     for artifact: Dictionary in _scenario.get("artifacts", []):
         var artifact_id := str(artifact.get("artifact_id", ""))
-        var station := _lookup(_scenario.get("stations", []), "station_id", str(artifact.get("station_id", "")))
-        var button := _card_button("%s   ·   %s" % [artifact.get("title", artifact_id), station.get("title", artifact.get("station_id", ""))])
+        var label := "%s   ·   %s" % [_evidence_tool_label(str(artifact.get("evidence_type", ""))), artifact.get("title", artifact_id)]
+        var button := _card_button(label)
         button.pressed.connect(func() -> void:
             evidence_view_requested.emit(artifact_id)
             _show_artifact(artifact))
         body.add_child(button)
         _evidence_buttons[artifact_id] = button
     body.add_child(HSeparator.new())
-    _evidence_detail = _richtext("Select an artifact to read its contents.", 150)
+    _evidence_detail = VBoxContainer.new()
+    _evidence_detail.add_theme_constant_override("separation", 8)
     body.add_child(_evidence_detail)
+    _evidence_detail.add_child(_heading("Select a tool above to inspect it.", 15, MUTED))
+
+## Player-facing tool name per evidence type — concrete tools, not the abstract word "evidence".
+func _evidence_tool_label(evidence_type: String) -> String:
+    match evidence_type:
+        "metrics": return "📈  Metrics dashboard"
+        "logs": return "🖥  Server logs"
+        "trace": return "⏱  Request trace (latency)"
+        "source_code": return "📄  Source code"
+        _: return "🔎  Evidence"
 
 func _show_artifact(artifact: Dictionary) -> void:
-    var lines := PackedStringArray(["[b]%s[/b]" % str(artifact.get("title", ""))])
+    for child: Node in _evidence_detail.get_children():
+        child.queue_free()
+    _evidence_detail.add_child(_heading(str(artifact.get("title", "")), 18, INK))
+    match str(artifact.get("evidence_type", "")):
+        "metrics": _render_metrics(artifact)
+        "trace": _render_trace(artifact)
+        "logs", "source_code": _render_terminal(artifact)
+        _: _render_bullets(artifact)
+
+func _render_bullets(artifact: Dictionary) -> void:
     for line: Variant in artifact.get("content", []):
-        lines.append("• %s" % str(line))
-    _evidence_detail.text = "\n".join(lines)
+        _evidence_detail.add_child(_heading("• %s" % str(line), 14, INK))
+
+## Metrics: pull the two numbers out of the headline (e.g. "850 ms (previously 180 ms)")
+## and draw a short green "before" bar vs a long red "now" bar — the latency spike, made visible.
+func _render_metrics(artifact: Dictionary) -> void:
+    var content: Array = artifact.get("content", [])
+    var headline := str(content[0]) if not content.is_empty() else ""
+    # Match only "<n> ms" durations, so "p95" doesn't get scraped as the number 95.
+    var nums := PackedInt32Array()
+    var re := RegEx.new()
+    re.compile("([0-9]+)\\s*ms")
+    for m: RegExMatch in re.search_all(headline):
+        nums.append(int(m.get_string(1)))
+    if nums.size() >= 2:
+        var box := VBoxContainer.new()
+        box.add_theme_constant_override("separation", 6)
+        var maxv: int = max(nums[0], nums[1])
+        box.add_child(_metric_bar("Before", nums[1], maxv, Color(0.24, 0.72, 0.45)))
+        box.add_child(_metric_bar("Now", nums[0], maxv, Color(0.9, 0.3, 0.35)))
+        _evidence_detail.add_child(box)
+    for line: Variant in content:
+        _evidence_detail.add_child(_heading("• %s" % str(line), 14, INK))
+
+func _metric_bar(label: String, value: int, maxv: int, col: Color) -> Control:
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 10)
+    var lbl := Label.new()
+    lbl.text = label
+    lbl.custom_minimum_size = Vector2(70, 0)
+    lbl.add_theme_color_override("font_color", INK)
+    row.add_child(lbl)
+    var bar := ColorRect.new()
+    bar.color = col
+    bar.custom_minimum_size = Vector2(max(8.0, 520.0 * float(value) / float(max(maxv, 1))), 24)
+    row.add_child(bar)
+    var val := Label.new()
+    val.text = "%d ms" % value
+    val.add_theme_color_override("font_color", INK)
+    row.add_child(val)
+    return row
+
+## Trace: a staircase waterfall — each downstream call starts after the previous one ends,
+## so you SEE the sequential waits accumulate (which is the whole bug).
+func _render_trace(artifact: Dictionary) -> void:
+    _evidence_detail.add_child(_heading("Downstream calls run one after another — the waits stack into the total:", 14, MUTED))
+    var calls := ["video details", "recommendations", "comments"]
+    var seg := 150.0
+    var wf := VBoxContainer.new()
+    wf.add_theme_constant_override("separation", 4)
+    for i: int in range(calls.size()):
+        var row := HBoxContainer.new()
+        row.add_theme_constant_override("separation", 8)
+        var name := Label.new()
+        name.text = calls[i]
+        name.custom_minimum_size = Vector2(150, 0)
+        name.add_theme_color_override("font_color", INK)
+        row.add_child(name)
+        if i > 0:
+            var spacer := Control.new()
+            spacer.custom_minimum_size = Vector2(seg * float(i), 0)
+            row.add_child(spacer)
+        var bar := ColorRect.new()
+        bar.color = ACCENT["evidence"]
+        bar.custom_minimum_size = Vector2(seg, 22)
+        row.add_child(bar)
+        wf.add_child(row)
+    _evidence_detail.add_child(wf)
+    for line: Variant in artifact.get("content", []):
+        _evidence_detail.add_child(_heading("• %s" % str(line), 14, INK))
+
+## Logs & source: a dark, monospace terminal panel so they read like real tools.
+func _render_terminal(artifact: Dictionary) -> void:
+    var panel := PanelContainer.new()
+    var sb := StyleBoxFlat.new()
+    sb.bg_color = Color(0.09, 0.11, 0.16)
+    sb.set_corner_radius_all(8)
+    sb.set_content_margin_all(12)
+    panel.add_theme_stylebox_override("panel", sb)
+    var txt := RichTextLabel.new()
+    txt.bbcode_enabled = true
+    txt.fit_content = true
+    txt.custom_minimum_size = Vector2(0, 120)
+    txt.add_theme_color_override("default_color", Color(0.8, 0.86, 0.92))
+    var mono_path := "res://assets/third_party/fonts/JetBrainsMono-Regular.ttf"
+    if ResourceLoader.exists(mono_path):
+        txt.add_theme_font_override("normal_font", load(mono_path))
+    var lines := PackedStringArray()
+    for line: Variant in artifact.get("content", []):
+        lines.append(str(line))
+    txt.text = "\n".join(lines)
+    panel.add_child(txt)
+    _evidence_detail.add_child(panel)
 
 func _refresh_evidence(snapshot: Dictionary) -> void:
     var viewed: Array = snapshot.get("viewed_artifact_ids", [])
@@ -792,8 +1002,14 @@ func _build_assistant_page() -> void:
     row.add_child(_assistant_send)
     _assistant_input.text_submitted.connect(func(_t: String) -> void: _send_assistant())
     _assistant_send.pressed.connect(_send_assistant)
+    body.add_child(_heading("Codex — your AI copilot", 27, INK))
+    body.add_child(_heading("Open the Codex console to read the source and ask Codex to help you resolve the incident. It reasons over the code and evidence and proposes fixes — it won't hand you the answer. Every prompt is recorded.", 14, MUTED))
+    var open_console := _flat_button("Open Codex console  ➡")
+    open_console.custom_minimum_size = Vector2(0, 46)
+    open_console.pressed.connect(func() -> void: assistant_requested.emit())
+    body.add_child(open_console)
     body.add_child(HSeparator.new())
-    body.add_child(_heading("How did you handle the assistant's input?", 16, INK))
+    body.add_child(_heading("How did you handle Codex's suggestion?", 16, INK))
     _disposition_option = _option(interaction.get("dispositions", []), "option_id", "disposition", true)
     body.add_child(_disposition_option)
     _disposition_confirm = _flat_button("Record how I handled the assistant")

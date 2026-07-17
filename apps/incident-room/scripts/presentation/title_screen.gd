@@ -1,24 +1,21 @@
 class_name TitleScreen
 extends Control
 
-## Two-beat entry: (1) cinematic sign-in that captures the candidate email, then
-## (2) a mission-brief story card, before dropping into the 3D office.
+## Single-beat entry: a sign-in that captures + validates the candidate email, then drops
+## straight into the 3D office. The backstory is told in-game by Sam (not a title card), so
+## the player reaches agency fast instead of reading the incident four times.
 signal start_requested(email: String)
 
-@onready var _entry: Control = $Entry
-@onready var _story: Control = $Story
 @onready var _email: LineEdit = $Entry/Col/Row/Email
 @onready var _start: Button = $Entry/Col/Row/Start
 @onready var _hint: Label = $Entry/Col/Hint
 @onready var _notices: RichTextLabel = $Entry/Col/Notices
 @onready var _story_body: RichTextLabel = $Story/Card/CardCol/SBody
-@onready var _enter: Button = $Story/Card/CardCol/SEnter
 
 var _stored_email := ""
 
 func _ready() -> void:
 	_start.pressed.connect(_on_continue)
-	_enter.pressed.connect(_on_enter)
 	_start.grab_focus.call_deferred()
 
 func configure(scenario: Dictionary) -> void:
@@ -41,13 +38,13 @@ func configure(scenario: Dictionary) -> void:
 	])
 
 func _on_continue() -> void:
+	var email := _email.text.strip_edges()
+	if not _is_valid_email(email):
+		_hint.text = "Enter a valid email to start your session."
+		_email.grab_focus()
+		return
 	_hint.text = ""
-	_stored_email = ""
-	_entry.visible = false
-	_story.visible = true
-	_enter.grab_focus.call_deferred()
-
-func _on_enter() -> void:
+	_stored_email = email
 	start_requested.emit(_stored_email)
 
 func _is_valid_email(email: String) -> bool:

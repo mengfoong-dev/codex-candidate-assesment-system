@@ -87,6 +87,15 @@ func record_ai_disposition(option_id: String) -> Dictionary:
     _ai_disposition_id = option_id
     return results.back()
 
+## Layer-2 review only: the candidate's actual free-text prompt to Codex / question to Sam.
+## Logged into the Proof Replay so a reviewer can judge HOW they gathered info and used AI.
+## NOT scored — the deterministic grader drops these event types (see backend_grader._map_event).
+func record_ai_prompt(text: String) -> Dictionary:
+    return _logger.append("candidate_ai_prompt", {"text": text})
+
+func record_senior_question(text: String) -> Dictionary:
+    return _logger.append("candidate_senior_question", {"text": text})
+
 func revise_hypothesis(hypothesis_id: String, confidence: int, trigger_fact_ids: Array) -> Dictionary:
     var phase_error := _require_investigation_ready()
     if not phase_error.is_empty():
@@ -101,7 +110,7 @@ func revise_hypothesis(hypothesis_id: String, confidence: int, trigger_fact_ids:
             return _reject("Trigger fact was not viewed: %s" % fact_id)
     var next_version := _hypothesis_version + 1
     var payload := {
-        "previous_hypothesis_id": _current_hypothesis.hypothesis_id,
+        "previous_hypothesis_id": _current_hypothesis.get("hypothesis_id", ""),
         "hypothesis_id": hypothesis_id,
         "confidence": confidence,
         "version": next_version,
@@ -176,7 +185,10 @@ func snapshot() -> Dictionary:
 func ordered_events() -> Array[Dictionary]:
     return _logger.events()
 
-func _require_investigation_ready(require_hypothesis: bool = true) -> String:
+## Investigation is open once the assessment is open — an initial hypothesis is NO LONGER
+## required (the Brief gate was removed; tools are self-directed). `require_hypothesis` is kept
+## for any caller that still wants to insist on one, but defaults off.
+func _require_investigation_ready(require_hypothesis: bool = false) -> String:
     if not _opened:
         return "Assessment is not open"
     if _completed:

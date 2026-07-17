@@ -25,16 +25,11 @@ func run(tree: SceneTree) -> Array[String]:
         Callable(self, "_fail_summary_write")
     )
     t.assert_equal(main.current_phase(), "title", "flow starts at title")
-    var rejected: Dictionary = main.submit_initial_hypothesis("missing", 50)
-    t.assert_false(rejected.ok, "briefing intent is rejected before start")
+    t.assert_false(main.view_artifact("metrics_overview").ok, "room intents are rejected before the session starts")
     t.assert_equal(main.current_phase(), "title", "rejected intent does not change phase")
 
     t.assert_true(main.begin_session().ok, "session begins")
-    t.assert_equal(main.current_phase(), "briefing", "title advances to briefing")
-    t.assert_false(main.submit_initial_hypothesis("missing", 50).ok, "unknown initial hypothesis is rejected")
-    t.assert_equal(main.current_phase(), "briefing", "rejected hypothesis preserves briefing")
-    t.assert_true(main.submit_initial_hypothesis("redis_degradation", 40).ok, "initial hypothesis accepted")
-    t.assert_equal(main.current_phase(), "room", "briefing advances to room")
+    t.assert_equal(main.current_phase(), "room", "title advances straight to the open workspace (no Brief gate)")
 
     t.assert_true(main.open_station("observability_wall").ok, "observability station opens")
     t.assert_true(main.view_artifact("metrics_overview").ok, "metrics viewed")
