@@ -339,7 +339,7 @@ func _build_home_page() -> void:
     body.add_child(_heading("Welcome to VibeProof", 31, NAVY))
     body.add_child(_heading("Build with AI. Prove you know why it works. This short, AI-allowed engineering Ownership Challenge lets you show how you investigate, verify, and explain technical work.", 17, MUTED))
 
-    var start := _flat_button("Begin incident briefing  →")
+    var start := _flat_button("Begin incident briefing  ➡")
     start.custom_minimum_size = Vector2(0, 46)
     start.pressed.connect(func() -> void: set_active_tab("brief"))
     body.add_child(start)

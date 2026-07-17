@@ -6,6 +6,9 @@ signal interaction_requested(station_id: String)
 @export var station_id := ""
 @export var station_title := "Station"
 @export var accent_color := Color(0.2, 0.75, 0.95, 1.0)
+## World-units above the trigger origin for the floating label. Stagger nearby stations
+## (e.g. the desk vs. Sam) so their billboarded labels don't overlap on screen.
+@export var label_height := 2.35
 
 @onready var station_label: Label3D = $StationLabel
 
@@ -14,6 +17,7 @@ var _landmark: Node = null
 func _ready() -> void:
     station_label.text = station_title
     station_label.modulate = accent_color
+    station_label.position.y = label_height
     _landmark = get_node_or_null("Landmark")
     body_entered.connect(_on_body_entered)
     body_exited.connect(_on_body_exited)

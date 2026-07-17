@@ -128,13 +128,13 @@ text = "INCIDENT  ·  P1  ·  ON-CALL"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.97, 0.99, 1)
 theme_override_font_sizes/font_size = 60
-text = "The homepage is slow."
+text = "VibeTube is slow."
 
 [node name="Stakes" type="Label" parent="Entry/Col"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.74, 0.8, 0.86, 1)
 theme_override_font_sizes/font_size = 19
-text = "p95 latency jumped 180 ms → 850 ms after the last release. CPU is fine. Users are complaining. You just got paged."
+text = "The watch page's p95 latency jumped 180 ms to 850 ms after the last release. CPU is fine. Viewers are complaining. You just got paged."
 autowrap_mode = 2
 custom_minimum_size = Vector2(540, 0)
 
@@ -174,8 +174,6 @@ theme_override_styles/normal = SubResource("CTA")
 theme_override_styles/hover = SubResource("CTAHover")
 theme_override_styles/pressed = SubResource("CTA")
 theme_override_styles/focus = SubResource("CTAHover")
-text = "Continue  →"
-
 text = "Start assessment"
 
 [node name="Hint" type="Label" parent="Entry/Col"]
@@ -231,7 +229,7 @@ text = "MISSION BRIEF"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.97, 0.99, 1)
 theme_override_font_sizes/font_size = 30
-text = "Homepage Latency Spike"
+text = "Watch-Page Latency Spike"
 
 [node name="SBody" type="RichTextLabel" parent="Story/Card/CardCol"]
 custom_minimum_size = Vector2(680, 250)
@@ -254,4 +252,4 @@ theme_override_styles/normal = SubResource("CTA")
 theme_override_styles/hover = SubResource("CTAHover")
 theme_override_styles/pressed = SubResource("CTA")
 theme_override_styles/focus = SubResource("CTAHover")
-text = "Walk into the office  →"
+text = "Walk into the office  ➡"
