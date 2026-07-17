@@ -54,12 +54,6 @@ var _active := ""
 var _started := false
 var _report_available := false
 
-var _brief_option: OptionButton
-var _brief_confidence: HSlider
-var _brief_confidence_label: Label
-var _brief_confirm: Button
-var _brief_status: Label
-
 var _evidence_detail: VBoxContainer
 var _evidence_buttons: Dictionary = {}
 
@@ -191,7 +185,6 @@ func show_backend_error(message: String) -> void:
         _report_score.text = "[b]Backend grading unavailable[/b]  %s\nYour session is saved; a reviewer can grade it manually." % message
 
 func refresh(snapshot: Dictionary) -> void:
-    _refresh_brief(snapshot)
     _refresh_evidence(snapshot)
     _refresh_assistant(snapshot)
     _refresh_tests(snapshot)
@@ -391,47 +384,6 @@ func _fixed_page_body(key: String) -> VBoxContainer:
     body.add_theme_constant_override("separation", 10)
     page.add_child(body)
     return body
-
-# --- Brief -------------------------------------------------------------------
-
-func _build_brief_page() -> void:
-    var body := _page_body("brief")
-    body.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 27, INK))
-    body.add_child(_richtext(str(_scenario.get("brief", "")), 90))
-    body.add_child(HSeparator.new())
-    body.add_child(_heading("Record your initial hypothesis to unlock Evidence, Codex, Files & Tests, and Submit.", 16, ACCENT["brief"]))
-    _brief_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
-    body.add_child(_brief_option)
-    _brief_confidence = _slider()
-    body.add_child(_brief_confidence)
-    _brief_confidence_label = _heading("Confidence: 50%", 15, INK)
-    body.add_child(_brief_confidence_label)
-    _brief_confirm = _flat_button("Record initial hypothesis")
-    _brief_confirm.disabled = true
-    body.add_child(_brief_confirm)
-    _brief_status = _heading("", 15, ACCENT["brief"])
-    body.add_child(_brief_status)
-    _brief_option.item_selected.connect(func(_i: int) -> void: _update_brief_confirm())
-    _brief_confidence.value_changed.connect(func(value: float) -> void:
-        _brief_confidence_label.text = "Confidence: %d%%" % int(value))
-    _brief_confirm.pressed.connect(func() -> void:
-        if not _brief_confirm.disabled:
-            initial_hypothesis_submitted.emit(str(_brief_option.get_item_metadata(_brief_option.selected)), int(_brief_confidence.value)))
-
-func _update_brief_confirm() -> void:
-    # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
-    _brief_confirm.disabled = _brief_option.selected < 0
-
-func _refresh_brief(snapshot: Dictionary) -> void:
-    if _brief_status == null:
-        return
-    var initial: Dictionary = snapshot.get("initial_hypothesis", {})
-    if initial.is_empty():
-        return
-    _brief_status.text = "Recorded: %s at %d%% confidence." % [_hypothesis_label(str(initial.get("hypothesis_id", ""))), int(initial.get("confidence", 0))]
-    _brief_option.disabled = true
-    _brief_confidence.editable = false
-    _brief_confirm.visible = false
 
 # --- Evidence ----------------------------------------------------------------
 
@@ -910,19 +862,6 @@ func _labeled(label: String, control: Control) -> VBoxContainer:
     box.add_child(_heading(label, 14, INK))
     box.add_child(control)
     return box
-
-func _bubble(speaker: String, text: String, bg: Color) -> PanelContainer:
-    var panel := PanelContainer.new()
-    var style := StyleBoxFlat.new()
-    style.bg_color = bg
-    style.set_corner_radius_all(10)
-    style.set_content_margin_all(12)
-    panel.add_theme_stylebox_override("panel", style)
-    var col := VBoxContainer.new()
-    col.add_child(_heading(speaker, 13, MUTED))
-    col.add_child(_heading(text, 15, INK))
-    panel.add_child(col)
-    return panel
 
 func _card_button(text: String) -> Button:
     var button := Button.new()
