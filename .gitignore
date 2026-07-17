@@ -34,6 +34,7 @@ dist/
 .playwright-cli/
 .firecrawl/
 
-# Stray root-level scratch drops (screenshots, duplicate asset exports).
+# Stray root-level scratch drops (screenshots, duplicate asset exports, Playwright DOM dumps).
 /vibeproof-live.png
 /isometric_office*.glb
+/fpt-landing.yaml

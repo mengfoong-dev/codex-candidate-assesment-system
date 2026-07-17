@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved 2026-07-15 after a grilling session against `PRD.md`, `docs/product/`, `docs/decisions.md`, and `docs/assessment/evidence-and-scoring.md`. Every decision below was resolved with the backend owner; conflicts with the canonical decision log were surfaced and resolved in favor of the log (D006, D007, D009).
+Approved 2026-07-15 after a grilling session against `docs/archive/2026-07-pre-vibeproof/PRD.md`, `docs/product/`, `docs/decisions.md`, and `docs/assessment/evidence-and-scoring.md`. Every decision below was resolved with the backend owner; conflicts with the canonical decision log were surfaced and resolved in favor of the log (D006, D007, D009).
 
 Terminology in this document follows `UBIQUITOUS_LANGUAGE.md`.
 
