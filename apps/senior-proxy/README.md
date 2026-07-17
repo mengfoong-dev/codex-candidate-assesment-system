@@ -33,25 +33,31 @@ MODEL=deepseek-v4-flash
 
 ## 2. Run it locally
 
-With Docker Compose, build the proxy and sandbox runner image, then publish the proxy on a
-non-8080 port:
+The senior proxy is still the LLM chat service. It is separate from the local Docker sandbox.
+
+For local sandbox tests, run the code-runner Compose service from the repository root:
 
 ```powershell
-docker compose up --build senior-proxy
+docker compose up --build sandbox-proxy
 ```
 
-The game should call:
+The game can keep using the deployed senior proxy for chat:
 
 ```text
-http://localhost:18080/api/senior/chat
-http://localhost:18080/api/assistant/chat
+https://senior-proxy-production-82cf.up.railway.app/api/senior/chat
+https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat
 ```
 
-The test URL is derived by the in-game terminal as
-`http://localhost:18080/api/assistant/test`. The browser/game never talks to Docker directly; it
-only talks to the proxy. The proxy creates a fresh no-network worker container for each test run.
-For local development, the proxy container mounts the host Docker socket so it can create those
-workers; do not expose that socket over the network.
+Set the in-game test runner URL to:
+
+```text
+http://localhost:18080/api/assistant/test
+```
+
+The browser/game never talks to Docker directly; it only talks to the sandbox proxy. The sandbox
+proxy creates a fresh no-network worker container for each test run. For local development, it
+mounts the host Docker socket so it can create those workers; do not expose that socket over the
+network.
 
 No LLM key is required for the sandbox test endpoint. LLM provider variables are only needed when
 you want `/api/senior/chat` or `/api/assistant/chat` to call a live model.
@@ -59,11 +65,11 @@ you want `/api/senior/chat` or `/api/assistant/chat` to call a live model.
 If `18080` is also occupied, choose any free host port without changing the container:
 
 ```powershell
-$env:SENIOR_PROXY_PORT=18180
-docker compose up --build senior-proxy
+$env:SANDBOX_PROXY_PORT=18180
+docker compose up --build sandbox-proxy
 ```
 
-Then point the game at `http://localhost:18180/api/...`.
+Then point the test runner URL at `http://localhost:18180/api/assistant/test`.
 
 To run the proxy without Compose:
 

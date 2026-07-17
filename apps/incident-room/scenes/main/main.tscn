@@ -30,6 +30,7 @@ visible = false
 
 [node name="IDEConsole" parent="UI" instance=ExtResource("7_ide")]
 assistant_proxy_url = "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
+test_runner_url = "http://localhost:18080/api/assistant/test"
 backend_base_url = "https://vibeproof-backend-production.up.railway.app"
 
 [node name="TitleScreen" parent="UI" instance=ExtResource("3_title")]

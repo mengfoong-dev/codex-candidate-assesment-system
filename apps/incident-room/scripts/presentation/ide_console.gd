@@ -16,6 +16,7 @@ extends Control
 
 ## Live in-workspace copilot endpoint (the senior-proxy assistant route).
 @export var assistant_proxy_url := "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
+@export var test_runner_url := "http://localhost:18080/api/assistant/test"
 ## Kept for the future agentic-SSE upgrade above; unused on the web target today.
 @export var backend_base_url := "https://vibeproof-backend-production.up.railway.app"
 
@@ -220,8 +221,7 @@ func run_tests() -> void:
 	_log("[color=#858585]running isolated scenario tests…[/color]")
 	var payload := {"code": _editor.text}
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	var test_url := assistant_proxy_url.trim_suffix("/chat") + "/test"
-	var err := _http.request(test_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	var err := _http.request(test_runner_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if err != OK:
 		apply_test_result({"status": "unavailable", "error": "could not reach the test runner"})
 

@@ -9,12 +9,12 @@ The senior proxy creates a fresh container for every test run.
 Recommended local workflow from the repository root:
 
 ```powershell
-docker compose up --build senior-proxy
+docker compose up --build sandbox-proxy
 ```
 
-This builds both `vibeproof-senior-proxy:latest` and `vibeproof-code-runner:latest`, publishes
-only the proxy on `localhost:18080`, and lets the proxy create a disposable sandbox container for
-each test request.
+This builds both `vibeproof-sandbox-proxy:latest` and `vibeproof-code-runner:latest`, publishes
+only the sandbox proxy on `localhost:18080`, and lets the proxy create a disposable sandbox
+container for each test request.
 
 Manual worker-only build:
 

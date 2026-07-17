@@ -1,10 +1,11 @@
 services:
-  senior-proxy:
+  sandbox-proxy:
     build:
-      context: ./apps/senior-proxy
-    image: vibeproof-senior-proxy:latest
+      context: ./apps/code-runner
+      dockerfile: Dockerfile.proxy
+    image: vibeproof-sandbox-proxy:latest
     ports:
-      - "${SENIOR_PROXY_PORT:-18080}:18080"
+      - "${SANDBOX_PROXY_PORT:-18080}:18080"
     environment:
       PORT: "18080"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-*}"
