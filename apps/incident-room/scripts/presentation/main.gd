@@ -482,6 +482,11 @@ func _update_player_input() -> void:
     var can_move := (_phase == "briefing" or _phase == "room") and _view == "office" and not office.is_modal_open()
     can_move = can_move and not _paused and not _dialogue_active()
     player.set_input_enabled(can_move)
+    if player.has_method("set_look_enabled"):
+        # Seated at the desk hub (PC/notepad closed): let the candidate glance around, no walking.
+        var can_look := (_phase == "briefing" or _phase == "room") and _view == "desk" and not _desk_pc_open
+        can_look = can_look and not _paused and not _dialogue_active()
+        player.set_look_enabled(can_look)
 
 func _finish_intent(result: Dictionary) -> Dictionary:
     if _session != null and _phase != "title":
