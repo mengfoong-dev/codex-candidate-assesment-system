@@ -24,6 +24,7 @@ func run(tree: SceneTree) -> Array[String]:
         Callable(self, "_memory_logger_factory"),
         Callable(self, "_fail_summary_write")
     )
+    main.backend_base_url = ""  # hermetic: never touch the live grading backend from tests
     t.assert_equal(main.current_phase(), "title", "flow starts at title")
     t.assert_false(main.view_artifact("metrics_overview").ok, "room intents are rejected before the session starts")
     t.assert_equal(main.current_phase(), "title", "rejected intent does not change phase")

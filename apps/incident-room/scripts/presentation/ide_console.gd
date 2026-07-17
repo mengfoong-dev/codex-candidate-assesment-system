@@ -16,6 +16,9 @@ extends Control
 
 ## Emitted with the candidate's raw prompt each time they ask Codex — logged for Layer-2 review.
 signal prompt_submitted(text: String)
+## Emitted with the full edited file content whenever an assistant reply applies a code change, so
+## the candidate's AI-edited orchestrator can be streamed to the backend for content-aware grading.
+signal code_applied(content: String)
 
 ## Live in-workspace copilot endpoint (the senior-proxy assistant route).
 @export var assistant_proxy_url := "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
@@ -393,6 +396,7 @@ func apply_assistant_reply(reply: String) -> void:
 		_show_file(EDITOR_TAB)
 		_terminal_status.text = "Changed"
 		_terminal_log("[color=#3fb950]✓[/color] Applied Codex change to %s" % EDITOR_TAB)
+		code_applied.emit(code)
 	else:
 		_terminal_status.text = "Review"
 		_terminal_log("[color=#8b949e]Codex reply received; no code change applied.[/color]")
