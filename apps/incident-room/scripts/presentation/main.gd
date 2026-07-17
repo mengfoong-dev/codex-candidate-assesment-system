@@ -188,6 +188,12 @@ func _grade_with_backend() -> void:
 func restart_session() -> Dictionary:
     _create_fresh_session()
     _configure_static_ui()
+    # Workspace + office reset on the next begin_session (configure()); the console and notepad
+    # are persistent scene nodes that don't, so clear their per-candidate state here explicitly.
+    if ide_console != null and ide_console.has_method("reset"):
+        ide_console.reset()
+    if notepad != null and notepad.has_method("reset"):
+        notepad.reset()
     office.close()
     _paused = false
     if _pause != null:

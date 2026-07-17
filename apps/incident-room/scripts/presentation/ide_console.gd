@@ -64,6 +64,23 @@ func _ready() -> void:
 	_file_rail.item_selected.connect(func(i: int) -> void: _show_file(_file_rail.get_item_text(i)))
 	_seed_from_scenario()
 	_hint.visible = false  # PC-only now: opened from the workspace, not a floating backtick hint
+	_greet()
+
+## Clear every per-candidate trace (chat history, terminal scrollback, edited source) so the
+## next session starts clean. Called by main.restart_session — the console is a persistent scene
+## node, so without this the previous candidate's Codex conversation + edits bleed through.
+func reset() -> void:
+	_history.clear()
+	_lines.clear()
+	_busy = false
+	if is_instance_valid(_input):
+		_input.editable = true
+		_input.clear()
+	_seed_from_scenario()  # re-reads pristine source into the editor
+	_greet()
+	hide_console()
+
+func _greet() -> void:
 	_log("[color=#858585]Codex online. Read the source on the left, then ask for a change below.[/color]")
 	if not _brief.is_empty():
 		_log("[color=#858585]incident: %s[/color]" % _escape(_brief))

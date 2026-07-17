@@ -10,11 +10,22 @@ const INK := Color(0.13, 0.17, 0.31, 1)
 const PAPER := Color(0.99, 0.98, 0.94, 1)
 
 var _canvas: Control
+var _notes: TextEdit
 var _strokes: Array[PackedVector2Array] = []
 var _drawing := false
 
 func _ready() -> void:
     _build()
+    visible = false
+
+## Wipe the scratch notes + doodle so the next candidate doesn't inherit them. Flavour only
+## (nothing here is scored), but the pad is a persistent scene node — main.restart_session calls this.
+func reset() -> void:
+    if is_instance_valid(_notes):
+        _notes.clear()
+    _strokes.clear()
+    if is_instance_valid(_canvas):
+        _canvas.queue_redraw()
     visible = false
 
 func open_pad() -> void:
@@ -68,6 +79,7 @@ func _build() -> void:
     notes.custom_minimum_size = Vector2(0, 150)
     notes.add_theme_color_override("font_color", INK)
     col.add_child(notes)
+    _notes = notes
 
     var sketch_label := Label.new()
     sketch_label.text = "Sketch pad (drag to draw):"
