@@ -38,6 +38,18 @@ Web (the Web export has no system fonts to borrow).
 - Vendored as `assets/third_party/fonts/NotoSans.ttf` and `assets/third_party/fonts/NotoEmoji.ttf`.
 - Local license copy: `assets/third_party/fonts/OFL.txt`.
 
+## JetBrains Mono (Codex IDE console font)
+
+The in-game "Codex" IDE console (`scenes/ui/ide_console.tscn`) renders its code editor,
+terminal, and title in **JetBrains Mono** so source code shows in a fixed-width, VS-Code-like
+face instead of the proportional project UI font.
+
+- Source: JetBrains / `JetBrains/JetBrainsMono` — `fonts/ttf/JetBrainsMono-Regular.ttf`,
+  copyright 2020 The JetBrains Mono Project Authors.
+- License: SIL Open Font License 1.1.
+- Vendored as `assets/third_party/fonts/JetBrainsMono-Regular.ttf`.
+- Local license copy: `assets/third_party/fonts/OFL.txt` (shared with Noto Sans/Emoji).
+
 ## Isometric Office (open-plan)
 
 The active 3D office environment is "Isometric office" by **Companion_Cube**, licensed
