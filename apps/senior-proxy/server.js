@@ -5,9 +5,37 @@
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, "utf8");
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const equals = trimmed.indexOf("=");
+    if (equals <= 0) continue;
+    const key = trimmed.slice(0, equals).trim();
+    let value = trimmed.slice(equals + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+const thisDir = path.dirname(fileURLToPath(import.meta.url));
+loadEnvFile(path.resolve(process.cwd(), ".env"));
+loadEnvFile(path.resolve(process.cwd(), "apps/senior-proxy/.env"));
+loadEnvFile(path.resolve(thisDir, ".env"));
 
 const PROVIDER = (process.env.PROVIDER || "openai").toLowerCase();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 18080;
 const ALLOWED = (process.env.ALLOWED_ORIGINS || "*").split(",").map((s) => s.trim());
 const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-4-5",
@@ -258,6 +286,15 @@ const server = http.createServer((req, res) => {
     return;
   }
   sendJson(res, 404, { error: "not found" });
+});
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use. Set PORT to a free value, for example PORT=18080.`);
+    process.exit(1);
+  }
+  console.error(error);
+  process.exit(1);
 });
 
 server.listen(PORT, () => {

@@ -6,6 +6,18 @@ The senior proxy creates a fresh container for every test run.
 
 ## Build
 
+Recommended local workflow from the repository root:
+
+```powershell
+docker compose up --build senior-proxy
+```
+
+This builds both `vibeproof-senior-proxy:latest` and `vibeproof-code-runner:latest`, publishes
+only the proxy on `localhost:18080`, and lets the proxy create a disposable sandbox container for
+each test request.
+
+Manual worker-only build:
+
 ```powershell
 docker build -t vibeproof-code-runner:latest apps/code-runner
 ```
@@ -40,10 +52,21 @@ a disposable worker for each `POST /api/assistant/test` request:
 ```bash
 export PROVIDER=deepseek
 export DEEPSEEK_API_KEY=your-key
+export PORT=18080
 export TEST_RUNNER_IMAGE=vibeproof-code-runner:latest
 export ALLOWED_ORIGINS=https://your-game.example
 node apps/senior-proxy/server.js
 ```
+
+Check the proxy itself:
+
+```bash
+curl http://localhost:18080/health
+```
+
+If that returns JSON, the persistent service is running. You will not see a permanent
+`vibeproof-code-runner` container in `docker ps`; those containers are created per test request and
+removed immediately.
 
 Expose the proxy through HTTPS using Caddy, nginx, Railway, or another reverse proxy. Point the
 Godot `assistant_proxy_url` at:

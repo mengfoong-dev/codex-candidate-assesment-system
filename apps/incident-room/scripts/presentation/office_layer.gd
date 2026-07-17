@@ -11,7 +11,7 @@ signal modal_changed(open: bool)
 signal view_toggle_requested
 
 ## Where the senior's live voice comes from. Overridable per build/deploy.
-@export var senior_proxy_url := "http://localhost:8080/api/senior/chat"
+@export var senior_proxy_url := "http://localhost:18080/api/senior/chat"
 
 const INK := Color(0.13, 0.17, 0.31, 1)
 const MUTED := Color(0.4, 0.38, 0.44, 1)

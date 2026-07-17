@@ -1,0 +1,19 @@
+[Unit]
+Description=VibeProof senior proxy and code test controller
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/reponame
+EnvironmentFile=/opt/reponame/.env
+ExecStart=/usr/bin/node /opt/reponame/apps/senior-proxy/server.js
+Restart=always
+RestartSec=3
+
+# The service user must be able to run Docker, usually by being in the docker group.
+User=deploy
+Group=docker
+
+[Install]
+WantedBy=multi-user.target

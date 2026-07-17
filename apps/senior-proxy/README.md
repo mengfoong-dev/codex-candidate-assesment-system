@@ -33,6 +33,40 @@ MODEL=deepseek-v4-flash
 
 ## 2. Run it locally
 
+With Docker Compose, build the proxy and sandbox runner image, then publish the proxy on a
+non-8080 port:
+
+```powershell
+docker compose up --build senior-proxy
+```
+
+The game should call:
+
+```text
+http://localhost:18080/api/senior/chat
+http://localhost:18080/api/assistant/chat
+```
+
+The test URL is derived by the in-game terminal as
+`http://localhost:18080/api/assistant/test`. The browser/game never talks to Docker directly; it
+only talks to the proxy. The proxy creates a fresh no-network worker container for each test run.
+For local development, the proxy container mounts the host Docker socket so it can create those
+workers; do not expose that socket over the network.
+
+No LLM key is required for the sandbox test endpoint. LLM provider variables are only needed when
+you want `/api/senior/chat` or `/api/assistant/chat` to call a live model.
+
+If `18080` is also occupied, choose any free host port without changing the container:
+
+```powershell
+$env:SENIOR_PROXY_PORT=18180
+docker compose up --build senior-proxy
+```
+
+Then point the game at `http://localhost:18180/api/...`.
+
+To run the proxy without Compose:
+
 ```powershell
 cd apps/senior-proxy
 node server.js
@@ -41,14 +75,14 @@ node server.js
 Check it's up (no key needed for this):
 
 ```powershell
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # {"ok":true,"provider":"openai","model":"gpt-4o-mini"}
 ```
 
 Try a real reply (needs your key in `.env`):
 
 ```powershell
-curl -X POST http://localhost:8080/api/senior/chat -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"where should I start?"}]}'
+curl -X POST http://localhost:18080/api/senior/chat -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"where should I start?"}]}'
 ```
 
 ## 3. Deploy to Railway (to make it live for the deployed game)
@@ -76,15 +110,21 @@ railway variables --service senior-proxy --set ALLOWED_ORIGINS=https://vibeproof
 
 ## Sandboxed tests
 
-Build the worker image on the same machine that runs this proxy:
+Compose builds the worker image automatically. If you are running without Compose, build the
+worker image on the same machine that runs this proxy:
 
 ```powershell
 docker build -t vibeproof-code-runner:latest apps/code-runner
 ```
 
-Set `TEST_RUNNER_IMAGE=vibeproof-code-runner:latest`. In the in-game Codex terminal, enter
-`test` or `npm test`; the proxy creates a fresh restricted container and returns the hidden-test
-results. See [`../code-runner/README.md`](../code-runner/README.md) for remote-machine deployment.
+Set `TEST_RUNNER_IMAGE=vibeproof-code-runner:latest` and run the proxy on a free port, for example
+`PORT=18080`. In the in-game Codex terminal, enter `test` or `npm test`; the proxy creates a fresh
+restricted container and returns the hidden-test results. See [`../code-runner/README.md`](../code-runner/README.md)
+for remote-machine deployment.
+
+Important: the Docker image is not the always-running service. The always-running service is this
+Node proxy. The Docker containers are short-lived workers created only while a test request is being
+handled.
 
 ## Boundary
 
