@@ -462,6 +462,9 @@ func _evidence_tool_label(evidence_type: String) -> String:
         "logs": return "🖥  Server logs"
         "trace": return "⏱  Request trace (latency)"
         "source_code": return "📄  Source code"
+        "cache": return "🗄  Redis cache"
+        "scaling": return "⚙  Autoscaler / CPU"
+        "changelog": return "📝  Deploy changelog"
         _: return "🔎  Evidence"
 
 func _show_artifact(artifact: Dictionary) -> void:
@@ -471,7 +474,7 @@ func _show_artifact(artifact: Dictionary) -> void:
     match str(artifact.get("evidence_type", "")):
         "metrics": _render_metrics(artifact)
         "trace": _render_trace(artifact)
-        "logs", "source_code": _render_terminal(artifact)
+        "logs", "source_code", "changelog": _render_terminal(artifact)
         _: _render_bullets(artifact)
 
 func _render_bullets(artifact: Dictionary) -> void:

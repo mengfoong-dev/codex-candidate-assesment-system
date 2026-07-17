@@ -88,6 +88,56 @@
         {"fact_id": "calls_are_independent_in_code", "label": "The three lookups share only the video ID and do not consume one another's results."},
         {"fact_id": "required_ordering_must_remain", "label": "Authentication and final rendering must remain ordered around the lookups."}
       ]
+    },
+    {
+      "artifact_id": "redis_cache_dashboard",
+      "station_id": "observability_wall",
+      "evidence_type": "cache",
+      "title": "Redis Cache Dashboard",
+      "content": [
+        "Redis hit rate: 42% (baseline ~40% — unchanged)",
+        "Evictions: normal",
+        "Redis CPU: 18%",
+        "Connection pool: healthy",
+        "No memory pressure, timeouts, or errors"
+      ],
+      "facts": [
+        {"fact_id": "redis_hit_rate_baseline", "label": "The Redis hit rate (42%) is unchanged from its normal baseline."},
+        {"fact_id": "redis_healthy_otherwise", "label": "Redis shows no eviction, memory, timeout, or error problems."}
+      ]
+    },
+    {
+      "artifact_id": "autoscaler_panel",
+      "station_id": "observability_wall",
+      "evidence_type": "scaling",
+      "title": "Autoscaler & CPU",
+      "content": [
+        "CPU utilization: 35% (well under the scale-up target)",
+        "No scale-up or scale-down events in the last 24h",
+        "Replica count: steady at 4",
+        "Memory: 41%",
+        "No CPU throttling observed"
+      ],
+      "facts": [
+        {"fact_id": "cpu_headroom_ample", "label": "CPU has ample headroom (35%); there is no scaling pressure."},
+        {"fact_id": "no_scaling_events", "label": "The autoscaler recorded no scaling events around the incident."}
+      ]
+    },
+    {
+      "artifact_id": "deploy_changelog",
+      "station_id": "release_console",
+      "evidence_type": "changelog",
+      "title": "Release Changelog",
+      "content": [
+        "Release v2.7.0 — deployed ~20 min before the latency spike",
+        "+ Watch page now fetches up-next recommendations inline",
+        "+ getRecommendations call added to the watch-page orchestrator",
+        "No infrastructure, database, or cache changes in this release"
+      ],
+      "facts": [
+        {"fact_id": "release_added_recommendations_call", "label": "The release added the recommendations call to the watch-page orchestrator."},
+        {"fact_id": "no_infra_or_db_change", "label": "The release made no infrastructure, database, or cache changes."}
+      ]
     }
   ],
   "hypotheses": [
