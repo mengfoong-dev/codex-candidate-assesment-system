@@ -61,7 +61,7 @@ var _brief_confidence_label: Label
 var _brief_confirm: Button
 var _brief_status: Label
 
-var _evidence_detail: RichTextLabel
+var _evidence_detail: VBoxContainer
 var _evidence_buttons: Dictionary = {}
 
 var _disposition_option: OptionButton
@@ -351,27 +351,137 @@ func _refresh_brief(snapshot: Dictionary) -> void:
 
 func _build_evidence_page() -> void:
     var body := _page_body("evidence")
-    body.add_child(_heading("Evidence", 27, INK))
-    body.add_child(_heading("Open any artifact to read it. Every view is recorded in the session timeline.", 15, MUTED))
+    body.add_child(_heading("Investigate", 27, INK))
+    body.add_child(_heading("Open each tool to inspect it. Every view is recorded in your session timeline.", 15, MUTED))
     _evidence_buttons.clear()
     for artifact: Dictionary in _scenario.get("artifacts", []):
         var artifact_id := str(artifact.get("artifact_id", ""))
-        var station := _lookup(_scenario.get("stations", []), "station_id", str(artifact.get("station_id", "")))
-        var button := _card_button("%s   ·   %s" % [artifact.get("title", artifact_id), station.get("title", artifact.get("station_id", ""))])
+        var label := "%s   ·   %s" % [_evidence_tool_label(str(artifact.get("evidence_type", ""))), artifact.get("title", artifact_id)]
+        var button := _card_button(label)
         button.pressed.connect(func() -> void:
             evidence_view_requested.emit(artifact_id)
             _show_artifact(artifact))
         body.add_child(button)
         _evidence_buttons[artifact_id] = button
     body.add_child(HSeparator.new())
-    _evidence_detail = _richtext("Select an artifact to read its contents.", 150)
+    _evidence_detail = VBoxContainer.new()
+    _evidence_detail.add_theme_constant_override("separation", 8)
     body.add_child(_evidence_detail)
+    _evidence_detail.add_child(_heading("Select a tool above to inspect it.", 15, MUTED))
+
+## Player-facing tool name per evidence type — concrete tools, not the abstract word "evidence".
+func _evidence_tool_label(evidence_type: String) -> String:
+    match evidence_type:
+        "metrics": return "📈  Metrics dashboard"
+        "logs": return "🖥  Server logs"
+        "trace": return "⏱  Request trace (latency)"
+        "source_code": return "📄  Source code"
+        _: return "🔎  Evidence"
 
 func _show_artifact(artifact: Dictionary) -> void:
-    var lines := PackedStringArray(["[b]%s[/b]" % str(artifact.get("title", ""))])
+    for child: Node in _evidence_detail.get_children():
+        child.queue_free()
+    _evidence_detail.add_child(_heading(str(artifact.get("title", "")), 18, INK))
+    match str(artifact.get("evidence_type", "")):
+        "metrics": _render_metrics(artifact)
+        "trace": _render_trace(artifact)
+        "logs", "source_code": _render_terminal(artifact)
+        _: _render_bullets(artifact)
+
+func _render_bullets(artifact: Dictionary) -> void:
     for line: Variant in artifact.get("content", []):
-        lines.append("• %s" % str(line))
-    _evidence_detail.text = "\n".join(lines)
+        _evidence_detail.add_child(_heading("• %s" % str(line), 14, INK))
+
+## Metrics: pull the two numbers out of the headline (e.g. "850 ms (previously 180 ms)")
+## and draw a short green "before" bar vs a long red "now" bar — the latency spike, made visible.
+func _render_metrics(artifact: Dictionary) -> void:
+    var content: Array = artifact.get("content", [])
+    var headline := str(content[0]) if not content.is_empty() else ""
+    # Match only "<n> ms" durations, so "p95" doesn't get scraped as the number 95.
+    var nums := PackedInt32Array()
+    var re := RegEx.new()
+    re.compile("([0-9]+)\\s*ms")
+    for m: RegExMatch in re.search_all(headline):
+        nums.append(int(m.get_string(1)))
+    if nums.size() >= 2:
+        var box := VBoxContainer.new()
+        box.add_theme_constant_override("separation", 6)
+        var maxv: int = max(nums[0], nums[1])
+        box.add_child(_metric_bar("Before", nums[1], maxv, Color(0.24, 0.72, 0.45)))
+        box.add_child(_metric_bar("Now", nums[0], maxv, Color(0.9, 0.3, 0.35)))
+        _evidence_detail.add_child(box)
+    for line: Variant in content:
+        _evidence_detail.add_child(_heading("• %s" % str(line), 14, INK))
+
+func _metric_bar(label: String, value: int, maxv: int, col: Color) -> Control:
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 10)
+    var lbl := Label.new()
+    lbl.text = label
+    lbl.custom_minimum_size = Vector2(70, 0)
+    lbl.add_theme_color_override("font_color", INK)
+    row.add_child(lbl)
+    var bar := ColorRect.new()
+    bar.color = col
+    bar.custom_minimum_size = Vector2(max(8.0, 520.0 * float(value) / float(max(maxv, 1))), 24)
+    row.add_child(bar)
+    var val := Label.new()
+    val.text = "%d ms" % value
+    val.add_theme_color_override("font_color", INK)
+    row.add_child(val)
+    return row
+
+## Trace: a staircase waterfall — each downstream call starts after the previous one ends,
+## so you SEE the sequential waits accumulate (which is the whole bug).
+func _render_trace(artifact: Dictionary) -> void:
+    _evidence_detail.add_child(_heading("Downstream calls run one after another — the waits stack into the total:", 14, MUTED))
+    var calls := ["video details", "recommendations", "comments"]
+    var seg := 150.0
+    var wf := VBoxContainer.new()
+    wf.add_theme_constant_override("separation", 4)
+    for i: int in range(calls.size()):
+        var row := HBoxContainer.new()
+        row.add_theme_constant_override("separation", 8)
+        var name := Label.new()
+        name.text = calls[i]
+        name.custom_minimum_size = Vector2(150, 0)
+        name.add_theme_color_override("font_color", INK)
+        row.add_child(name)
+        if i > 0:
+            var spacer := Control.new()
+            spacer.custom_minimum_size = Vector2(seg * float(i), 0)
+            row.add_child(spacer)
+        var bar := ColorRect.new()
+        bar.color = ACCENT["evidence"]
+        bar.custom_minimum_size = Vector2(seg, 22)
+        row.add_child(bar)
+        wf.add_child(row)
+    _evidence_detail.add_child(wf)
+    for line: Variant in artifact.get("content", []):
+        _evidence_detail.add_child(_heading("• %s" % str(line), 14, INK))
+
+## Logs & source: a dark, monospace terminal panel so they read like real tools.
+func _render_terminal(artifact: Dictionary) -> void:
+    var panel := PanelContainer.new()
+    var sb := StyleBoxFlat.new()
+    sb.bg_color = Color(0.09, 0.11, 0.16)
+    sb.set_corner_radius_all(8)
+    sb.set_content_margin_all(12)
+    panel.add_theme_stylebox_override("panel", sb)
+    var txt := RichTextLabel.new()
+    txt.bbcode_enabled = true
+    txt.fit_content = true
+    txt.custom_minimum_size = Vector2(0, 120)
+    txt.add_theme_color_override("default_color", Color(0.8, 0.86, 0.92))
+    var mono_path := "res://assets/third_party/fonts/JetBrainsMono-Regular.ttf"
+    if ResourceLoader.exists(mono_path):
+        txt.add_theme_font_override("normal_font", load(mono_path))
+    var lines := PackedStringArray()
+    for line: Variant in artifact.get("content", []):
+        lines.append(str(line))
+    txt.text = "\n".join(lines)
+    panel.add_child(txt)
+    _evidence_detail.add_child(panel)
 
 func _refresh_evidence(snapshot: Dictionary) -> void:
     var viewed: Array = snapshot.get("viewed_artifact_ids", [])
