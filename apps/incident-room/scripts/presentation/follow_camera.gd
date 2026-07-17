@@ -11,7 +11,7 @@ extends Camera3D
 @export var offset := Vector3(0.0, 4.5, 6.0)
 @export var look_height := 1.0
 @export var follow_speed := 8.0
-@export var eye_height := 1.55
+@export var eye_height := 0.9  ## match the mini character: model 0.776 * 1.28 scale ≈ 0.99m tall, eyes just below the crown
 @export var blend_speed := 3.5  ## how fast the view switch eases (higher = quicker)
 ## Radians of rotation per screen pixel of drag — equal for yaw and pitch (FPS best practice).
 @export var look_sensitivity := 0.005
@@ -81,7 +81,9 @@ func _physics_process(delta: float) -> void:
     # Ease the blend toward its target, then hide the body once mostly first-person.
     _blend = move_toward(_blend, _blend_target, blend_speed * delta)
     if _visual != null:
-        _visual.visible = _blend < 0.5
+        # Hidden in first-person (blend) and once mostly into a focus view (seated desk),
+        # so the body never clips the eye-level camera.
+        _visual.visible = _blend < 0.5 and _focus_weight < 0.5
 
     # Smoothly trail the third-person anchor even while blended, so returning is stable.
     var desired := _target.global_position + _third_offset()

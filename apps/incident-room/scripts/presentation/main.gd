@@ -34,12 +34,12 @@ var _session_id := ""
 var _candidate_email := ""
 
 # Where the player sits and the seated camera framing, at a bullpen desk in the isometric
-# office (desk ~x=-4.6, chair ~x=-5.3, monitor ~x=-4.6, all near z=3.4). The player sits in
-# the office chair facing +X toward the monitor; the camera frames over the shoulder from
-# behind (-X), looking past the player at the screen with the office as backdrop.
+# office. Measured from the GLB: desk top ~y=0.70, monitor at (x=-4.61, z=3.32) spanning
+# y=0.69..1.12 (screen center ~0.90). The camera is first-person from the seat's eyes at
+# seated height, looking +X at the monitor screen (body hidden while seated).
 const DESK_SEAT := Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(-5.15, 0.42, 3.37))
-const DESK_CAM_POS := Vector3(-6.9, 1.9, 5.3)
-const DESK_CAM_LOOK := Vector3(-4.9, 0.85, 3.1)
+const DESK_CAM_POS := Vector3(-5.15, 1.05, 3.34)
+const DESK_CAM_LOOK := Vector3(-4.6, 0.92, 3.32)
 
 var _desk_hud: Control
 var _dialogue: DialogueBox
