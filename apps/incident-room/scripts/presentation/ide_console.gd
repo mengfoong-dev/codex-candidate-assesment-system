@@ -19,6 +19,8 @@ extends Control
 ## Kept for the future agentic-SSE upgrade above; unused on the web target today.
 @export var backend_base_url := "https://vibeproof-backend-production.up.railway.app"
 
+const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
+
 const SCENARIO_PATH := "res://data/scenarios/homepage_latency_v1.json"
 const FONT_PATH := "res://assets/third_party/fonts/JetBrainsMono-Regular.ttf"
 const SOURCE_ARTIFACT := "homepage_orchestrator"  # scenario artifact_id (internal, unchanged)

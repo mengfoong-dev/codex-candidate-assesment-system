@@ -16,6 +16,8 @@ signal restart_requested
 signal leave_requested
 signal notepad_requested
 
+const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
+
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
 const INK := Color(0.13, 0.17, 0.31, 1)
@@ -34,7 +36,7 @@ const ACCENT := {
 const TAB_DEFS := [
     {"key": "home", "label": "Home"},
     {"key": "brief", "label": "Brief"},
-    {"key": "prompting", "label": "Candidate Prompting"},
+    {"key": "prompting", "label": "Codex"},
     {"key": "evidence", "label": "Evidence"},
     {"key": "assistant", "label": "Assistant"},
     {"key": "tests", "label": "Files & Tests"},
@@ -68,6 +70,19 @@ var _evidence_buttons: Dictionary = {}
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
 var _disposition_status: Label
+var _codex_http: HTTPRequest
+var _codex_editor: CodeEdit
+var _codex_chat_scroll: ScrollContainer
+var _codex_chat_log: VBoxContainer
+var _codex_input: LineEdit
+var _codex_send: Button
+var _codex_run_output: RichTextLabel
+var _codex_run_button: Button
+var _codex_submit_button: Button
+var _codex_history: Array = []
+var _codex_busy := false
+var _codex_dirty := true
+var _codex_submitted := false
 var _assistant_http: HTTPRequest
 var _assistant_log: RichTextLabel
 var _assistant_input: LineEdit
@@ -104,6 +119,9 @@ var _report_notices: RichTextLabel
 
 func _ready() -> void:
     _apply_page_theme()
+    _codex_http = HTTPRequest.new()
+    add_child(_codex_http)
+    _codex_http.request_completed.connect(_on_codex_response)
     _assistant_http = HTTPRequest.new()
     add_child(_assistant_http)
     _assistant_http.request_completed.connect(_on_assistant_response)
@@ -138,7 +156,7 @@ func configure(scenario: Dictionary) -> void:
     _build_tabs()
     _build_home_page()
     _build_brief_page()
-    _build_prompting_page()
+    _build_prompting_page_v2()
     _build_evidence_page()
     _build_assistant_page()
     _build_tests_page()
@@ -397,6 +415,316 @@ func _build_prompting_page() -> void:
     output_card.add_child(HSeparator.new())
     output_card.add_child(_heading("Result", 15, ACCENT["submit"]))
     output_card.add_child(_heading("Build an evidence-backed diagnosis, then state a safe remediation, validation plan, and rollback condition in your submission.", 14, MUTED))
+
+func _build_prompting_page_v2() -> void:
+    var body := _page_body("prompting")
+    body.add_child(_heading("Codex", 27, INK))
+    body.add_child(_heading("Prompt the assistant to edit the code inline, tweak it yourself, then run and submit.", 15, MUTED))
+
+    var action_row := HBoxContainer.new()
+    action_row.add_theme_constant_override("separation", 10)
+    action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.add_child(action_row)
+    var spacer := Control.new()
+    spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    action_row.add_child(spacer)
+    _codex_run_button = _flat_button("Run")
+    _codex_run_button.custom_minimum_size = Vector2(92, 42)
+    action_row.add_child(_codex_run_button)
+    _codex_submit_button = _flat_button("Submit")
+    _codex_submit_button.custom_minimum_size = Vector2(104, 42)
+    action_row.add_child(_codex_submit_button)
+
+    var workspace := HBoxContainer.new()
+    workspace.add_theme_constant_override("separation", 14)
+    workspace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    body.add_child(workspace)
+
+    var problem_card := _add_workspace_card(workspace, "PROBLEM", ACCENT["brief"])
+    (problem_card.get_parent() as PanelContainer).custom_minimum_size = Vector2(320, 0)
+    problem_card.add_child(_heading("%s - %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 24, INK))
+    problem_card.add_child(_richtext(str(_scenario.get("brief", "")), 130))
+    problem_card.add_child(HSeparator.new())
+    problem_card.add_child(_heading("What to include", 15, ACCENT["brief"]))
+    problem_card.add_child(_heading("Keep authentication first and rendering last, and make the independent lookups run concurrently.", 14, MUTED))
+
+    var editor_card := _add_workspace_card(workspace, "src/watch_page_orchestrator.ts", ACCENT["home"])
+    (editor_card.get_parent() as PanelContainer).custom_minimum_size = Vector2(430, 0)
+    _codex_editor = CodeEdit.new()
+    _codex_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _codex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    _codex_editor.custom_minimum_size = Vector2(0, 520)
+    editor_card.add_child(_codex_editor)
+    _style_codex_editor(_codex_editor)
+    _codex_editor.text = _prompting_source_text()
+    _codex_editor.text_changed.connect(func() -> void:
+        _codex_dirty = true
+        _codex_submitted = false
+        _codex_submit_button.disabled = false
+        if _codex_run_output != null and not _codex_busy:
+            _codex_run_output.text = "Code changed since the last run."
+    )
+
+    var right_column := VBoxContainer.new()
+    right_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    right_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    right_column.add_theme_constant_override("separation", 14)
+    workspace.add_child(right_column)
+
+    var conversation_card := _add_workspace_card(right_column, "CODEX", ACCENT["assistant"])
+    conversation_card.add_child(_heading("Codex is ready. Prompts stay in this assessment session.", 13, MUTED))
+    _codex_chat_scroll = ScrollContainer.new()
+    _codex_chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    _codex_chat_scroll.custom_minimum_size = Vector2(0, 250)
+    conversation_card.add_child(_codex_chat_scroll)
+    _codex_chat_log = VBoxContainer.new()
+    _codex_chat_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _codex_chat_log.add_theme_constant_override("separation", 8)
+    _codex_chat_scroll.add_child(_codex_chat_log)
+    _seed_codex_chat()
+    var chat_row := HBoxContainer.new()
+    chat_row.add_theme_constant_override("separation", 8)
+    conversation_card.add_child(chat_row)
+    _codex_input = LineEdit.new()
+    _codex_input.placeholder_text = "Ask Codex about this incident"
+    _codex_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _codex_input.focus_mode = Control.FOCUS_ALL
+    chat_row.add_child(_codex_input)
+    _codex_send = _flat_button("Send")
+    _codex_send.custom_minimum_size = Vector2(84, 38)
+    chat_row.add_child(_codex_send)
+    _codex_send.pressed.connect(_send_codex_prompt)
+    _codex_input.text_submitted.connect(func(_text: String) -> void: _send_codex_prompt())
+
+    var output_card := _add_workspace_card(right_column, "RUN OUTPUT", ACCENT["tests"])
+    _codex_run_output = _richtext("No run yet.\nEdit the code, then select Run.", 180)
+    output_card.add_child(_codex_run_output)
+    _codex_run_button.pressed.connect(_run_codex)
+    _codex_submit_button.pressed.connect(_submit_codex)
+
+func _seed_codex_chat() -> void:
+    _codex_history.clear()
+    var interaction: Dictionary = _scenario.get("ai_interaction", {})
+    var prompt: Dictionary = interaction.get("prompt", {})
+    var response: Dictionary = interaction.get("response", {})
+    var prompt_text := str(prompt.get("text", "How should I change the code?"))
+    var response_text := str(response.get("text", "Run the confirmed-independent calls concurrently and preserve ordering around authentication and rendering."))
+    _codex_chat_log.add_child(_bubble("You", prompt_text, Color(0.88, 0.91, 0.98, 1)))
+    _codex_chat_scroll.scroll_vertical = 100000
+    _codex_history.append({"role": "user", "content": prompt_text})
+    _codex_history.append({"role": "assistant", "content": response_text})
+    _apply_codex_reply(response_text, true)
+
+func _send_codex_prompt() -> void:
+    if _codex_busy or _codex_input == null:
+        return
+    var prompt := _codex_input.text.strip_edges()
+    if prompt.is_empty():
+        return
+    _codex_input.clear()
+    _codex_chat_log.add_child(_bubble("You", prompt, Color(0.88, 0.91, 0.98, 1)))
+    _codex_chat_scroll.scroll_vertical = 100000
+    _codex_history.append({"role": "user", "content": prompt})
+    _codex_busy = true
+    _codex_send.disabled = true
+    var payload := {"messages": _codex_history, "task": _codex_context()}
+    var headers := PackedStringArray(["Content-Type: application/json"])
+    var err := _codex_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+    if err != OK:
+        _finish_codex_prompt(_codex_offline_reply())
+
+func _on_codex_response(_result: int, code: int, _headers: PackedStringArray, resp: PackedByteArray) -> void:
+    if not _codex_busy:
+        return
+    var reply := ""
+    if code == 200:
+        var parsed: Variant = JSON.parse_string(resp.get_string_from_utf8())
+        if parsed is Dictionary:
+            reply = str(parsed.get("reply", ""))
+    _finish_codex_prompt(reply if not reply.is_empty() else _codex_offline_reply())
+
+func _finish_codex_prompt(reply: String) -> void:
+    _codex_history.append({"role": "assistant", "content": reply})
+    _codex_busy = false
+    if _codex_send != null:
+        _codex_send.disabled = false
+    _apply_codex_reply(reply, true)
+
+func _apply_codex_reply(reply: String, update_output: bool) -> void:
+    _codex_chat_log.add_child(_bubble("Codex", reply, Color(0.93, 0.88, 0.99, 1)))
+    _codex_chat_scroll.scroll_vertical = 100000
+    var code := _extract_code(reply)
+    if not code.is_empty() and _codex_editor != null:
+        _codex_editor.text = code
+        _codex_dirty = true
+        _codex_submitted = false
+        _codex_submit_button.disabled = false
+    if update_output and _codex_run_output != null:
+        _codex_run_output.text = "Codex updated the code. Run it to validate the change."
+
+func _codex_context() -> String:
+    var parts := PackedStringArray([str(_scenario.get("brief", ""))])
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    if not orchestrator.is_empty():
+        parts.append("src/watch_page_orchestrator.ts:")
+        for line: Variant in orchestrator.get("content", []):
+            parts.append(str(line))
+    if _codex_editor != null:
+        parts.append("Current editor contents:")
+        parts.append(_codex_editor.text)
+    parts.append("Reply with a short explanation and, if changing code, a full fenced ts block.")
+    return "\n".join(parts)
+
+func _run_codex() -> void:
+    if _codex_editor == null or _codex_run_output == null:
+        return
+    var analysis := _analyze_codex_code(_codex_editor.text)
+    _codex_dirty = false
+    _codex_submitted = false
+    _codex_run_output.text = _codex_run_transcript(analysis)
+
+func _submit_codex() -> void:
+    if _codex_editor == null or _codex_run_output == null:
+        return
+    if _codex_dirty:
+        _run_codex()
+    _codex_submitted = true
+    _codex_run_output.text += "\n\nSubmitted locally for the current session."
+    _codex_submit_button.disabled = false
+
+func _analyze_codex_code(code: String) -> Dictionary:
+    var text := code.replace("\r", "")
+    var auth_index := text.find("requireAuthenticatedUser")
+    var promise_index := text.find("Promise.all")
+    var render_index := text.rfind("renderWatchPage")
+    var details_index := text.find("getVideoDetails")
+    var rec_index := text.find("getRecommendations")
+    var comments_index := text.find("getComments")
+    if auth_index >= 0 and promise_index > auth_index and render_index > promise_index and details_index >= 0 and rec_index >= 0 and comments_index >= 0:
+        return {
+            "ok": true,
+            "remediation_id": "parallelize_confirmed_independent_calls",
+            "message": "Independent lookups are run concurrently while authentication and rendering stay ordered.",
+        }
+    if promise_index < 0:
+        return {"ok": false, "message": "The code still awaits the three lookups one after another."}
+    if auth_index < 0 or render_index < 0:
+        return {"ok": false, "message": "Keep authentication first and rendering last."}
+    return {"ok": false, "message": "The concurrent block does not preserve the required ordering."}
+
+func _codex_run_transcript(analysis: Dictionary) -> String:
+    var lines := PackedStringArray()
+    lines.append("$ npm run codex:validate")
+    lines.append("> validating src/watch_page_orchestrator.ts")
+    lines.append("> checking ordering constraints")
+    if bool(analysis.get("ok", false)):
+        var remediation_id := str(analysis.get("remediation_id", "parallelize_confirmed_independent_calls"))
+        lines.append("> running scripted tests")
+        for test: Dictionary in _scenario.get("tests", []):
+            var test_id := str(test.get("test_id", ""))
+            var result := _scripted_test_result(test_id, remediation_id)
+            if result.is_empty():
+                continue
+            lines.append("PASS  %s: %s" % [str(test.get("title", test_id)), str(result.get("actual_result", "recorded"))])
+        if lines.size() == 3:
+            lines.append("PASS  validation completed.")
+        lines.append("Exit code: 0")
+    else:
+        lines.append("FAIL  %s" % str(analysis.get("message", "The code still looks sequential.")))
+        lines.append("Exit code: 1")
+    return "\n".join(lines)
+
+func _scripted_test_result(test_id: String, remediation_id: String) -> Dictionary:
+    var test := _lookup(_scenario.get("tests", []), "test_id", test_id)
+    if test.is_empty():
+        return {}
+    var results: Dictionary = test.get("results_by_remediation", {})
+    return results.get(remediation_id, {})
+
+func _prompting_source_text() -> String:
+    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
+    var lines := PackedStringArray()
+    for line: Variant in orchestrator.get("content", []):
+        lines.append(str(line))
+    if lines.is_empty():
+        lines = PackedStringArray([
+            "await requireAuthenticatedUser(userId);",
+            "const details = await getVideoDetails(videoId);",
+            "const recommendations = await getRecommendations(videoId);",
+            "const comments = await getComments(videoId);",
+            "return renderWatchPage({ details, recommendations, comments });",
+        ])
+    return "\n".join(lines)
+
+func _prompting_reference_fix() -> String:
+    return "\n".join(PackedStringArray([
+        "await requireAuthenticatedUser(userId);",
+        "const [details, recommendations, comments] = await Promise.all([",
+        "  getVideoDetails(videoId),",
+        "  getRecommendations(videoId),",
+        "  getComments(videoId),",
+        "]);",
+        "return renderWatchPage({ details, recommendations, comments });",
+    ]))
+
+func _codex_offline_reply() -> String:
+    return "Codex is offline. Run only confirmed-independent calls concurrently, preserve required ordering, and apply the reference fix.\n```ts\n%s\n```" % _prompting_reference_fix()
+
+func _extract_code(reply: String) -> String:
+    var start := reply.find("```")
+    if start < 0:
+        return ""
+    var after := reply.find("\n", start)
+    if after < 0:
+        return ""
+    var end := reply.find("```", after + 1)
+    if end < 0:
+        return ""
+    return reply.substr(after + 1, end - after - 1).strip_edges()
+
+func _style_codex_editor(editor: CodeEdit) -> void:
+    var editor_box := StyleBoxFlat.new()
+    editor_box.bg_color = Color(0.12, 0.14, 0.19, 1)
+    editor_box.corner_radius_top_left = 8
+    editor_box.corner_radius_top_right = 8
+    editor_box.corner_radius_bottom_left = 8
+    editor_box.corner_radius_bottom_right = 8
+    editor_box.content_margin_left = 10
+    editor_box.content_margin_top = 8
+    editor_box.content_margin_right = 10
+    editor_box.content_margin_bottom = 8
+    editor.add_theme_stylebox_override("normal", editor_box)
+    editor.add_theme_stylebox_override("focus", editor_box)
+    editor.add_theme_stylebox_override("read_only", editor_box)
+    editor.add_theme_color_override("font_color", Color(0.9, 0.93, 0.98, 1))
+    editor.add_theme_color_override("font_readonly_color", Color(0.9, 0.93, 0.98, 1))
+    editor.add_theme_color_override("line_number_color", Color(0.55, 0.6, 0.72, 1))
+    editor.add_theme_color_override("current_line_color", Color(0.18, 0.21, 0.28, 0.7))
+    editor.add_theme_color_override("caret_color", Color(0.92, 0.94, 0.98, 1))
+    editor.add_theme_font_size_override("font_size", 15)
+    editor.syntax_highlighter = _codex_highlighter()
+
+func _codex_highlighter() -> CodeHighlighter:
+    var hl := CodeHighlighter.new()
+    hl.number_color = Color(0.71, 0.83, 0.66, 1)
+    hl.symbol_color = Color(0.9, 0.9, 0.9, 1)
+    hl.function_color = Color(0.86, 0.86, 0.58, 1)
+    hl.member_variable_color = Color(0.62, 0.81, 0.98, 1)
+    var kw := Color(0.35, 0.6, 0.9, 1)
+    var ctl := Color(0.77, 0.52, 0.85, 1)
+    for word: String in ["const", "let", "var", "function", "class", "interface", "type", "enum", "import", "export", "from", "new", "extends", "implements", "readonly", "void", "string", "number", "boolean", "Promise"]:
+        hl.add_keyword_color(word, kw)
+    for word: String in ["return", "await", "async", "if", "else", "for", "while", "try", "catch", "throw", "break", "continue"]:
+        hl.add_keyword_color(word, ctl)
+    var string_color := Color(0.9, 0.56, 0.44, 1)
+    hl.add_color_region("\"", "\"", string_color)
+    hl.add_color_region("'", "'", string_color)
+    hl.add_color_region("`", "`", string_color)
+    var comment_color := Color(0.4, 0.62, 0.38, 1)
+    hl.add_color_region("//", "", comment_color, true)
+    hl.add_color_region("/*", "*/", comment_color, false)
+    return hl
 
 func _update_brief_confirm() -> void:
     # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
