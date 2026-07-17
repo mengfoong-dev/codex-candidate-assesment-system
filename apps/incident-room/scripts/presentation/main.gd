@@ -246,6 +246,7 @@ func _connect_signals() -> void:
     workspace.leave_requested.connect(_back_to_desk)
     workspace.notepad_requested.connect(func() -> void: notepad.open_pad())
     workspace.assistant_requested.connect(_open_codex_console)
+    workspace.sandbox_test_requested.connect(_open_codex_and_run_tests)
     notepad.closed.connect(_update_presentation)
     if player != null:
         player.interaction_requested.connect(_on_interact)
@@ -317,6 +318,11 @@ func _back_to_desk() -> void:
 func _open_codex_console() -> void:
     if ide_console != null and ide_console.has_method("show_console"):
         ide_console.show_console()
+
+func _open_codex_and_run_tests() -> void:
+    _open_codex_console()
+    if ide_console != null and ide_console.has_method("run_tests"):
+        ide_console.run_tests()
 
 func _stand() -> void:
     if _phase != "briefing" and _phase != "room":

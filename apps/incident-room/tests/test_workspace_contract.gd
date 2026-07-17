@@ -10,6 +10,7 @@ const WORKSPACE_SIGNALS := [
     "revision_submitted",
     "final_submission_requested",
     "restart_requested",
+    "sandbox_test_requested",
 ]
 
 func run(tree: SceneTree) -> Array[String]:
@@ -55,10 +56,14 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
     var tabs := workspace.get_node("Frame/TabStrip/Tabs")
     t.assert_true(tabs.get_child_count() >= 5, "workspace builds the candidate tabs")
     var has_codex_tab := false
+    var has_workspace_tab := false
     for child: Node in tabs.get_children():
         if child is Button and (child as Button).text == "Codex":
             has_codex_tab = true
+        if child is Button and (child as Button).text == "Workspace":
+            has_workspace_tab = true
     t.assert_true(has_codex_tab, "workspace has the single Codex AI tab")
+    t.assert_true(has_workspace_tab, "workspace has the simplified workspace tab")
 
     # Brief tab exposes every hypothesis; Submit tab exposes the submission options.
     workspace.set_started(true)
@@ -74,13 +79,14 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
     for control: Control in focusable:
         t.assert_true(control.focus_mode != Control.FOCUS_NONE, "workspace keyboard focus: %s" % control.name)
 
-    # Rendering the artifact and test data proves the tabs are populated from the scenario.
+    # Evidence renders scenario artifacts; the workspace presents one clear file/edit/test flow.
     var host := workspace.get_node("Frame/Content/PanelHost")
     var text_blob := _collect_text(host)
     for artifact: Dictionary in scenario.get("artifacts", []):
         t.assert_true(text_blob.contains(str(artifact.get("title", ""))), "evidence lists artifact: %s" % artifact.get("title", ""))
-    for test_case: Dictionary in scenario.get("tests", []):
-        t.assert_true(text_blob.contains(str(test_case.get("title", ""))), "files & tests lists test: %s" % test_case.get("title", ""))
+    t.assert_true(text_blob.contains("src/watch_page_orchestrator.ts"), "workspace lists the editable incident file")
+    t.assert_true(text_blob.contains("Run sandbox tests"), "workspace exposes the real sandbox test action")
+    t.assert_false(text_blob.contains("Remediation to validate"), "workspace removes the old remediation-driven test UI")
     workspace.queue_free()
 
 func _interactive_controls(root: Node) -> Array[Control]:

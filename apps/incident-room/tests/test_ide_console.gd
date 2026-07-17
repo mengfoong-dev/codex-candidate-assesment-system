@@ -28,5 +28,25 @@ func run(tree: SceneTree) -> Array[String]:
 	console.apply_assistant_reply("Looks fine to me.")
 	t.assert_equal(console._editor.text, before, "no fenced block -> editor untouched")
 
+	# Structured runner output is rendered in the same terminal and releases the input lock.
+	console._busy = true
+	console._request_kind = "test"
+	console._input.editable = false
+	console.apply_test_result({
+		"status": "failed",
+		"passed": 2,
+		"failed": 1,
+		"duration_ms": 120,
+		"exit_code": 1,
+		"tests": [
+			{"name": "correctness", "status": "passed"},
+			{"name": "concurrency", "status": "failed", "message": "requests ran sequentially"},
+		],
+	})
+	t.assert_true(console._scroll.text.contains("2 passed, 1 failed"), "test summary is shown")
+	t.assert_true(console._scroll.text.contains("requests ran sequentially"), "failed-test detail is shown")
+	t.assert_false(console._busy, "test completion releases busy state")
+	t.assert_true(console._input.editable, "test completion restores terminal input")
+
 	console.queue_free()
 	return t.failures

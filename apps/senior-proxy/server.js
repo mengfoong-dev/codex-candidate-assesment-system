@@ -3,11 +3,22 @@
 //   POST /api/assistant/chat  -> the in-workspace engineering copilot ("ChatGPT but recorded")
 // Zero dependencies — Node 18+ (global fetch). Run: npm start.
 import http from "node:http";
+import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 
 const PROVIDER = (process.env.PROVIDER || "openai").toLowerCase();
 const PORT = process.env.PORT || 8080;
 const ALLOWED = (process.env.ALLOWED_ORIGINS || "*").split(",").map((s) => s.trim());
-const MODEL = process.env.MODEL || (PROVIDER === "anthropic" ? "claude-sonnet-4-5" : "gpt-4o-mini");
+const DEFAULT_MODELS = {
+  anthropic: "claude-sonnet-4-5",
+  deepseek: "deepseek-v4-flash",
+  openai: "gpt-4o-mini",
+};
+const MODEL = process.env.MODEL || DEFAULT_MODELS[PROVIDER] || DEFAULT_MODELS.openai;
+const TEST_RUNNER_IMAGE = process.env.TEST_RUNNER_IMAGE || "vibeproof-code-runner:latest";
+const TEST_TIMEOUT_MS = Number(process.env.TEST_TIMEOUT_MS || 10_000);
+const MAX_TEST_SOURCE_BYTES = 30_000;
+const MAX_TEST_OUTPUT_BYTES = 64_000;
 
 const SENIOR_PROMPT = [
   "You are Sam, a warm, encouraging senior on-call software engineer mentoring a newer",
@@ -73,6 +84,111 @@ async function callAnthropic(messages, systemPrompt) {
   return (data.content?.[0]?.text || "").trim();
 }
 
+async function callDeepSeek(messages, systemPrompt) {
+  const key = process.env.DEEPSEEK_API_KEY;
+  if (!key) throw new Error("DEEPSEEK_API_KEY is not set");
+  const r = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      thinking: { type: "disabled" },
+      max_tokens: 600,
+    }),
+  });
+  if (!r.ok) throw new Error(`DeepSeek ${r.status}: ${await r.text()}`);
+  const data = await r.json();
+  return (data.choices?.[0]?.message?.content || "").trim();
+}
+
+async function callProvider(messages, systemPrompt) {
+  if (PROVIDER === "anthropic") return callAnthropic(messages, systemPrompt);
+  if (PROVIDER === "deepseek") return callDeepSeek(messages, systemPrompt);
+  if (PROVIDER === "openai") return callOpenAI(messages, systemPrompt);
+  throw new Error(`Unsupported PROVIDER: ${PROVIDER}`);
+}
+
+function runSandboxedTests(source) {
+  return new Promise((resolve, reject) => {
+    const containerName = `vibeproof-test-${randomUUID()}`;
+    const args = [
+      "run",
+      "--rm",
+      "--name", containerName,
+      "-i",
+      "--network", "none",
+      "--memory", "256m",
+      "--cpus", "0.5",
+      "--pids-limit", "64",
+      "--read-only",
+      "--tmpfs", "/tmp:rw,noexec,nosuid,size=32m",
+      "--cap-drop", "ALL",
+      "--security-opt", "no-new-privileges",
+      TEST_RUNNER_IMAGE,
+    ];
+    const startedAt = Date.now();
+    const child = spawn("docker", args, { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    let finished = false;
+
+    const finish = (fn) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      fn();
+    };
+    const stopContainer = () => {
+      const cleanup = spawn("docker", ["rm", "-f", containerName], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
+      cleanup.unref();
+    };
+    const appendOutput = (current, chunk) => {
+      const next = current + chunk.toString("utf8");
+      if (Buffer.byteLength(next, "utf8") > MAX_TEST_OUTPUT_BYTES) {
+        stopContainer();
+        finish(() => reject(new Error("Test output exceeded 64 KB")));
+      }
+      return next;
+    };
+    const timer = setTimeout(() => {
+      stopContainer();
+      finish(() => reject(new Error(`Test run exceeded ${TEST_TIMEOUT_MS} ms`)));
+    }, TEST_TIMEOUT_MS);
+
+    child.stdout.on("data", (chunk) => {
+      stdout = appendOutput(stdout, chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = appendOutput(stderr, chunk);
+    });
+    child.on("error", (error) => finish(() => reject(error)));
+    child.on("close", (exitCode) => {
+      finish(() => {
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          resolve({
+            ...parsed,
+            exit_code: Number.isInteger(exitCode) ? exitCode : parsed.exit_code,
+            duration_ms: Date.now() - startedAt,
+            stderr: stderr.slice(0, MAX_TEST_OUTPUT_BYTES),
+          });
+        } catch {
+          reject(new Error(`Runner returned invalid output: ${stderr || stdout}`));
+        }
+      });
+    });
+    child.stdin.on("error", () => {});
+    child.stdin.end(source);
+  });
+}
+
 function sendJson(res, status, obj) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(obj));
@@ -87,7 +203,35 @@ const server = http.createServer((req, res) => {
   applyCors(res, req.headers.origin || "");
   if (req.method === "OPTIONS") return res.writeHead(204).end();
   if (req.method === "GET" && req.url === "/health") {
-    return sendJson(res, 200, { ok: true, provider: PROVIDER, model: MODEL, routes: Object.keys(ROUTES) });
+    return sendJson(res, 200, {
+      ok: true,
+      provider: PROVIDER,
+      model: MODEL,
+      test_runner_image: TEST_RUNNER_IMAGE,
+      routes: [...Object.keys(ROUTES), "/api/assistant/test"],
+    });
+  }
+  if (req.method === "POST" && req.url === "/api/assistant/test") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (Buffer.byteLength(body, "utf8") > MAX_TEST_SOURCE_BYTES * 2) req.destroy();
+    });
+    req.on("end", async () => {
+      try {
+        const parsed = body ? JSON.parse(body) : {};
+        const source = typeof parsed.code === "string" ? parsed.code : "";
+        if (!source.trim()) return sendJson(res, 400, { error: "code is required" });
+        if (Buffer.byteLength(source, "utf8") > MAX_TEST_SOURCE_BYTES) {
+          return sendJson(res, 413, { error: "code exceeds 30 KB" });
+        }
+        sendJson(res, 200, await runSandboxedTests(source));
+      } catch (error) {
+        console.error("test runner error:", error?.message || error);
+        sendJson(res, 503, { error: "sandboxed test runner is unavailable" });
+      }
+    });
+    return;
   }
   const systemPrompt = req.method === "POST" ? ROUTES[req.url] : undefined;
   if (systemPrompt) {
@@ -104,9 +248,7 @@ const server = http.createServer((req, res) => {
           messages.unshift({ role: "user", content: `(Workspace context: ${String(parsed.task).slice(0, 4000)})` });
         }
         if (messages.length === 0) return sendJson(res, 400, { error: "no messages" });
-        const reply = PROVIDER === "anthropic"
-          ? await callAnthropic(messages, systemPrompt)
-          : await callOpenAI(messages, systemPrompt);
+        const reply = await callProvider(messages, systemPrompt);
         sendJson(res, 200, { reply });
       } catch (e) {
         console.error("chat error:", e?.message || e);

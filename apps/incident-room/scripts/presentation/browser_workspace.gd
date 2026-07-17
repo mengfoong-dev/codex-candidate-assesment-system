@@ -2,7 +2,7 @@ class_name BrowserWorkspace
 extends Control
 
 ## Browser-styled 2D workspace: the candidate uses the assessment as tabs in a web
-## app (Brief / Evidence / Assistant / Files & Tests / Submit + a Report view). Every
+## app (Brief / Evidence / Codex / Workspace / Submit + a Report view). Every
 ## tab is built in code from scenario data; the view only emits intents and renders
 ## from the snapshot, while the coordinator owns the domain session (keep flow).
 
@@ -16,6 +16,7 @@ signal restart_requested
 signal leave_requested
 signal notepad_requested
 signal assistant_requested
+signal sandbox_test_requested
 
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
@@ -36,7 +37,7 @@ const TAB_DEFS := [
     {"key": "brief", "label": "Brief"},
     {"key": "evidence", "label": "Evidence"},
     {"key": "assistant", "label": "Codex"},
-    {"key": "tests", "label": "Files & Tests"},
+    {"key": "tests", "label": "Workspace"},
     {"key": "submit", "label": "Submit"},
 ]
 
@@ -76,9 +77,6 @@ var _p95_fixed_ms := 0
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
 var _disposition_status: Label
-
-var _tests_remediation: OptionButton
-var _test_result_labels: Dictionary = {}
 
 var _revise_current: Label
 var _revise_option: OptionButton
@@ -405,7 +403,7 @@ func _build_brief_page() -> void:
     body.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 27, INK))
     body.add_child(_richtext(str(_scenario.get("brief", "")), 90))
     body.add_child(HSeparator.new())
-    body.add_child(_heading("Record your initial hypothesis to unlock Evidence, Codex, Files & Tests, and Submit.", 16, ACCENT["brief"]))
+    body.add_child(_heading("Record your initial hypothesis to unlock Evidence, Codex, Workspace, and Submit.", 16, ACCENT["brief"]))
     _brief_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
     body.add_child(_brief_option)
     _brief_confidence = _slider()
@@ -613,79 +611,79 @@ func _refresh_assistant(snapshot: Dictionary) -> void:
     var disposition_id := str(snapshot.get("ai_disposition_id", ""))
     _disposition_status.text = "" if disposition_id.is_empty() else "Recorded your disposition: %s." % _humanize(disposition_id)
 
-# --- Files & Tests -----------------------------------------------------------
+# --- Workspace ---------------------------------------------------------------
 
 func _build_tests_page() -> void:
     var body := _page_body("tests")
-    body.add_child(_heading("Files & Tests", 27, INK))
-    # Seeded workspace file: the faulty homepage orchestrator the candidate is debugging.
-    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
-    if not orchestrator.is_empty():
-        body.add_child(_heading("📄  src/watch_page_orchestrator.ts", 16, INK))
-        var code_panel := PanelContainer.new()
-        var code_style := StyleBoxFlat.new()
-        code_style.bg_color = Color(0.16, 0.18, 0.26, 1)
-        code_style.set_corner_radius_all(8)
-        code_style.set_content_margin_all(14)
-        code_panel.add_theme_stylebox_override("panel", code_style)
-        var code := Label.new()
-        code.add_theme_color_override("font_color", Color(0.85, 0.9, 0.82, 1))
-        code.add_theme_font_size_override("font_size", 14)
-        var numbered := PackedStringArray()
-        var line_no := 1
-        for line: Variant in orchestrator.get("content", []):
-            numbered.append("%2d   %s" % [line_no, str(line)])
-            line_no += 1
-        code.text = "\n".join(numbered)
-        code_panel.add_child(code)
-        body.add_child(code_panel)
-        body.add_child(_heading("The watch-page lookups run one after another (await … await …). Read the trace on the Evidence tab.", 13, MUTED))
-        body.add_child(HSeparator.new())
-    body.add_child(_heading("Validation tests — run against a remediation to see the scripted result.", 15, MUTED))
-    body.add_child(_heading("Remediation to validate", 15, INK))
-    _tests_remediation = _option(_scenario.get("submission_options", {}).get("remediations", []), "option_id", "label")
-    body.add_child(_tests_remediation)
-    body.add_child(HSeparator.new())
-    _test_result_labels.clear()
-    for test: Dictionary in _scenario.get("tests", []):
-        var test_id := str(test.get("test_id", ""))
-        var card := VBoxContainer.new()
-        card.add_theme_constant_override("separation", 4)
-        var row := HBoxContainer.new()
-        row.add_theme_constant_override("separation", 10)
-        var info := VBoxContainer.new()
-        info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        info.add_child(_heading(str(test.get("title", test_id)), 16, INK))
-        info.add_child(_heading(str(test.get("expected_result", "")), 13, MUTED))
-        row.add_child(info)
-        var run := _flat_button("Run test")
-        run.custom_minimum_size = Vector2(120, 40)
-        row.add_child(run)
-        card.add_child(row)
-        var result := _heading("", 14, ACCENT["tests"])
-        card.add_child(result)
-        body.add_child(card)
-        body.add_child(HSeparator.new())
-        _test_result_labels[test_id] = result
-        run.pressed.connect(func() -> void:
-            if _tests_remediation.selected < 0:
-                result.text = "Choose a remediation to validate first."
-                return
-            verification_requested.emit(test_id, str(_tests_remediation.get_item_metadata(_tests_remediation.selected))))
+    body.add_child(_heading("Engineering workspace", 27, INK))
+    body.add_child(_heading(
+        "Review the incident file, work with Codex, then validate the current editor contents in an isolated runner.",
+        14,
+        MUTED
+    ))
+
+    var files_card := _workspace_card(
+        "1  Files",
+        "src/watch_page_orchestrator.ts",
+        "The candidate-editable orchestration file for the watch-page latency incident."
+    )
+    var open_file := _flat_button("Open file in Codex")
+    open_file.custom_minimum_size = Vector2(190, 42)
+    open_file.pressed.connect(func() -> void: assistant_requested.emit())
+    files_card.add_child(open_file)
+    body.add_child(files_card)
+
+    var codex_card := _workspace_card(
+        "2  Codex",
+        "AI-assisted editing",
+        "Ask for an explanation or proposed change. Review the generated code before testing it."
+    )
+    var open_codex := _flat_button("Open Codex console")
+    open_codex.custom_minimum_size = Vector2(190, 42)
+    open_codex.pressed.connect(func() -> void: assistant_requested.emit())
+    codex_card.add_child(open_codex)
+    body.add_child(codex_card)
+
+    var tests_card := _workspace_card(
+        "3  Test results",
+        "Sandboxed scenario tests",
+        "Runs the current Codex editor buffer—not a selected remediation. Results appear in the terminal with pass/fail details."
+    )
+    var run_tests := _flat_button("Run sandbox tests")
+    run_tests.custom_minimum_size = Vector2(190, 46)
+    run_tests.pressed.connect(func() -> void: sandbox_test_requested.emit())
+    tests_card.add_child(run_tests)
+    tests_card.add_child(_heading(
+        "Requires the Docker runner. If it is offline, the terminal reports “tests unavailable” instead of a scripted pass.",
+        12,
+        MUTED
+    ))
+    body.add_child(tests_card)
 
 func _refresh_tests(snapshot: Dictionary) -> void:
-    if _test_result_labels.is_empty():
-        return
-    var latest: Dictionary = {}
-    for action: Dictionary in snapshot.get("verification_actions", []):
-        latest[str(action.get("test_id", ""))] = action
-    for test_id: String in _test_result_labels:
-        var label: Label = _test_result_labels[test_id]
-        if latest.has(test_id):
-            var displayed: Dictionary = latest[test_id].get("displayed_result", {})
-            label.text = "✓ %s — %s" % [latest[test_id].get("remediation_id", ""), displayed.get("actual_result", "recorded")]
-        else:
-            label.text = ""
+    # Live results are tied to the current Codex editor buffer and render in that terminal.
+    # Legacy verification actions remain in the snapshot for report compatibility.
+    pass
+
+func _workspace_card(title: String, subtitle: String, description: String) -> VBoxContainer:
+    var card := VBoxContainer.new()
+    card.add_theme_constant_override("separation", 8)
+    var panel := PanelContainer.new()
+    var style := StyleBoxFlat.new()
+    style.bg_color = CARD
+    style.border_color = CARD_BORDER
+    style.set_border_width_all(1)
+    style.set_corner_radius_all(10)
+    style.set_content_margin_all(16)
+    panel.add_theme_stylebox_override("panel", style)
+    var content := VBoxContainer.new()
+    content.add_theme_constant_override("separation", 6)
+    content.add_child(_heading(title, 18, INK))
+    content.add_child(_heading(subtitle, 15, ACCENT["tests"]))
+    content.add_child(_heading(description, 13, MUTED))
+    panel.add_child(content)
+    card.add_child(panel)
+    return card
 
 # --- Submit ------------------------------------------------------------------
 

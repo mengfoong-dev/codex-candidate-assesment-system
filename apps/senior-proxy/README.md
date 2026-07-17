@@ -23,6 +23,14 @@ OPENAI_API_KEY=sk-...your key...
 
 (For Claude instead: set `PROVIDER=anthropic` and `ANTHROPIC_API_KEY=sk-ant-...`.)
 
+For DeepSeek's code assistant:
+
+```text
+PROVIDER=deepseek
+DEEPSEEK_API_KEY=your-key
+MODEL=deepseek-v4-flash
+```
+
 ## 2. Run it locally
 
 ```powershell
@@ -63,6 +71,20 @@ railway variables --service senior-proxy --set ALLOWED_ORIGINS=https://vibeproof
 
 - `GET /health` → `{ ok, provider, model }`
 - `POST /api/senior/chat` → body `{ "messages": [{"role","content"}], "task": "optional context" }` → `{ "reply": "..." }`
+- `POST /api/assistant/chat` → same body and response shape, for the in-workspace code assistant
+- `POST /api/assistant/test` → body `{ "code": "..." }` → isolated scenario test result
+
+## Sandboxed tests
+
+Build the worker image on the same machine that runs this proxy:
+
+```powershell
+docker build -t vibeproof-code-runner:latest apps/code-runner
+```
+
+Set `TEST_RUNNER_IMAGE=vibeproof-code-runner:latest`. In the in-game Codex terminal, enter
+`test` or `npm test`; the proxy creates a fresh restricted container and returns the hidden-test
+results. See [`../code-runner/README.md`](../code-runner/README.md) for remote-machine deployment.
 
 ## Boundary
 

@@ -50,6 +50,7 @@ var _history: Array = []  # [{role, content}] sent to the assistant
 var _lines: Array = []    # terminal scrollback (bbcode lines)
 var _busy := false
 var _paused_by_us := false
+var _request_kind := "chat"
 
 func _ready() -> void:
 	_http = HTTPRequest.new()
@@ -196,8 +197,12 @@ func _on_submit(text: String) -> void:
 		return
 	_input.clear()
 	_log("[color=#4ec9b0]▸ you[/color]  %s" % _escape(prompt))
+	if prompt.to_lower() in ["test", "npm test"]:
+		run_tests()
+		return
 	_history.append({"role": "user", "content": prompt})
 	_busy = true
+	_request_kind = "chat"
 	_input.editable = false
 	_log("[color=#858585]codex is thinking…[/color]")
 	var payload := {"messages": _history, "task": _task_context()}
@@ -205,6 +210,20 @@ func _on_submit(text: String) -> void:
 	var err := _http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if err != OK:
 		apply_assistant_reply(_offline_reply())
+
+func run_tests() -> void:
+	if _busy:
+		return
+	_busy = true
+	_request_kind = "test"
+	_input.editable = false
+	_log("[color=#858585]running isolated scenario tests…[/color]")
+	var payload := {"code": _editor.text}
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var test_url := assistant_proxy_url.trim_suffix("/chat") + "/test"
+	var err := _http.request(test_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	if err != OK:
+		apply_test_result({"status": "unavailable", "error": "could not reach the test runner"})
 
 func _task_context() -> String:
 	return "\n".join(PackedStringArray([
@@ -217,12 +236,40 @@ func _task_context() -> String:
 func _on_reply(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if not _busy:
 		return
-	var reply := ""
-	if code == 200:
-		var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
-		if parsed is Dictionary:
-			reply = str(parsed.get("reply", ""))
+	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
+	if _request_kind == "test":
+		if code == 200 and parsed is Dictionary:
+			apply_test_result(parsed)
+		else:
+			apply_test_result({"status": "unavailable", "error": "test runner returned HTTP %d" % code})
+		return
+	var reply := str(parsed.get("reply", "")) if parsed is Dictionary and code == 200 else ""
 	apply_assistant_reply(reply if not reply.is_empty() else _offline_reply())
+
+func apply_test_result(result: Dictionary) -> void:
+	_remove_thinking()
+	var status := str(result.get("status", "unavailable"))
+	if status == "unavailable":
+		_log("[color=#f48771]tests unavailable: %s[/color]" % _escape(str(result.get("error", "unknown error"))))
+	else:
+		for test: Variant in result.get("tests", []):
+			var row: Dictionary = test
+			var passed := str(row.get("status", "")) == "passed"
+			var marker := "✓" if passed else "✗"
+			var color := "#6a9955" if passed else "#f48771"
+			_log("[color=%s]%s %s[/color]" % [color, marker, _escape(str(row.get("name", "test")))])
+			if not passed and not str(row.get("message", "")).is_empty():
+				_log("[color=#f48771]  %s[/color]" % _escape(str(row.get("message", ""))))
+		var summary := "%d passed, %d failed · %d ms · exit %d" % [
+			int(result.get("passed", 0)),
+			int(result.get("failed", 0)),
+			int(result.get("duration_ms", 0)),
+			int(result.get("exit_code", 1)),
+		]
+		_log("[color=%s]%s[/color]" % ["#6a9955" if status == "passed" else "#f48771", summary])
+	_busy = false
+	_request_kind = "chat"
+	_input.editable = true
 
 ## The one testable seam: given an assistant reply, log the prose and apply any fenced code block
 ## into the editor. Called by both the live response handler and the offline fallback.
