@@ -2,13 +2,13 @@
   "schema_version": "1.0.0",
   "scenario_id": "homepage_latency",
   "scenario_version": "1.0.0",
-  "title": "Homepage Latency Incident",
+  "title": "VibeTube Watch-Page Latency Incident",
   "role": "On-call software engineer",
-  "brief": "Homepage p95 latency increased from 180 ms to 850 ms after the latest release. Investigate the evidence, identify the most supportable cause, and propose a safe remediation with validation and rollback.",
+  "brief": "VibeTube's watch page p95 latency increased from 180 ms to 850 ms after the latest release. Investigate the evidence, identify the most supportable cause, and propose a safe remediation with validation and rollback.",
   "intro_dialogue": [
     {"speaker": "Sam", "text": "Morning — glad you're on. We've got a live one."},
-    {"speaker": "Sam", "text": "Right after last night's release, the homepage got slow. p95 latency jumped from 180 ms to about 850 ms. Users are feeling it."},
-    {"speaker": "Sam", "text": "I'm buried in the release checklist, so I'm handing this incident to you. You're the on-call engineer now."},
+    {"speaker": "Sam", "text": "Right after last night's release, VibeTube's watch page got slow. p95 latency jumped from 180 ms to about 850 ms. Viewers are feeling it."},
+    {"speaker": "Sam", "text": "The alert fired and the logs are full of slow watch-page loads. I'm buried in the release checklist, so I'm handing this incident to you — you're on-call now."},
     {"speaker": "Sam", "text": "Here's how I work: don't guess. Dig up the facts first — the metrics wall, the logs, the request trace, the source. Ask me anything you need; that's what I'm here for."},
     {"speaker": "Sam", "text": "There's an AI copilot on your laptop too. Use it — but check what it tells you before you trust it. I want to see how you verify, not just that you prompted it."},
     {"speaker": "Sam", "text": "When you've got a cause you can back with evidence, propose a safe fix — with a rollback and a way to validate it. Head to your desk when you're ready."}
@@ -25,14 +25,14 @@
       "evidence_type": "metrics",
       "title": "Service Health Metrics",
       "content": [
-        "Homepage p95 latency: 850 ms (previously 180 ms)",
+        "Watch-page p95 latency: 850 ms (previously 180 ms)",
         "CPU utilization: 35%",
         "Database health: healthy",
         "Recommendation service health: healthy",
         "Redis hit rate: 42%"
       ],
       "facts": [
-        {"fact_id": "homepage_p95_increased", "label": "Homepage p95 is 850 ms, previously 180 ms."},
+        {"fact_id": "homepage_p95_increased", "label": "Watch-page p95 is 850 ms, previously 180 ms."},
         {"fact_id": "cpu_not_saturated", "label": "CPU utilization is 35%."},
         {"fact_id": "database_healthy", "label": "Database health checks are healthy."},
         {"fact_id": "recommendation_service_healthy", "label": "Recommendation service health checks are healthy."},
@@ -43,14 +43,14 @@
       "artifact_id": "application_logs",
       "station_id": "observability_wall",
       "evidence_type": "logs",
-      "title": "Homepage Application Logs",
+      "title": "Watch-Page Application Logs",
       "content": [
-        "INFO homepage request completed status=200",
-        "INFO profile, recommendations, and notices calls returned successfully",
+        "INFO watch-page request completed status=200",
+        "INFO video-details, recommendations, and comments calls returned successfully",
         "No database timeout or CPU-exhaustion signal is present"
       ],
       "facts": [
-        {"fact_id": "requests_complete_without_errors", "label": "Homepage requests complete without application errors."},
+        {"fact_id": "requests_complete_without_errors", "label": "Watch-page requests complete without application errors."},
         {"fact_id": "downstream_calls_successful", "label": "Downstream service calls return successfully."},
         {"fact_id": "no_database_timeout", "label": "No database timeout appears in the logs."},
         {"fact_id": "no_cpu_exhaustion", "label": "No CPU-exhaustion signal appears in the logs."}
@@ -60,32 +60,32 @@
       "artifact_id": "homepage_trace",
       "station_id": "observability_wall",
       "evidence_type": "trace",
-      "title": "Homepage Request Trace",
+      "title": "Watch-Page Request Trace",
       "content": [
-        "Authentication completes before the homepage lookups begin.",
-        "Profile, recommendations, and notices spans appear one after another.",
+        "Authentication completes before the watch-page lookups begin.",
+        "Video-details, recommendations, and comments spans appear one after another.",
         "The downstream waits accumulate before final rendering."
       ],
       "facts": [
         {"fact_id": "downstream_calls_sequential_in_trace", "label": "Several downstream calls appear one after another."},
-        {"fact_id": "downstream_waits_accumulate", "label": "Their waiting times accumulate into homepage latency."}
+        {"fact_id": "downstream_waits_accumulate", "label": "Their waiting times accumulate into watch-page latency."}
       ]
     },
     {
       "artifact_id": "homepage_orchestrator",
       "station_id": "developer_desk",
       "evidence_type": "source_code",
-      "title": "Homepage Orchestration Source",
+      "title": "Watch-Page Orchestration Source",
       "content": [
         "await requireAuthenticatedUser(userId);",
-        "const profile = await getProfile(userId);",
-        "const recommendations = await getRecommendations(userId);",
-        "const notices = await getNotices(userId);",
-        "return renderHomepage({ profile, recommendations, notices });"
+        "const details = await getVideoDetails(videoId);",
+        "const recommendations = await getRecommendations(videoId);",
+        "const comments = await getComments(videoId);",
+        "return renderWatchPage({ details, recommendations, comments });"
       ],
       "facts": [
-        {"fact_id": "sequential_awaits_in_code", "label": "The orchestration awaits profile, recommendations, and notices sequentially."},
-        {"fact_id": "calls_are_independent_in_code", "label": "The three lookups share only the user ID and do not consume one another's results."},
+        {"fact_id": "sequential_awaits_in_code", "label": "The orchestration awaits video details, recommendations, and comments sequentially."},
+        {"fact_id": "calls_are_independent_in_code", "label": "The three lookups share only the video ID and do not consume one another's results."},
         {"fact_id": "required_ordering_must_remain", "label": "Authentication and final rendering must remain ordered around the lookups."}
       ]
     }
@@ -94,7 +94,7 @@
     {"hypothesis_id": "redis_degradation", "label": "Redis cache degradation is driving the latency increase."},
     {"hypothesis_id": "database_slowdown", "label": "Database slowdown is driving the latency increase."},
     {"hypothesis_id": "cpu_saturation", "label": "Application CPU saturation is driving the latency increase."},
-    {"hypothesis_id": "sequential_independent_calls", "label": "Independent homepage lookups are waiting sequentially."},
+    {"hypothesis_id": "sequential_independent_calls", "label": "Independent watch-page lookups are waiting sequentially."},
     {"hypothesis_id": "insufficient_evidence", "label": "There is not yet enough evidence to identify a cause."}
   ],
   "ai_interaction": {
@@ -120,7 +120,7 @@
     {
       "test_id": "correctness_regression",
       "title": "Correctness regression",
-      "expected_result": "All scripted homepage fixtures preserve their expected output.",
+      "expected_result": "All scripted watch-page fixtures preserve their expected output.",
       "results_by_remediation": {
         "parallelize_confirmed_independent_calls": {"actual_result": "12 of 12 scripted fixtures passed.", "status": "passed"},
         "scale_cpu": {"actual_result": "No scripted result is available for this proposal; select or describe an appropriate validation plan.", "status": "unavailable"},
@@ -131,7 +131,7 @@
     },
     {
       "test_id": "p95_latency",
-      "title": "Homepage p95 latency",
+      "title": "Watch-page p95 latency",
       "expected_result": "Scripted p95 falls materially while the error rate remains unchanged.",
       "results_by_remediation": {
         "parallelize_confirmed_independent_calls": {"actual_result": "Scripted p95 is 310 ms and the error rate is unchanged.", "status": "passed"},
@@ -147,14 +147,14 @@
       {"option_id": "redis_degradation", "label": "Redis cache degradation"},
       {"option_id": "database_slowdown", "label": "Database slowdown"},
       {"option_id": "cpu_saturation", "label": "Application CPU saturation"},
-      {"option_id": "sequential_independent_calls", "label": "Sequential independent homepage calls"},
+      {"option_id": "sequential_independent_calls", "label": "Sequential independent watch-page calls"},
       {"option_id": "insufficient_evidence", "label": "Insufficient evidence"}
     ],
     "remediations": [
       {"option_id": "parallelize_confirmed_independent_calls", "label": "Run confirmed-independent lookups concurrently while preserving required ordering"},
       {"option_id": "scale_cpu", "label": "Scale application CPU capacity"},
       {"option_id": "improve_redis_hit_rate", "label": "Improve the Redis hit rate"},
-      {"option_id": "rewrite_system", "label": "Rewrite the homepage orchestration system"},
+      {"option_id": "rewrite_system", "label": "Rewrite the watch-page orchestration system"},
       {"option_id": "collect_more_evidence", "label": "Collect more evidence before changing production"}
     ],
     "expected_impacts": [
@@ -185,7 +185,7 @@
   },
   "scoring": {
     "criteria": [
-      {"criterion_id": "trace_before_change", "dimension": "investigation_strategy", "kind": "positive", "configured_points": 10, "label": "Review the homepage trace before recording a code-changing remediation."},
+      {"criterion_id": "trace_before_change", "dimension": "investigation_strategy", "kind": "positive", "configured_points": 10, "label": "Review the watch-page trace before recording a code-changing remediation."},
       {"criterion_id": "healthy_signals_used", "dimension": "evidence_use", "kind": "positive", "configured_points": 10, "label": "Use healthy CPU and downstream signals to narrow the diagnosis."},
       {"criterion_id": "sequential_source_identified", "dimension": "technical_conclusion", "kind": "positive", "configured_points": 10, "label": "Connect the source orchestration evidence to sequential waits."},
       {"criterion_id": "independence_checked", "dimension": "ai_verification", "kind": "positive", "configured_points": 10, "label": "Verify independence and ordering assumptions before using concurrency."},
