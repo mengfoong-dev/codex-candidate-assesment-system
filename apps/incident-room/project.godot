@@ -53,6 +53,10 @@ open_hypothesis={
 "events": [Object(InputEventKey,"physical_keycode":72,"unicode":104)]
 }
 
+[autoload]
+
+Sfx="*res://scripts/presentation/sfx.gd"
+
 [gui]
 
 theme/custom_font="res://assets/ui/default_font.tres"

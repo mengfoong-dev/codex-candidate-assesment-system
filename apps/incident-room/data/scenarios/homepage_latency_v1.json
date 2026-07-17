@@ -5,6 +5,14 @@
   "title": "Homepage Latency Incident",
   "role": "On-call software engineer",
   "brief": "Homepage p95 latency increased from 180 ms to 850 ms after the latest release. Investigate the evidence, identify the most supportable cause, and propose a safe remediation with validation and rollback.",
+  "intro_dialogue": [
+    {"speaker": "Sam", "text": "Morning — glad you're on. We've got a live one."},
+    {"speaker": "Sam", "text": "Right after last night's release, the homepage got slow. p95 latency jumped from 180 ms to about 850 ms. Users are feeling it."},
+    {"speaker": "Sam", "text": "I'm buried in the release checklist, so I'm handing this incident to you. You're the on-call engineer now."},
+    {"speaker": "Sam", "text": "Here's how I work: don't guess. Dig up the facts first — the metrics wall, the logs, the request trace, the source. Ask me anything you need; that's what I'm here for."},
+    {"speaker": "Sam", "text": "There's an AI copilot on your laptop too. Use it — but check what it tells you before you trust it. I want to see how you verify, not just that you prompted it."},
+    {"speaker": "Sam", "text": "When you've got a cause you can back with evidence, propose a safe fix — with a rollback and a way to validate it. Head to your desk when you're ready."}
+  ],
   "stations": [
     {"station_id": "observability_wall", "title": "Observability Wall", "quick_key": 1},
     {"station_id": "developer_desk", "title": "Developer Desk", "quick_key": 2},

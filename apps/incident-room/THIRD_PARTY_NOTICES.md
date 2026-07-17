@@ -10,12 +10,18 @@ Distributors must keep both local files, `licenses/GODOT_LICENSE.txt` and `licen
 
 ## Kenney Mini Characters 1.0
 
-The animated characters use the `character-female-{a-f}.glb` and `character-male-{a-f}.glb` models (12 variants) from Kenney Mini Characters 1.0 by Kenney, released under CC0-1.0. The player is female-a, the senior NPC (Sam) is male-b, and the seated office coworkers use the remaining variants for a diverse workspace.
+The animated characters use the `character-female-{a-f}.glb` and `character-male-{a-f}.glb` models (12 variants) from Kenney Mini Characters 1.0 by Kenney, released under CC0-1.0. The player is female-a, the senior NPC (Sam) is male-a, and the seated office coworkers use the remaining variants for a diverse workspace.
 
 - Canonical source: <https://kenney.nl/assets/mini-characters>.
 - Vendored: all 12 `character-*.glb` models plus the shared `Textures/colormap.png` under `assets/third_party/kenney-mini-characters/`; the full download is verified against a pinned SHA-256.
 - Local license copy: `assets/third_party/kenney-mini-characters/LICENSE.txt`.
 - Regenerate with `scripts/development/acquire_art_assets.ps1`.
+- The dialogue portrait `assets/ui/portrait_sam.png` is a still render of `character-male-a` (CC0), produced by `scripts/development/render_sam_portrait.gd`.
+
+## UI sound effects
+
+`assets/ui/sfx/text_blip.wav` and `ui_click.wav` are original procedurally-generated
+tones (no third party), produced by `scripts/development/generate_sfx.gd`.
 
 ## Noto Sans + Noto Emoji (UI font)
 
