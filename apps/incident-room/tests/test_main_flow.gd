@@ -58,11 +58,17 @@ func run(tree: SceneTree) -> Array[String]:
     t.assert_false(main.current_summary().saved_to_disk, "injected persistence failure is visible")
 
     var first_session_id: String = main.current_session_id()
+    # Dirty the persistent console so we can prove restart actually wipes it (not just the domain).
+    var console: Node = main.get_node("UI/IDEConsole")
+    console._history.append({"role": "user", "content": "previous candidate's prompt"})
+    console._editor.text = "leaked edit from previous candidate"
     t.assert_true(main.restart_session().ok, "session restarts")
     t.assert_equal(main.current_phase(), "title", "restart returns to title")
     t.assert_true(main.current_session_id() != first_session_id, "restart creates a new session ID")
     t.assert_false(main.session_snapshot().opened, "restart state is unopened")
     t.assert_equal(main.session_snapshot().viewed_artifact_ids, [], "restart clears evidence state")
+    t.assert_equal(console._history.size(), 0, "restart clears the previous candidate's Codex chat")
+    t.assert_false(console._editor.text.contains("leaked"), "restart clears the previous candidate's code edits")
 
     main.queue_free()
     return t.failures

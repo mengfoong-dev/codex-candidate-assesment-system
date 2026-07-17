@@ -28,5 +28,12 @@ func run(tree: SceneTree) -> Array[String]:
 	console.apply_assistant_reply("Looks fine to me.")
 	t.assert_equal(console._editor.text, before, "no fenced block -> editor untouched")
 
+	# reset() must wipe every per-candidate trace so the next session starts clean.
+	console.reset()
+	t.assert_equal(console._history.size(), 0, "reset clears chat history")
+	t.assert_false(console._editor.text.contains("Promise.all"), "reset restores pristine source (prior edit gone)")
+	t.assert_true(console._editor.text.contains("await"), "reset re-seeds the incident source")
+	t.assert_false(console._busy, "reset clears the in-flight flag")
+
 	console.queue_free()
 	return t.failures
