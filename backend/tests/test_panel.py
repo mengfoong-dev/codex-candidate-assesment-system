@@ -65,6 +65,18 @@ def test_cohere_score_schema_avoids_unsupported_numeric_ranges():
     assert "maximum" not in panel_module._SCORE_SCHEMA["properties"]["score"]
 
 
+def test_build_digest_includes_senior_question_and_station_visited():
+    """Godot-only events enrich the Layer-2 digest: the senior-engineer question is a rubric signal
+    like candidate_ai_prompt, and station_visited is context the grader can quote but never scores."""
+    events = [
+        {"event_id": "e1", "event_type": "candidate_senior_question", "payload": {"text": "Has this happened before?"}},
+        {"event_id": "e2", "event_type": "station_visited", "payload": {"station_id": "metrics_desk", "station_kind": "investigation"}},
+    ]
+    digest = panel_module._build_digest(events, submission={})
+    assert "[e1] senior question: 'Has this happened before?'" in digest
+    assert "[e2] station_visited: metrics_desk (investigation)" in digest
+
+
 @pytest.mark.asyncio
 async def test_cohere_primary_records_single_consensus_and_provenance(monkeypatch):
     async def fake_grade_once(vendor_cfg, dimension, digest):

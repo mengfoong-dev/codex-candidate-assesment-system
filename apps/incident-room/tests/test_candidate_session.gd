@@ -97,6 +97,15 @@ func run(_tree: SceneTree) -> Array[String]:
     t.assert_true(late_types.has("candidate_senior_question"), "senior question recorded for Proof Replay")
     t.assert_true(late_types.has("candidate_ai_prompt"), "ai prompt recorded for Proof Replay")
 
+    # Station visits log once per station_id and are a no-op on repeat visits (dedupe).
+    var visit_count_before := rejected.ordered_events().size()
+    var first_visit: Dictionary = rejected.record_station_visit("observability_wall", "investigation", "Observability Wall")
+    t.assert_true(first_visit.ok and not first_visit.get("skipped", false), "first station visit logs")
+    t.assert_equal(rejected.ordered_events().size(), visit_count_before + 1, "first visit appends one event")
+    var repeat_visit: Dictionary = rejected.record_station_visit("observability_wall", "investigation", "Observability Wall")
+    t.assert_true(repeat_visit.ok and repeat_visit.get("skipped", false), "repeat station visit is skipped")
+    t.assert_equal(rejected.ordered_events().size(), visit_count_before + 1, "repeat visit does not append another event")
+
     return t.failures
 
 func _complete_submission() -> Dictionary:

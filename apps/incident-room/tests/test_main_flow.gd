@@ -24,6 +24,7 @@ func run(tree: SceneTree) -> Array[String]:
         Callable(self, "_memory_logger_factory"),
         Callable(self, "_fail_summary_write")
     )
+    main.backend_base_url = ""  # hermetic: never touch the live grading backend from tests
     t.assert_equal(main.current_phase(), "title", "flow starts at title")
     t.assert_false(main.view_artifact("metrics_overview").ok, "room intents are rejected before the session starts")
     t.assert_equal(main.current_phase(), "title", "rejected intent does not change phase")
@@ -71,6 +72,33 @@ func run(tree: SceneTree) -> Array[String]:
     t.assert_false(console._editor.text.contains("leaked"), "restart clears the previous candidate's code edits")
 
     main.queue_free()
+
+    # BackendGrader._map_event forwards the frozen backend payload shapes (checked in isolation --
+    # it's a pure mapping function, no HTTP or scene tree needed).
+    var grader := BackendGrader.new()
+    var mapped_evidence: Dictionary = grader._map_event({
+        "event_type": "evidence_viewed",
+        "payload": {"artifact_id": "metrics_overview", "station_id": "observability_wall", "evidence_type": "dashboard"},
+    })
+    t.assert_equal(mapped_evidence.payload, {
+        "artifact_id": "metrics_overview",
+        "station_id": "observability_wall",
+        "evidence_type": "dashboard",
+    }, "evidence_viewed forwards station_id and evidence_type")
+
+    var mapped_station: Dictionary = grader._map_event({
+        "event_type": "station_visited",
+        "payload": {"station_id": "senior", "station_kind": "senior", "title": "Sam"},
+    })
+    t.assert_false(mapped_station.is_empty(), "station_visited produces a non-empty backend body")
+
+    var mapped_question: Dictionary = grader._map_event({
+        "event_type": "candidate_senior_question",
+        "payload": {"text": "what changed in the release?"},
+    })
+    t.assert_false(mapped_question.is_empty(), "candidate_senior_question produces a non-empty backend body")
+    grader.free()
+
     return t.failures
 
 func _memory_logger_factory(session_id: String, scenario_id: String, scenario_version: String) -> RefCounted:

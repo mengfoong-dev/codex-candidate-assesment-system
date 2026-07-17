@@ -5,11 +5,12 @@ from the scenario JSON (`scoring.criteria`). The detection *predicates* are the 
 (they live in evaluation/rules.py). Everything ID-shaped — artifacts, hypotheses, dispositions,
 tests, submission options, scoring criteria — is validated against the sets exposed here.
 
-Separation of concerns: the JSON stays byte-identical to the Godot copy (checksum-syncable). Purely
-backend-side policy the Godot JSON never had — relevant-evidence tags, seeded workspace files, the
-Layer-2 rubric — lives here as code, layered on top.
+Source of truth: config.scenario_data_dir prefers the shared Godot copy
+(apps/incident-room/data/scenarios) when the checkout has it, falling back to the bundled backend
+mirror for standalone deploys. The two are no longer required to be byte-identical — the mirror is a
+deploy fallback that may lag. Purely backend-side policy the Godot JSON never had — relevant-evidence
+tags, seeded workspace files, the Layer-2 rubric — lives here as code, layered on top.
 """
-import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
@@ -259,19 +260,3 @@ async def seed_scenarios(db) -> None:
         if await db.get(ScenarioRow, (sid, ver)) is None:
             db.add(ScenarioRow(scenario_id=sid, version=ver, definition=json.dumps(definition)))
     await db.commit()
-
-
-def verify_scenario_sync() -> list[str]:
-    """Compare each backend scenario file to the Godot copy under apps/incident-room; list mismatches.
-    Backing the MEDIUM finding's 'add a checksum test if two copies are manually synchronized'."""
-    repo_root = settings.scenario_data_dir.parent.parent.parent
-    godot_dir = repo_root / "apps" / "incident-room" / "data" / "scenarios"
-    mismatches: list[str] = []
-    for path in settings.scenario_data_dir.glob("*.json"):
-        twin = godot_dir / path.name
-        if not twin.exists():
-            mismatches.append(f"missing Godot twin for {path.name}")
-            continue
-        if hashlib.sha256(path.read_bytes()).hexdigest() != hashlib.sha256(twin.read_bytes()).hexdigest():
-            mismatches.append(f"checksum drift: {path.name}")
-    return mismatches

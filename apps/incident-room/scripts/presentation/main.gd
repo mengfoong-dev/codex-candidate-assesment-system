@@ -81,6 +81,11 @@ func begin_session(email: String = "") -> Dictionary:
     _candidate_email = email.strip_edges()
     var result: Dictionary = _session.open_assessment(true)
     if result.ok:
+        # Open the backend grading session now so events (incl. Codex prompts) stream live. The
+        # coroutine runs in the background; events logged before it resolves are queued by the grader.
+        if not backend_base_url.strip_edges().is_empty():
+            _ensure_grader()
+            _grader.begin(backend_base_url, _candidate_email)
         workspace.configure(_scenario)
         workspace.set_started(false)
         office.configure(_scenario)
@@ -168,16 +173,15 @@ func submit_final(submission: Dictionary) -> Dictionary:
         _grade_with_backend()
     return _finish_intent(result)
 
-## Fire-and-forget backend grading after the local submit: replay the session to the FastAPI
-## grader and render the real deterministic score into the report when it returns.
+## Fire-and-forget backend grading after the local submit. Events streamed live during the session,
+## so finalize() just flushes any tail, submits, and reads the report; it falls back to a full batch
+## replay if the live session never opened (offline at start).
 func _grade_with_backend() -> void:
-    if _grader == null:
-        _grader = BackendGrader.new()
-        add_child(_grader)
+    _ensure_grader()
     if workspace.has_method("show_backend_pending"):
         workspace.show_backend_pending()
-    var res: Dictionary = await _grader.grade(
-        backend_base_url, _candidate_email, _session.ordered_events(), _last_submission, _scenario)
+    var res: Dictionary = await _grader.finalize(
+        _session.ordered_events(), _last_submission, _scenario)
     if res.get("ok", false):
         if workspace.has_method("show_backend_score"):
             workspace.show_backend_score(res)
@@ -237,9 +241,23 @@ func _create_fresh_session() -> void:
             "user://vibeproof/sessions",
             Callable()
         )
+    # Stream every accepted event to the backend as it happens (no-op until a grader exists and a
+    # backend session is open). Guarded so injected test doubles without the setter still work.
+    if _logger.has_method("set_on_append"):
+        _logger.set_on_append(_on_event_logged)
     _session = CandidateSessionScript.new(_scenario, _logger)
     _current_summary = {}
     _intro_shown = false
+
+## EventLogger sink: forward each recorded event to the live backend client (fire-and-forget).
+func _on_event_logged(event: Dictionary) -> void:
+    if _grader != null:
+        _grader.on_event(event)
+
+func _ensure_grader() -> void:
+    if _grader == null:
+        _grader = BackendGrader.new()
+        add_child(_grader)
 
 func _connect_signals() -> void:
     title_screen.start_requested.connect(begin_session)
@@ -282,12 +300,20 @@ func _on_interact(station_id: String) -> void:
         return
     if _view != "office" or office.is_modal_open():
         return
+    var can_record := _session != null and (_phase == "briefing" or _phase == "room")
     match station_id:
         "my_desk":
+            if can_record:
+                _session.record_station_visit("my_desk", "desk", "Your desk")
             _sit()
         "senior":
+            if can_record:
+                _session.record_station_visit("senior", "senior", "Sam")
             office.open_senior()
         _:
+            if can_record:
+                var station := _find_by_id(_scenario.get("stations", []), "station_id", station_id)
+                _session.record_station_visit(station_id, "investigation", str(station.get("title", station_id)))
             office.open_station(station_id)
 
 func _on_nearest_station_changed(station_id: String) -> void:
@@ -325,6 +351,8 @@ func _back_to_desk() -> void:
 ## Open the Codex IDE console overlay, launched from the workspace's Codex tab. The console
 ## is PC-only now (no global hotkey), so it only opens from here while seated at the PC.
 func _open_codex_console() -> void:
+    if _session != null and (_phase == "briefing" or _phase == "room"):
+        _session.record_station_visit("codex_desk", "assistant", "Codex")
     if ide_console != null and ide_console.has_method("show_console"):
         ide_console.show_console()
 

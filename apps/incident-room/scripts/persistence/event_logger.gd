@@ -11,6 +11,9 @@ var _writer: Callable
 var _next_sequence := 1
 var _events: Array[Dictionary] = []
 var _persistence_warning := ""
+# Optional live sink: called with each accepted event so a listener (main.gd) can stream it to the
+# backend as it happens. Set via set_on_append; unset in tests/offline -> logging stays local-only.
+var _on_append := Callable()
 
 func _init(
         session_id: String,
@@ -24,6 +27,11 @@ func _init(
     _scenario_version = scenario_version
     _base_directory = base_directory.rstrip("/")
     _writer = writer
+
+## Register a listener invoked with every accepted event (post-validation), for live backend
+## streaming. Kept as a setter, not an _init arg, so the injected logger_factory signature is stable.
+func set_on_append(callback: Callable) -> void:
+    _on_append = callback
 
 func append(event_type: String, payload: Dictionary) -> Dictionary:
     var event: Dictionary = EventSchemaScript.build(
@@ -41,6 +49,10 @@ func append(event_type: String, payload: Dictionary) -> Dictionary:
 
     _events.append(event.duplicate(true))
     _next_sequence += 1
+    # Stream to the backend (if wired) the moment the event is accepted — independent of disk write,
+    # so grading sees the event even when local persistence fails.
+    if _on_append.is_valid():
+        _on_append.call(event.duplicate(true))
     var write_error := _append_line(_events_path(), JSON.stringify(event))
     if write_error != OK:
         _persistence_warning = "Session evidence is retained in memory but could not be saved to disk (error %d)." % write_error

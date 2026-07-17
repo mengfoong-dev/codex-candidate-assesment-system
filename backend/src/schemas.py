@@ -24,6 +24,9 @@ FRONTEND_EVENT_TYPES: frozenset[str] = frozenset(
         "search_performed",
         "ai_suggestion_dispositioned",
         "decision_recorded",  # candidate judgment; establishes the change boundary for rule 1
+        "candidate_ai_prompt",  # raw prompt text the candidate sent the AI copilot; feeds the Layer-2 rubric
+        "station_visited",  # Layer-3 CONTEXT only (D009) — which investigation station the candidate opened
+        "candidate_senior_question",  # raw prompt text to the in-scenario senior engineer; parallels candidate_ai_prompt
     }
 )
 
@@ -58,6 +61,10 @@ class EventEnvelope(BaseModel):
 # --- frontend-reported payloads (typed) ---
 class EvidenceViewedPayload(BaseModel):
     artifact_id: str
+    # Optional Godot-side context (which station/evidence-type it was viewed from). Layer-3 CONTEXT
+    # only — artifact_id is still the sole field validate_event_ids checks against the scenario.
+    station_id: str | None = None
+    evidence_type: str | None = None
 
 
 class HypothesisRecordedPayload(BaseModel):
@@ -93,6 +100,26 @@ class DecisionRecordedPayload(BaseModel):
     risk: str | None = None
 
 
+class CandidateAiPromptPayload(BaseModel):
+    # The candidate's raw free-text prompt to the AI copilot. Not scored deterministically (carries no
+    # scenario IDs), but the Layer-2 rubric reads it to judge prompt_precision / problem_decomposition.
+    text: str
+
+
+class StationVisitedPayload(BaseModel):
+    # Godot presentation layer only: which investigation station the candidate walked into. Carries no
+    # scenario IDs, so validate_event_ids has no branch for it — it is Layer-3 CONTEXT (D009), never scored.
+    station_id: str
+    station_kind: Literal["investigation", "assistant", "senior", "desk"] = "investigation"
+    title: str | None = None
+
+
+class CandidateSeniorQuestionPayload(BaseModel):
+    # The candidate's raw free-text question to the in-scenario senior engineer. Same shape/purpose as
+    # CandidateAiPromptPayload, just a different conversational partner for the Layer-2 rubric digest.
+    text: str
+
+
 # event_type -> payload model, for the events service to dispatch typed validation.
 FRONTEND_PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
     "evidence_viewed": EvidenceViewedPayload,
@@ -100,7 +127,10 @@ FRONTEND_PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
     "hypothesis_revised": HypothesisRevisedPayload,
     "search_performed": SearchPerformedPayload,
     "ai_suggestion_dispositioned": AiSuggestionDispositionedPayload,
+    "candidate_ai_prompt": CandidateAiPromptPayload,
     "decision_recorded": DecisionRecordedPayload,
+    "station_visited": StationVisitedPayload,
+    "candidate_senior_question": CandidateSeniorQuestionPayload,
 }
 
 

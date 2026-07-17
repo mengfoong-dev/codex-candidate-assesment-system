@@ -37,6 +37,9 @@ _TIMELINE_SUMMARIES = {
     "decision_recorded": lambda p: f"Decision: {p.get('action')}",
     "final_submission": lambda p: "Final submission recorded",
     "technical_error": lambda p: f"Technical error: {p.get('message')}",
+    "station_visited": lambda p: f"Visited {p.get('station_id')}",
+    "candidate_ai_prompt": lambda p: "Asked the AI copilot",
+    "candidate_senior_question": lambda p: "Asked Sam (senior)",
 }
 
 
@@ -80,6 +83,23 @@ def _hypotheses(events: list[dict]) -> list[dict]:
         for e in events
         if e["event_type"] in ("hypothesis_recorded", "hypothesis_revised")
     ]
+
+
+def _stations_visited(events: list[dict]) -> list[dict]:
+    # Layer-3 CONTEXT (D009): navigation through the Godot station map is never scored — this is a
+    # display-only trail for the recruiter, one entry per distinct station in first-seen order.
+    seen: dict[str, dict] = {}
+    for e in events:
+        if e["event_type"] != "station_visited":
+            continue
+        station_id = e["payload"].get("station_id")
+        if station_id not in seen:
+            seen[station_id] = {
+                "station_id": station_id,
+                "station_kind": e["payload"].get("station_kind"),
+                "first_sequence": e["sequence"],
+            }
+    return list(seen.values())
 
 
 def _deterministic_block(rows: list[ScoringResult], labels: dict[str, str]) -> dict:
@@ -176,6 +196,7 @@ async def build_report(db, session_id: str) -> dict:
         "session": _session_block(session, events),
         "timeline": _timeline(events),
         "hypotheses": _hypotheses(events),
+        "stations_visited": _stations_visited(events),  # Layer-3 CONTEXT (D009) — never scored
         "scores": {
             "deterministic": _deterministic_block(rows, labels),
             "ai_analysis": _ai_analysis_block(rows),
