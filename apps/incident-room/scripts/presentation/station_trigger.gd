@@ -38,6 +38,12 @@ func _ready() -> void:
 func request_interaction() -> void:
     interaction_requested.emit(station_id)
 
+## Force the glow on/off. Used when the player sits/stands at the desk: the "walk here to
+## interact" glow is stale while seated, and the seat teleport stays inside this trigger's box
+## (inside→inside), so body_entered/exited never fires to toggle it for us.
+func set_glow(active: bool) -> void:
+    _set_active(active)
+
 func _process(delta: float) -> void:
     if not _active or _overlay == null:
         return
