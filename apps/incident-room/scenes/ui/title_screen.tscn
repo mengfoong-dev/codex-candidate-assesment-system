@@ -1,7 +1,8 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/title_screen.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/ui/entry_hero.png" id="2_hero"]
+[ext_resource type="Texture2D" uid="uid://ceqgoysejoqoy" path="res://assets/ui/brand/logo.png" id="3_logo"]
 
 [sub_resource type="Gradient" id="ScrimGrad"]
 offsets = PackedFloat32Array(0, 0.55, 1)
@@ -117,6 +118,15 @@ size_flags_horizontal = 0
 size_flags_vertical = 1
 custom_minimum_size = Vector2(560, 0)
 theme_override_constants/separation = 14
+
+[node name="Logo" type="TextureRect" parent="Entry/Col"]
+layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(236, 62)
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
 
 [node name="Eyebrow" type="Label" parent="Entry/Col"]
 layout_mode = 2
