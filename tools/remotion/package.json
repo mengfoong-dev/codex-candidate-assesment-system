@@ -1,0 +1,23 @@
+{
+  "name": "vibeproof-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion compositions that render the VibeProof README hero GIF and diagram stills",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:hero": "remotion render Hero ../../docs/media/hero.gif --codec=gif --every-nth-frame=2",
+    "render:architecture": "remotion still Architecture ../../docs/media/architecture.png",
+    "render:scoring": "remotion still Scoring ../../docs/media/scoring.png",
+    "render:all": "npm run render:architecture && npm run render:scoring && npm run render:hero"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.490",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.490"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3"
+  }
+}
