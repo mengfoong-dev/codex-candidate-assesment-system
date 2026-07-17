@@ -14,6 +14,9 @@ extends Control
 ## web-safe. Upgrade path: swap _submit()/_on_reply() for an HTTPClient SSE pump against
 ## backend_base_url + POST /api/sessions/{id}/messages when a desktop build needs live streaming.
 
+## Emitted with the candidate's raw prompt each time they ask Codex — logged for Layer-2 review.
+signal prompt_submitted(text: String)
+
 ## Live in-workspace copilot endpoint (the senior-proxy assistant route).
 @export var assistant_proxy_url := "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
 ## Kept for the future agentic-SSE upgrade above; unused on the web target today.
@@ -195,6 +198,7 @@ func _on_submit(text: String) -> void:
 	if prompt.is_empty() or _busy:
 		return
 	_input.clear()
+	prompt_submitted.emit(prompt)
 	_log("[color=#4ec9b0]▸ you[/color]  %s" % _escape(prompt))
 	_history.append({"role": "user", "content": prompt})
 	_busy = true

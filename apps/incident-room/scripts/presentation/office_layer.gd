@@ -9,6 +9,8 @@ extends Control
 signal evidence_view_requested(artifact_id: String)
 signal modal_changed(open: bool)
 signal view_toggle_requested
+## Emitted with each question the candidate asks Sam — logged for Layer-2 review of gathering.
+signal senior_question_asked(text: String)
 
 ## Where the senior's live voice comes from. Overridable per build/deploy.
 @export var senior_proxy_url := "http://localhost:8080/api/senior/chat"
@@ -123,6 +125,7 @@ func _send() -> void:
         return
     _chat_input.text = ""
     _chat_input.grab_focus.call_deferred()  # Enter submits but shouldn't drop the cursor — keep typing
+    senior_question_asked.emit(text)
     _say("You", text, INK)
     _history.append({"role": "user", "content": text})
     _sending = true
