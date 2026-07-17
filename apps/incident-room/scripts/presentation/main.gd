@@ -42,9 +42,15 @@ const DESK_CAM_POS := Vector3(-6.9, 1.9, 5.3)
 const DESK_CAM_LOOK := Vector3(-4.9, 0.85, 3.1)
 
 var _desk_hud: Control
+var _dialogue: DialogueBox
+var _pause: PauseMenu
+var _intro_shown := false
+var _paused := false
 
 func _ready() -> void:
     _build_desk_hud()
+    _build_dialogue()
+    _build_pause()
     _connect_signals()
     if _scenario.is_empty():
         var loaded: Dictionary = ScenarioLoader.load_file("res://data/scenarios/homepage_latency_v1.json")
@@ -80,6 +86,7 @@ func begin_session(email: String = "") -> Dictionary:
         office.set_snapshot(_session.snapshot())
         _view = "office"
         _set_phase("briefing")
+        _play_intro_if_needed()
     return _finish_intent(result)
 
 func submit_initial_hypothesis(hypothesis_id: String, confidence: int) -> Dictionary:
@@ -180,6 +187,11 @@ func restart_session() -> Dictionary:
     _create_fresh_session()
     _configure_static_ui()
     office.close()
+    _paused = false
+    if _pause != null:
+        _pause.close()
+    if _dialogue != null:
+        _dialogue.dismiss()
     _view = "office"
     _desk_pc_open = false
     if player != null and player.has_method("set_seated"):
@@ -219,6 +231,7 @@ func _create_fresh_session() -> void:
         )
     _session = CandidateSessionScript.new(_scenario, _logger)
     _current_summary = {}
+    _intro_shown = false
 
 func _connect_signals() -> void:
     title_screen.start_requested.connect(begin_session)
@@ -336,7 +349,7 @@ func _update_presentation() -> void:
     if _desk_hud != null:
         _desk_hud.visible = working and at_desk and not _desk_pc_open and not notepad.visible
     if office.visible:
-        office.show_hint(_prompt_for(""))
+        office.show_hint("" if (_paused or _dialogue_active()) else _prompt_for(""))
     _update_player_input()
 
 func _build_desk_hud() -> void:
@@ -381,10 +394,93 @@ func _hud_button(text: String) -> Button:
     b.add_theme_color_override("font_color", Color(0.96, 0.94, 0.9, 1))
     return b
 
+# --- Intro dialogue + pause/reset --------------------------------------------
+
+func _build_dialogue() -> void:
+    _dialogue = DialogueBox.new()
+    $UI.add_child(_dialogue)
+    _dialogue.finished.connect(_on_dialogue_finished)
+
+func _build_pause() -> void:
+    _pause = PauseMenu.new()
+    $UI.add_child(_pause)
+    _pause.resume_requested.connect(_close_pause)
+    _pause.restart_requested.connect(func() -> void:
+        _close_pause()
+        restart_session())
+
+func _dialogue_active() -> bool:
+    return _dialogue != null and _dialogue.is_active()
+
+func _play_intro_if_needed() -> void:
+    if _intro_shown or _dialogue == null:
+        return
+    _intro_shown = true
+    _dialogue.play(_intro_lines())
+    _update_presentation()
+
+func _on_dialogue_finished() -> void:
+    _update_presentation()
+
+func _open_pause() -> void:
+    _paused = true
+    if _pause != null:
+        _pause.open()
+    _update_presentation()
+
+func _close_pause() -> void:
+    _paused = false
+    if _pause != null:
+        _pause.close()
+    _update_presentation()
+
+func _unhandled_key_input(event: InputEvent) -> void:
+    if not event.is_action_pressed("ui_cancel"):
+        return
+    if _dialogue_active() or (_phase != "briefing" and _phase != "room"):
+        return
+    if _paused:
+        _close_pause()
+        get_viewport().set_input_as_handled()
+    elif not office.is_modal_open() and not notepad.visible and not workspace.visible:
+        _open_pause()
+        get_viewport().set_input_as_handled()
+
+## Intro lines: scenario-authored `intro_dialogue` if present, else a built-in fallback.
+## Every line is spoken by Sam with his portrait.
+func _intro_lines() -> Array:
+    var loaded: Variant = load("res://assets/ui/portrait_sam.png")
+    var tex: Texture2D = loaded if loaded is Texture2D else null
+    var lines: Array = []
+    var scripted: Variant = _scenario.get("intro_dialogue", [])
+    if scripted is Array and not (scripted as Array).is_empty():
+        for entry: Variant in scripted:
+            if entry is Dictionary:
+                lines.append({
+                    "speaker": str((entry as Dictionary).get("speaker", "Sam")),
+                    "text": str((entry as Dictionary).get("text", "")),
+                    "portrait": tex,
+                })
+    else:
+        for text: String in _intro_fallback():
+            lines.append({"speaker": "Sam", "text": text, "portrait": tex})
+    return lines
+
+func _intro_fallback() -> Array:
+    return [
+        "Morning — glad you're on. We've got a live one.",
+        "Right after last night's release, the homepage got slow. p95 latency jumped from 180 ms to about 850 ms. Users are feeling it.",
+        "I'm buried in the release checklist, so I'm handing this incident to you. You're the on-call engineer now.",
+        "Here's how I work: don't guess. Dig up the facts first — the metrics wall, the logs, the request trace, the source. Ask me anything you need; that's what I'm here for.",
+        "There's an AI copilot on your laptop too. Use it — but check what it tells you before you trust it. I want to see how you verify, not just that you prompted it.",
+        "When you've got a cause you can back with evidence, propose a safe fix — with a rollback and a way to validate it. Head to your desk when you're ready.",
+    ]
+
 func _update_player_input() -> void:
     if player == null or not player.has_method("set_input_enabled"):
         return
     var can_move := (_phase == "briefing" or _phase == "room") and _view == "office" and not office.is_modal_open()
+    can_move = can_move and not _paused and not _dialogue_active()
     player.set_input_enabled(can_move)
 
 func _finish_intent(result: Dictionary) -> Dictionary:
