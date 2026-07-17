@@ -15,6 +15,7 @@ signal final_submission_requested(submission: Dictionary)
 signal restart_requested
 signal leave_requested
 signal notepad_requested
+signal assistant_requested
 
 const NAVY := Color(0.12, 0.16, 0.3, 1)
 const CREAM := Color(0.95, 0.92, 0.86, 1)
@@ -32,11 +33,10 @@ const ACCENT := {
     "report": Color(0.98, 0.7, 0.25, 1),
 }
 const TAB_DEFS := [
-    {"key": "prompting", "label": "Codex"},
     {"key": "home", "label": "Home"},
     {"key": "brief", "label": "Brief"},
     {"key": "evidence", "label": "Evidence"},
-    {"key": "assistant", "label": "Assistant"},
+    {"key": "assistant", "label": "Codex"},
     {"key": "tests", "label": "Files & Tests"},
     {"key": "submit", "label": "Submit"},
 ]
@@ -68,23 +68,6 @@ var _evidence_buttons: Dictionary = {}
 var _disposition_option: OptionButton
 var _disposition_confirm: Button
 var _disposition_status: Label
-var _assistant_http: HTTPRequest
-var _assistant_log: RichTextLabel
-var _assistant_input: LineEdit
-var _assistant_send: Button
-var _assistant_history: Array = []
-var _assistant_sending := false
-
-var _codex_editor: CodeEdit
-var _codex_http: HTTPRequest
-var _codex_log: RichTextLabel
-var _codex_input: TextEdit
-var _codex_send_btn: Button
-var _codex_submit_btn: Button
-var _codex_run_output: RichTextLabel
-var _codex_status: Label
-var _codex_history: Array = []
-var _codex_busy := false
 
 var _tests_remediation: OptionButton
 var _test_result_labels: Dictionary = {}
@@ -116,12 +99,6 @@ var _report_notices: RichTextLabel
 
 func _ready() -> void:
     _apply_page_theme()
-    _assistant_http = HTTPRequest.new()
-    add_child(_assistant_http)
-    _assistant_http.request_completed.connect(_on_assistant_response)
-    _codex_http = HTTPRequest.new()
-    add_child(_codex_http)
-    _codex_http.request_completed.connect(_on_codex_response)
     var chrome_row := $Frame/Chrome/ChromeRow as HBoxContainer
     var notepad := Button.new()
     notepad.text = "📝 Notepad"
@@ -153,7 +130,6 @@ func configure(scenario: Dictionary) -> void:
     _build_tabs()
     _build_home_page()
     _build_brief_page()
-    _build_prompting_page()
     _build_evidence_page()
     _build_assistant_page()
     _build_tests_page()
@@ -390,341 +366,6 @@ func _build_brief_page() -> void:
         if not _brief_confirm.disabled:
             initial_hypothesis_submitted.emit(str(_brief_option.get_item_metadata(_brief_option.selected)), int(_brief_confidence.value)))
 
-func _build_prompting_page() -> void:
-    var body := _fixed_page_body("prompting")
-    var top := HBoxContainer.new()
-    top.add_theme_constant_override("separation", 12)
-    top.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-    body.add_child(top)
-    var title := VBoxContainer.new()
-    title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    top.add_child(title)
-    title.add_child(_heading("Codex", 27, INK))
-    title.add_child(_heading("Prompt the assistant to edit the code inline, tweak it yourself, then run and submit.", 14, MUTED))
-    var timer_label := _heading("Time remaining 45:00", 15, ACCENT["assistant"])
-    timer_label.custom_minimum_size = Vector2(170, 40)
-    timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-    timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    top.add_child(timer_label)
-    var run_button := _flat_button("▶ Run")
-    run_button.custom_minimum_size = Vector2(88, 40)
-    run_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-    top.add_child(run_button)
-    _codex_submit_btn = _flat_button("Submit")
-    _codex_submit_btn.custom_minimum_size = Vector2(94, 40)
-    _codex_submit_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-    _codex_submit_btn.disabled = true
-    top.add_child(_codex_submit_btn)
-
-    var workspace := HBoxContainer.new()
-    workspace.add_theme_constant_override("separation", 14)
-    workspace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    body.add_child(workspace)
-
-    var incident_card := _add_scrollable_workspace_card(workspace, "PROBLEM", ACCENT["brief"])
-    incident_card.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 18, INK))
-    incident_card.add_child(_richtext(str(_scenario.get("brief", "")), 130))
-    incident_card.add_child(HSeparator.new())
-    incident_card.add_child(_heading("What to include", 15, ACCENT["brief"]))
-    incident_card.add_child(_heading("Keep authentication first and rendering last, and make the independent lookups run concurrently.", 14, MUTED))
-
-    # The editor Codex writes into and the candidate edits. Native CodeEdit gives line
-    # numbers, caret, and syntax highlight for free, and it runs in the web export.
-    var editor_card := _add_workspace_card(workspace, "src/watch_page_orchestrator.ts", ACCENT["tests"])
-    var editor_panel := editor_card.get_parent() as PanelContainer
-    editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    editor_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    editor_panel.size_flags_stretch_ratio = 1.7
-    editor_panel.custom_minimum_size = Vector2(360, 0)
-    editor_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    _codex_editor = _make_code_editor(_seed_code())
-    _codex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    editor_card.add_child(_codex_editor)
-
-    var right := VBoxContainer.new()
-    right.custom_minimum_size = Vector2(320, 0)
-    right.add_theme_constant_override("separation", 14)
-    workspace.add_child(right)
-
-    var chat_card := _add_scrollable_workspace_card(right, "CODEX", ACCENT["assistant"])
-    _codex_log = RichTextLabel.new()
-    _codex_log.bbcode_enabled = true
-    _codex_log.fit_content = true
-    _codex_log.scroll_active = true
-    _codex_log.custom_minimum_size = Vector2(0, 210)
-    _codex_log.add_theme_color_override("default_color", INK)
-    chat_card.add_child(_codex_log)
-    _codex_history.clear()
-    _codex_say("Codex", "Tell me what to change — e.g. \"run the independent lookups concurrently\". I'll edit the file in the editor.", ACCENT["assistant"])
-    var chat_row := HBoxContainer.new()
-    chat_row.add_theme_constant_override("separation", 8)
-    chat_card.add_child(chat_row)
-    _codex_input = TextEdit.new()
-    _codex_input.custom_minimum_size = Vector2(0, 64)
-    _codex_input.placeholder_text = "Ask Codex to change the code…"
-    _codex_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _codex_input.focus_mode = Control.FOCUS_ALL
-    chat_row.add_child(_codex_input)
-    _codex_send_btn = _flat_button("Send")
-    _codex_send_btn.custom_minimum_size = Vector2(76, 38)
-    _codex_send_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-    chat_row.add_child(_codex_send_btn)
-
-    var output_card := _add_scrollable_workspace_card(right, "RUN OUTPUT", ACCENT["tests"])
-    _codex_run_output = _richtext("[b]No run yet.[/b]\nEdit the code, then select [b]Run[/b].", 120)
-    _codex_run_output.scroll_active = true
-    output_card.add_child(_codex_run_output)
-    _codex_status = _heading("", 13, ACCENT["submit"])
-    _codex_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    output_card.add_child(_codex_status)
-    var submit_sheet := Control.new()
-    submit_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    submit_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
-    submit_sheet.visible = false
-    (_pages["prompting"] as Control).add_child(submit_sheet)
-    var dim := ColorRect.new()
-    dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    dim.color = Color(0.05, 0.07, 0.12, 0.28)
-    submit_sheet.add_child(dim)
-    var center := CenterContainer.new()
-    center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    submit_sheet.add_child(center)
-    var sheet := PanelContainer.new()
-    sheet.custom_minimum_size = Vector2(430, 0)
-    var sheet_style := StyleBoxFlat.new()
-    sheet_style.bg_color = Color(0.98, 0.97, 0.94, 1)
-    sheet_style.set_corner_radius_all(16)
-    sheet_style.set_border_width_all(1)
-    sheet_style.border_color = Color(0.78, 0.76, 0.7, 1)
-    sheet_style.content_margin_left = 28
-    sheet_style.content_margin_right = 28
-    sheet_style.content_margin_top = 24
-    sheet_style.content_margin_bottom = 22
-    sheet.add_theme_stylebox_override("panel", sheet_style)
-    center.add_child(sheet)
-    var sheet_content := VBoxContainer.new()
-    sheet_content.add_theme_constant_override("separation", 12)
-    sheet.add_child(sheet_content)
-    var sheet_title := _heading("Submit your work?", 22, INK)
-    sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    sheet_content.add_child(sheet_title)
-    var sheet_message := _heading("Your current code and run result will be recorded for this local prototype. You cannot edit this submission afterwards.", 14, MUTED)
-    sheet_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    sheet_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    sheet_content.add_child(sheet_message)
-    var sheet_actions := HBoxContainer.new()
-    sheet_actions.alignment = BoxContainer.ALIGNMENT_CENTER
-    sheet_actions.add_theme_constant_override("separation", 10)
-    sheet_content.add_child(sheet_actions)
-    var cancel_sheet := _flat_button("Cancel")
-    cancel_sheet.custom_minimum_size = Vector2(110, 40)
-    var confirm_sheet := _flat_button("Submit")
-    confirm_sheet.custom_minimum_size = Vector2(110, 40)
-    var confirm_style := StyleBoxFlat.new()
-    confirm_style.bg_color = Color(0.12, 0.5, 0.46, 1)
-    confirm_style.set_corner_radius_all(8)
-    confirm_style.set_content_margin_all(9)
-    confirm_sheet.add_theme_stylebox_override("normal", confirm_style)
-    confirm_sheet.add_theme_stylebox_override("hover", confirm_style)
-    confirm_sheet.add_theme_stylebox_override("pressed", confirm_style)
-    confirm_sheet.add_theme_color_override("font_color", Color.WHITE)
-    sheet_actions.add_child(confirm_sheet)
-    sheet_actions.add_child(cancel_sheet)
-
-    _codex_send_btn.pressed.connect(_codex_prompt)
-    _codex_input.gui_input.connect(func(event: InputEvent) -> void:
-        if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER and not event.shift_pressed:
-            _codex_input.accept_event()
-            _codex_prompt())
-    run_button.pressed.connect(func() -> void: _codex_run())
-    _codex_submit_btn.pressed.connect(func() -> void:
-        submit_sheet.visible = true
-        confirm_sheet.grab_focus.call_deferred())
-    cancel_sheet.pressed.connect(func() -> void: submit_sheet.visible = false)
-    confirm_sheet.pressed.connect(func() -> void:
-        submit_sheet.visible = false
-        _codex_status.text = "Submitted locally for this prototype. Your final code was recorded."
-        _codex_submit_btn.disabled = true)
-
-    var started_at := Time.get_ticks_msec()
-    var ticker := Timer.new()
-    ticker.wait_time = 1.0
-    ticker.timeout.connect(func() -> void:
-        var remaining := maxi(0, 45 * 60 - int((Time.get_ticks_msec() - started_at) / 1000))
-        timer_label.text = "Time remaining %02d:%02d" % [remaining / 60, remaining % 60])
-    body.add_child(ticker)
-    ticker.start()
-
-# --- Codex editor: prompt → the assistant writes code inline; the candidate edits it too ---
-
-func _seed_code() -> String:
-    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
-    var out := PackedStringArray()
-    for line: Variant in orchestrator.get("content", []):
-        out.append(str(line))
-    return "\n".join(out)
-
-func _make_code_editor(seed: String) -> CodeEdit:
-    var editor := CodeEdit.new()
-    editor.text = seed
-    editor.gutters_draw_line_numbers = true
-    editor.highlight_current_line = true
-    editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    editor.add_theme_font_size_override("font_size", 14)
-    var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.09, 0.11, 0.16, 1)
-    style.set_corner_radius_all(8)
-    style.set_content_margin_all(10)
-    editor.add_theme_stylebox_override("normal", style)
-    editor.add_theme_stylebox_override("focus", style)
-    editor.add_theme_color_override("font_color", Color(0.85, 0.9, 0.95, 1))
-    editor.add_theme_color_override("caret_color", Color(0.7, 0.9, 1, 1))
-    editor.add_theme_color_override("line_number_color", Color(0.45, 0.55, 0.7, 1))
-    var hl := CodeHighlighter.new()
-    hl.number_color = Color(0.98, 0.7, 0.45)
-    hl.symbol_color = Color(0.62, 0.8, 0.95)
-    hl.function_color = Color(0.5, 0.82, 0.88)
-    hl.member_variable_color = Color(0.8, 0.86, 0.92)
-    for keyword: String in ["await", "async", "const", "let", "var", "return", "function"]:
-        hl.add_keyword_color(keyword, Color(0.66, 0.55, 0.94))
-    hl.add_color_region("//", "", Color(0.45, 0.55, 0.6), true)
-    editor.syntax_highlighter = hl
-    return editor
-
-func _codex_prompt() -> void:
-    if _codex_busy or _codex_input == null:
-        return
-    var text := _codex_input.text.strip_edges()
-    if text.is_empty():
-        return
-    _codex_input.text = ""
-    _codex_say("You", text, INK)
-    _codex_history.append({"role": "user", "content": text})
-    _codex_busy = true
-    _codex_send_btn.disabled = true
-    _codex_say("Codex", "…", MUTED)
-    var payload := {"messages": _codex_history, "task": _codex_context()}
-    var headers := PackedStringArray(["Content-Type: application/json"])
-    var err := _codex_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
-    if err != OK:
-        _codex_reply("(Assistant offline — applying the reference concurrency fix.)", _reference_fix())
-
-func _codex_context() -> String:
-    var parts := PackedStringArray([
-        str(_scenario.get("brief", "")),
-        "The candidate is editing src/watch_page_orchestrator.ts. Current contents:",
-        _codex_editor.text if is_instance_valid(_codex_editor) else "",
-        "When you change the code, reply with the FULL updated file in one ```ts fenced block.",
-    ])
-    return "\n".join(parts)
-
-func _on_codex_response(_result: int, code: int, _headers: PackedStringArray, resp: PackedByteArray) -> void:
-    if not _codex_busy:
-        return
-    var reply := ""
-    if code == 200:
-        var parsed: Variant = JSON.parse_string(resp.get_string_from_utf8())
-        if parsed is Dictionary:
-            reply = str(parsed.get("reply", ""))
-    if reply.is_empty():
-        _codex_reply("(Assistant offline — applying the reference concurrency fix.)", _reference_fix())
-        return
-    _codex_reply(reply, _extract_code(reply))
-
-func _codex_reply(text: String, code: String) -> void:
-    _codex_history.append({"role": "assistant", "content": text})
-    _replace_thinking(text)
-    if code.is_empty():
-        _codex_finish()
-        return
-    _type_code(code)
-
-func _codex_finish() -> void:
-    _codex_busy = false
-    if _codex_send_btn != null:
-        _codex_send_btn.disabled = false
-
-func _replace_thinking(text: String) -> void:
-    if _codex_log == null:
-        return
-    var lines := _codex_log.text.split("\n", false)
-    if lines.size() > 0 and lines[lines.size() - 1].contains("…"):
-        lines.remove_at(lines.size() - 1)
-    _codex_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
-    _codex_say("Codex", text, ACCENT["assistant"])
-
-func _codex_say(speaker: String, text: String, color: Color) -> void:
-    if _codex_log == null:
-        return
-    _codex_log.text += "[color=#%s][b]%s[/b][/color]  %s\n" % [color.to_html(false), speaker, text]
-
-## Pull the first ```fenced``` block out of a reply, dropping the opening ```lang line.
-func _extract_code(reply: String) -> String:
-    var start := reply.find("```")
-    if start < 0:
-        return ""
-    var after := reply.find("\n", start)
-    if after < 0:
-        return ""
-    var end := reply.find("```", after + 1)
-    if end < 0:
-        return ""
-    return reply.substr(after + 1, end - after - 1).strip_edges()
-
-func _reference_fix() -> String:
-    return "\n".join(PackedStringArray([
-        "await requireAuthenticatedUser(userId);",
-        "const [details, recommendations, comments] = await Promise.all([",
-        "  getVideoDetails(videoId),",
-        "  getRecommendations(videoId),",
-        "  getComments(videoId),",
-        "]);",
-        "return renderWatchPage({ details, recommendations, comments });",
-    ]))
-
-# ponytail: fixed 8ms/char typewriter — good enough for the demo; swap for a Tween if you want easing.
-func _type_code(code: String) -> void:
-    if not is_instance_valid(_codex_editor):
-        _codex_finish()
-        return
-    _codex_editor.editable = false
-    _codex_editor.text = ""
-    for i: int in range(code.length()):
-        if not is_instance_valid(_codex_editor):
-            _codex_finish()
-            return
-        _codex_editor.text += code[i]
-        var last := _codex_editor.get_line_count() - 1
-        _codex_editor.set_caret_line(last)
-        _codex_editor.set_caret_column(_codex_editor.get_line(last).length())
-        _codex_editor.scroll_vertical = last
-        await get_tree().create_timer(0.008).timeout
-    _codex_editor.editable = true
-    if _codex_submit_btn != null:
-        _codex_submit_btn.disabled = false
-    if _codex_status != null:
-        _codex_status.text = "Codex updated the file. Edit it if you like, then Run or Submit."
-    _codex_finish()
-
-# ponytail: mocked heuristic, not real execution — matches the prototype's other mocked runs.
-func _codex_run() -> void:
-    if _codex_editor == null:
-        return
-    var code := _codex_editor.text
-    var auth_at := code.find("requireAuthenticatedUser")
-    var render_at := code.find("renderWatchPage")
-    var ordered := auth_at >= 0 and render_at >= 0 and auth_at < render_at
-    var concurrent := code.contains("Promise.all")
-    var passed := ordered and concurrent
-    var result := "[color=#23834d][b]PASS[/b][/color]" if passed else "[color=#b94040][b]NEEDS WORK[/b][/color]"
-    var score := (1 if ordered else 0) + (1 if concurrent else 0)
-    var checks := "2 / 2 mocked checks passed — independent lookups run concurrently, ordering preserved." if passed else "%d / 2 mocked checks passed — keep auth first and render last, and run the independent lookups concurrently (Promise.all)." % score
-    _codex_run_output.text = "%s\n%s\n\n[b]Prototype note[/b]\nThis local result is mocked; it does not execute code." % [result, checks]
-    if passed:
-        _codex_submit_btn.disabled = false
-    _codex_status.text = "Run complete. Submit is enabled." if passed else "Adjust the code, then run again."
-
 func _update_brief_confirm() -> void:
     # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
     _brief_confirm.disabled = _brief_option.selected < 0
@@ -778,33 +419,14 @@ func _refresh_evidence(snapshot: Dictionary) -> void:
 func _build_assistant_page() -> void:
     var body := _page_body("assistant")
     var interaction: Dictionary = _scenario.get("ai_interaction", {})
-    body.add_child(_heading("Codex", 27, INK))
-    body.add_child(_heading("Prompt Codex to help you resolve the incident. It reasons over the code and evidence and proposes fixes — it won't hand you the answer. Every prompt is recorded.", 14, MUTED))
-    _add_code_panel(body)
-    _assistant_log = RichTextLabel.new()
-    _assistant_log.bbcode_enabled = true
-    _assistant_log.fit_content = true
-    _assistant_log.scroll_active = true
-    _assistant_log.custom_minimum_size = Vector2(0, 240)
-    _assistant_log.add_theme_color_override("default_color", INK)
-    body.add_child(_assistant_log)
-    _assistant_history.clear()
-    _assistant_say("Codex", "Ready. I can see src/watch_page_orchestrator.ts and the incident evidence. Tell me what to investigate or ask me how to resolve the latency — I'll walk the reasoning with you.", ACCENT["assistant"])
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 8)
-    body.add_child(row)
-    _assistant_input = LineEdit.new()
-    _assistant_input.placeholder_text = "Ask Codex to find or resolve the bottleneck…"
-    _assistant_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _assistant_input.focus_mode = Control.FOCUS_ALL
-    row.add_child(_assistant_input)
-    _assistant_send = _flat_button("Send")
-    _assistant_send.custom_minimum_size = Vector2(90, 0)
-    row.add_child(_assistant_send)
-    _assistant_input.text_submitted.connect(func(_t: String) -> void: _send_assistant())
-    _assistant_send.pressed.connect(_send_assistant)
+    body.add_child(_heading("Codex — your AI copilot", 27, INK))
+    body.add_child(_heading("Open the Codex console to read the source and ask Codex to help you resolve the incident. It reasons over the code and evidence and proposes fixes — it won't hand you the answer. Every prompt is recorded.", 14, MUTED))
+    var open_console := _flat_button("Open Codex console  ➡")
+    open_console.custom_minimum_size = Vector2(0, 46)
+    open_console.pressed.connect(func() -> void: assistant_requested.emit())
+    body.add_child(open_console)
     body.add_child(HSeparator.new())
-    body.add_child(_heading("How did you handle the assistant's input?", 16, INK))
+    body.add_child(_heading("How did you handle Codex's suggestion?", 16, INK))
     _disposition_option = _option(interaction.get("dispositions", []), "option_id", "disposition", true)
     body.add_child(_disposition_option)
     _disposition_confirm = _flat_button("Record how I handled the assistant")
@@ -816,102 +438,6 @@ func _build_assistant_page() -> void:
     _disposition_confirm.pressed.connect(func() -> void:
         if _disposition_option.selected >= 0:
             disposition_submitted.emit(str(_disposition_option.get_item_metadata(_disposition_option.selected))))
-
-func _send_assistant() -> void:
-    if _assistant_sending or _assistant_input == null:
-        return
-    var text := _assistant_input.text.strip_edges()
-    if text.is_empty():
-        return
-    _assistant_input.text = ""
-    _assistant_say("You", text, INK)
-    _assistant_history.append({"role": "user", "content": text})
-    _assistant_sending = true
-    _assistant_send.disabled = true
-    _assistant_say("Codex", "…", MUTED)
-    var payload := {"messages": _assistant_history, "task": _assistant_context()}
-    var headers := PackedStringArray(["Content-Type: application/json"])
-    var err := _assistant_http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
-    if err != OK:
-        _finish_assistant("(The copilot is offline — try the request trace on the Evidence tab and the code on Files & Tests.)")
-
-func _on_assistant_response(_result: int, code: int, _headers: PackedStringArray, resp: PackedByteArray) -> void:
-    if not _assistant_sending:
-        return
-    var reply := ""
-    if code == 200:
-        var parsed: Variant = JSON.parse_string(resp.get_string_from_utf8())
-        if parsed is Dictionary:
-            reply = str(parsed.get("reply", ""))
-    _finish_assistant(reply if not reply.is_empty() else "(The copilot is offline — try the request trace on the Evidence tab and the code on Files & Tests.)")
-
-func _finish_assistant(reply: String) -> void:
-    _assistant_history.append({"role": "assistant", "content": reply})
-    _assistant_sending = false
-    if _assistant_send != null:
-        _assistant_send.disabled = false
-    if _assistant_log != null:
-        var lines := _assistant_log.text.split("\n", false)
-        if lines.size() > 0 and lines[lines.size() - 1].contains("…"):
-            lines.remove_at(lines.size() - 1)
-        _assistant_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
-    _assistant_say("Codex", reply, ACCENT["assistant"])
-
-func _assistant_context() -> String:
-    var parts := PackedStringArray([str(_scenario.get("brief", ""))])
-    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
-    if not orchestrator.is_empty():
-        parts.append("src/watch_page_orchestrator.ts:")
-        for line: Variant in orchestrator.get("content", []):
-            parts.append(str(line))
-    return "\n".join(parts)
-
-func _assistant_say(speaker: String, text: String, color: Color) -> void:
-    if _assistant_log == null:
-        return
-    _assistant_log.text += "[color=#%s][b]%s[/b][/color]  %s\n" % [color.to_html(false), speaker, text]
-
-## A dark, IDE-style read-out of the orchestrator source so prompt and code sit together.
-func _add_code_panel(parent: Control) -> void:
-    var orchestrator := _lookup(_scenario.get("artifacts", []), "artifact_id", "homepage_orchestrator")
-    if orchestrator.is_empty():
-        return
-    var panel := PanelContainer.new()
-    var sb := StyleBoxFlat.new()
-    sb.bg_color = Color(0.09, 0.11, 0.16, 1)
-    sb.border_color = Color(0.22, 0.5, 0.55, 0.6)
-    sb.set_border_width_all(1)
-    sb.set_corner_radius_all(8)
-    sb.content_margin_left = 14
-    sb.content_margin_top = 10
-    sb.content_margin_right = 14
-    sb.content_margin_bottom = 10
-    panel.add_theme_stylebox_override("panel", sb)
-    parent.add_child(panel)
-    var col := VBoxContainer.new()
-    col.add_theme_constant_override("separation", 3)
-    panel.add_child(col)
-    var header := Label.new()
-    header.text = "src/watch_page_orchestrator.ts"
-    header.add_theme_color_override("font_color", Color(0.5, 0.82, 0.88, 1))
-    header.add_theme_font_size_override("font_size", 13)
-    col.add_child(header)
-    var scroll := ScrollContainer.new()
-    scroll.custom_minimum_size = Vector2(0, 168)
-    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-    col.add_child(scroll)
-    var code := VBoxContainer.new()
-    code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    code.add_theme_constant_override("separation", 0)
-    scroll.add_child(code)
-    var n := 1
-    for line: Variant in orchestrator.get("content", []):
-        var row := Label.new()
-        row.text = "%2d  %s" % [n, str(line)]
-        row.add_theme_color_override("font_color", Color(0.8, 0.86, 0.92, 1))
-        row.add_theme_font_size_override("font_size", 13)
-        code.add_child(row)
-        n += 1
 
 func _refresh_assistant(snapshot: Dictionary) -> void:
     if _disposition_status == null:
