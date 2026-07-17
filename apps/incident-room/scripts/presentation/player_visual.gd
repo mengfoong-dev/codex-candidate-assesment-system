@@ -14,6 +14,11 @@ func _ready() -> void:
     var candidates := find_children("*", "AnimationPlayer", true, false)
     if not candidates.is_empty():
         _animation_player = candidates[0] as AnimationPlayer
+        # glTF clips import non-looping, so walk/idle play once then freeze while the body
+        # keeps moving ("2 steps then glide"). Force them to loop.
+        for clip in [idle_animation, walk_animation]:
+            if _animation_player.has_animation(clip):
+                _animation_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
     if not start_animation.is_empty() and _animation_player != null and _animation_player.has_animation(start_animation):
         _animation_player.play(start_animation)
         _current = start_animation

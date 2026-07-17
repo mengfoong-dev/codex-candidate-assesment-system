@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
+[ext_resource type="Script" path="res://scripts/presentation/wall_collision.gd" id="40_walls"]
 [ext_resource type="PackedScene" uid="uid://0kp8u6bcrofs" path="res://assets/third_party/isometric-office/isometric_office.glb" id="18_room"]
 [ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
 [ext_resource type="Script" path="res://scripts/presentation/coworker.gd" id="30_cw"]
@@ -53,6 +54,10 @@ offset = Vector3(0, 4.5, 6.0)
 look_height = 1.0
 
 [node name="Office" parent="." instance=ExtResource("18_room")]
+
+[node name="GeneratedWalls" type="StaticBody3D" parent="."]
+script = ExtResource("40_walls")
+office_path = NodePath("../Office")
 
 [node name="Architecture" type="Node3D" parent="."]
 
