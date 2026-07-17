@@ -33,8 +33,7 @@ const ACCENT := {
     "report": Color(0.98, 0.7, 0.25, 1),
 }
 const TAB_DEFS := [
-    {"key": "brief", "label": "Brief"},
-    {"key": "evidence", "label": "Evidence"},
+    {"key": "evidence", "label": "Investigate"},
     {"key": "assistant", "label": "Codex"},
     {"key": "tests", "label": "Files & Tests"},
     {"key": "submit", "label": "Submit"},
@@ -137,7 +136,6 @@ func configure(scenario: Dictionary) -> void:
         child.queue_free()
     _pages.clear()
     _build_tabs()
-    _build_brief_page()
     _build_evidence_page()
     _build_assistant_page()
     _build_tests_page()
@@ -147,7 +145,7 @@ func configure(scenario: Dictionary) -> void:
     _p95_fixed_ms = _scan_fixed_ms()
     _set_p95_unresolved()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
-    set_active_tab("brief")
+    set_active_tab("evidence")
 
 func set_started(started: bool) -> void:
     _started = started
@@ -309,14 +307,10 @@ func _add_tab_button(key: String, label: String) -> void:
     _buttons[key] = button
 
 func _on_tab_pressed(key: String) -> void:
+    # No investigate-first gate: every tool is open from the start, so the candidate's choice
+    # to gather facts or jump straight to the AI is observable (logged), not forced. Only the
+    # Report tab waits until there's a report.
     if key == "report" and not _report_available:
-        return
-    if key != "brief" and key != "report" and not _started:
-        # These tabs unlock once the candidate records an initial hypothesis; send them
-        # to the Brief tab (where that happens) instead of a dead tap.
-        set_active_tab("brief")
-        if _brief_status != null:
-            _brief_status.text = "🔒 Record your initial hypothesis below to unlock the workspace."
         return
     set_active_tab(key)
 
@@ -330,7 +324,7 @@ func _restyle_tabs() -> void:
         var button: Button = _buttons[key]
         var accent: Color = ACCENT.get(key, NAVY)
         var active := key == _active
-        var locked := (key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
+        var locked := key == "report" and not _report_available
         button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
         button.add_theme_stylebox_override("hover", _tab_style(active, accent, true))

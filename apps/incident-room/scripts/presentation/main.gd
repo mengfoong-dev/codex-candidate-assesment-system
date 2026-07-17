@@ -85,8 +85,9 @@ func begin_session(email: String = "") -> Dictionary:
         workspace.set_started(false)
         office.configure(_scenario)
         office.set_snapshot(_session.snapshot())
+        workspace.set_started(true)
         _view = "office"
-        _set_phase("briefing")
+        _set_phase("room")
         _play_intro_if_needed()
     return _finish_intent(result)
 
