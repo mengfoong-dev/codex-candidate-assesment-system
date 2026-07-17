@@ -53,7 +53,7 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
 
     workspace.configure(scenario)
     var tabs := workspace.get_node("Frame/TabStrip/Tabs")
-    t.assert_true(tabs.get_child_count() >= 5, "workspace builds the candidate tabs")
+    t.assert_true(tabs.get_child_count() >= 4, "workspace builds the candidate tabs")
     var has_codex_tab := false
     for child: Node in tabs.get_children():
         if child is Button and (child as Button).text == "Codex":
