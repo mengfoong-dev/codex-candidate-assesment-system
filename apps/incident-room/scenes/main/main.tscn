@@ -18,10 +18,11 @@ visible = false
 [node name="Workspace" parent="UI" instance=ExtResource("4_workspace")]
 visible = false
 demo_mode = false
+assistant_proxy_url = "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
 
 [node name="OfficeLayer" parent="UI" instance=ExtResource("5_office")]
 visible = false
-senior_proxy_url = "https://senior-proxy-production.up.railway.app/api/senior/chat"
+senior_proxy_url = "https://senior-proxy-production-82cf.up.railway.app/api/senior/chat"
 
 [node name="Notepad" parent="UI" instance=ExtResource("6_notepad")]
 visible = false
