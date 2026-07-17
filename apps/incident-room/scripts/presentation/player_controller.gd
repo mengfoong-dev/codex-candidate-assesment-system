@@ -11,6 +11,7 @@ signal hypothesis_requested
 @onready var player_visual: PlayerVisual = $Visual
 
 var input_enabled := true
+var look_enabled := false  ## drag-look only (no walking/toggle) — used while seated at the desk
 var _nearby_stations: Array[Area3D] = []
 var _nearest_station_id := ""
 # Click-to-walk target (point-and-click movement); WASD overrides it.
@@ -22,9 +23,9 @@ var _pointer_down := false
 var _drag_dist := 0.0
 
 func _unhandled_input(event: InputEvent) -> void:
-    if not input_enabled:
+    if not input_enabled and not look_enabled:
         return
-    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+    if input_enabled and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
         var camera := get_node_or_null(camera_path)
         if camera != null and camera.has_method("toggle_mode"):
             camera.toggle_mode()
@@ -35,7 +36,7 @@ func _unhandled_input(event: InputEvent) -> void:
             _drag_dist = 0.0
         else:
             _pointer_down = false
-            if _drag_dist < 10.0:  # negligible movement => a tap, so walk there
+            if input_enabled and _drag_dist < 10.0:  # negligible movement => a tap, so walk there (not while seated)
                 _walk_to_screen_point(event.position)
     elif event is InputEventMouseMotion and _pointer_down:
         # screen_relative is resolution-independent (unlike relative), so drag-look feels
@@ -109,6 +110,12 @@ func _physics_process(_delta: float) -> void:
 
 func set_input_enabled(enabled: bool) -> void:
     input_enabled = enabled
+
+## Allow drag-look only (glance around while seated) without walking or view toggle.
+func set_look_enabled(enabled: bool) -> void:
+    look_enabled = enabled
+    if not enabled:
+        _pointer_down = false
 
 ## Toggle the seated pose (used when sitting at the desk).
 func set_seated(seated: bool) -> void:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/presentation/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/room/incident_room.tscn" id="2_room"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/browser_workspace.tscn" id="4_workspace"]
 [ext_resource type="PackedScene" path="res://scenes/ui/office_layer.tscn" id="5_office"]
 [ext_resource type="PackedScene" path="res://scenes/ui/notepad.tscn" id="6_notepad"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ide_console.tscn" id="7_ide"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -26,5 +27,9 @@ senior_proxy_url = "https://senior-proxy-production-82cf.up.railway.app/api/seni
 
 [node name="Notepad" parent="UI" instance=ExtResource("6_notepad")]
 visible = false
+
+[node name="IDEConsole" parent="UI" instance=ExtResource("7_ide")]
+assistant_proxy_url = "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
+backend_base_url = "https://vibeproof-backend-production.up.railway.app"
 
 [node name="TitleScreen" parent="UI" instance=ExtResource("3_title")]

@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/stations/station_trigger.tscn" id="2_station"]
 [ext_resource type="Script" path="res://scripts/presentation/follow_camera.gd" id="17_cam"]
+[ext_resource type="Script" path="res://scripts/presentation/wall_collision.gd" id="40_walls"]
 [ext_resource type="PackedScene" uid="uid://0kp8u6bcrofs" path="res://assets/third_party/isometric-office/isometric_office.glb" id="18_room"]
 [ext_resource type="PackedScene" path="res://scenes/player/senior_visual.tscn" id="24_senior"]
 [ext_resource type="Script" path="res://scripts/presentation/coworker.gd" id="30_cw"]
@@ -53,6 +54,10 @@ offset = Vector3(0, 4.5, 6.0)
 look_height = 1.0
 
 [node name="Office" parent="." instance=ExtResource("18_room")]
+
+[node name="GeneratedWalls" type="StaticBody3D" parent="."]
+script = ExtResource("40_walls")
+office_path = NodePath("../Office")
 
 [node name="Architecture" type="Node3D" parent="."]
 
@@ -134,8 +139,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1, 0, 3.37)
 
 [node name="Trigger" parent="MyDesk" instance=ExtResource("2_station")]
 station_id = "my_desk"
-station_title = "Sit at your desk"
+station_title = "Your desk — investigate (E)"
 accent_color = Color(0.1, 0.78, 0.95, 1)
+label_height = 1.75
 
 [node name="Coworkers" type="Node3D" parent="."]
 
@@ -146,8 +152,9 @@ character = ExtResource("36_ma")
 
 [node name="Trigger" parent="Coworkers/CW1" instance=ExtResource("2_station")]
 station_id = "senior"
-station_title = "Talk to Sam"
+station_title = "Sam · your senior — talk (E)"
 accent_color = Color(0.66, 0.42, 0.94, 1)
+label_height = 2.95
 
 [node name="CW2" type="Node3D" parent="Coworkers"]
 transform = Transform3D(-0.239, 0, -0.971, 0, 1, 0, 0.971, 0, -0.239, -8.18, 0.42, 3.43)

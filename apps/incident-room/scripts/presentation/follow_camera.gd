@@ -11,7 +11,7 @@ extends Camera3D
 @export var offset := Vector3(0.0, 4.5, 6.0)
 @export var look_height := 1.0
 @export var follow_speed := 8.0
-@export var eye_height := 1.55
+@export var eye_height := 0.9  ## match the mini character: model 0.776 * 1.28 scale ≈ 0.99m tall, eyes just below the crown
 @export var blend_speed := 3.5  ## how fast the view switch eases (higher = quicker)
 ## Radians of rotation per screen pixel of drag — equal for yaw and pitch (FPS best practice).
 @export var look_sensitivity := 0.005
@@ -28,6 +28,10 @@ var _third_pos := Vector3.ZERO
 var _focus_active := false
 var _focus_transform := Transform3D.IDENTITY
 var _focus_weight := 0.0  ## eased 0->1 while focusing on a fixed view (e.g. the desk)
+var _focus_yaw := 0.0     ## glance left/right while seated (drag), clamped so you stay at the desk
+var _focus_pitch := 0.0   ## glance up/down while seated
+const FOCUS_YAW_LIMIT := 0.6    ## ~34 deg
+const FOCUS_PITCH_LIMIT := 0.35  ## ~20 deg
 
 func _ready() -> void:
     _target = get_node_or_null(target_path) as Node3D
@@ -48,6 +52,8 @@ func is_first_person() -> bool:
 func focus_on(xform: Transform3D) -> void:
     _focus_transform = xform
     _focus_active = true
+    _focus_yaw = 0.0    # start centred on the monitor each time you sit
+    _focus_pitch = 0.0
 
 func clear_focus() -> void:
     _focus_active = false
@@ -55,6 +61,11 @@ func clear_focus() -> void:
 ## Drag-look from a screen-relative delta (resolution-independent, equal x/y sensitivity).
 ## Yaw always rotates; vertical tilts the first-person pitch or raises the third-person view.
 func look_drag(screen_rel: Vector2) -> void:
+    if _focus_active:
+        # Seated at the desk: glance around within limits instead of orbiting/free-look.
+        _focus_yaw = clampf(_focus_yaw - screen_rel.x * look_sensitivity, -FOCUS_YAW_LIMIT, FOCUS_YAW_LIMIT)
+        _focus_pitch = clampf(_focus_pitch - screen_rel.y * look_sensitivity, -FOCUS_PITCH_LIMIT, FOCUS_PITCH_LIMIT)
+        return
     _yaw = wrapf(_yaw - screen_rel.x * look_sensitivity, -PI, PI)
     if _blend_target > 0.5:
         _pitch = clampf(_pitch - screen_rel.y * look_sensitivity, -tilt_limit, tilt_limit)
@@ -81,7 +92,9 @@ func _physics_process(delta: float) -> void:
     # Ease the blend toward its target, then hide the body once mostly first-person.
     _blend = move_toward(_blend, _blend_target, blend_speed * delta)
     if _visual != null:
-        _visual.visible = _blend < 0.5
+        # Hidden in first-person (blend) and once mostly into a focus view (seated desk),
+        # so the body never clips the eye-level camera.
+        _visual.visible = _blend < 0.5 and _focus_weight < 0.5
 
     # Smoothly trail the third-person anchor even while blended, so returning is stable.
     var desired := _target.global_position + _third_offset()
@@ -95,4 +108,7 @@ func _physics_process(delta: float) -> void:
     if _focus_weight <= 0.001:
         global_transform = base
     else:
-        global_transform = base.interpolate_with(_focus_transform, smoothstep(0.0, 1.0, _focus_weight))
+        # Glance rotation: pivot the seated view in place (position stays at the seat's eye).
+        var focus_xf := _focus_transform
+        focus_xf.basis = focus_xf.basis * Basis(Vector3.UP, _focus_yaw) * Basis(Vector3.RIGHT, _focus_pitch)
+        global_transform = base.interpolate_with(focus_xf, smoothstep(0.0, 1.0, _focus_weight))

@@ -42,12 +42,7 @@ async def _http_exception_handler(_: Request, exc: StarletteHTTPException):
     return JSONResponse(status_code=exc.status_code, content=_envelope(code, str(exc.detail)))
 
 
-async def _validation_handler(request: Request, exc: RequestValidationError):
-    if request.url.path == "/api/chat":
-        return JSONResponse(
-            status_code=400,
-            content=_envelope("bad_request", "Chat request validation failed", exc.errors()),
-        )
+async def _validation_handler(_: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
         content=_envelope("validation_error", "Request validation failed", exc.errors()),

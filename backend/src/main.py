@@ -15,7 +15,6 @@ from src.registry import seed_scenarios
 
 # Domain routers (each owned by an implementer; each declares full paths, e.g. /sessions/{id}/events).
 from src.evaluation.router import router as evaluation_router
-from src.chat.router import router as chat_router
 from src.events.router import router as events_router
 from src.scenarios.router import router as scenarios_router
 from src.sessions.router import router as sessions_router
@@ -63,7 +62,6 @@ def create_app() -> FastAPI:
         scenarios_router,
         sessions_router,
         events_router,
-        chat_router,
         workspace_router,
         simulation_router,
         evaluation_router,

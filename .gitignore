@@ -18,3 +18,10 @@ CLAUDE.local.md
 
 # Vendored asset source archives — only the extracted files under assets/third_party are tracked.
 *.zip
+
+# Playwright MCP scratch output.
+.playwright-mcp/
+
+# Stray root-level scratch drops (screenshots, duplicate asset exports).
+/vibeproof-live.png
+/isometric_office*.glb
