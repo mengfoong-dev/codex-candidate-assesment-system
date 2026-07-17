@@ -544,16 +544,16 @@ func _build_assistant_page() -> void:
     body.add_child(open_console)
     body.add_child(HSeparator.new())
     body.add_child(_heading("How did you handle Codex's suggestion?", 16, INK))
-    _disposition_option = _option(interaction.get("dispositions", []), "option_id", "disposition", true)
+    _disposition_option = _option(interaction.get("dispositions", []), "option_id", "disposition", true, "Select how you handled Codex's suggestion…")
     body.add_child(_disposition_option)
     _disposition_confirm = _flat_button("Record how I handled the assistant")
     _disposition_confirm.disabled = true
     body.add_child(_disposition_confirm)
     _disposition_status = _heading("", 15, ACCENT["assistant"])
     body.add_child(_disposition_status)
-    _disposition_option.item_selected.connect(func(_i: int) -> void: _disposition_confirm.disabled = _disposition_option.selected < 0)
+    _disposition_option.item_selected.connect(func(_i: int) -> void: _disposition_confirm.disabled = str(_disposition_option.get_selected_metadata()).is_empty())
     _disposition_confirm.pressed.connect(func() -> void:
-        if _disposition_option.selected >= 0:
+        if not str(_disposition_option.get_selected_metadata()).is_empty():
             disposition_submitted.emit(str(_disposition_option.get_item_metadata(_disposition_option.selected))))
 
 func _refresh_assistant(snapshot: Dictionary) -> void:
@@ -592,7 +592,7 @@ func _build_tests_page() -> void:
         body.add_child(HSeparator.new())
     body.add_child(_heading("Validation tests — run against a remediation to see the scripted result.", 15, MUTED))
     body.add_child(_heading("Remediation to validate", 15, INK))
-    _tests_remediation = _option(_scenario.get("submission_options", {}).get("remediations", []), "option_id", "label")
+    _tests_remediation = _option(_scenario.get("submission_options", {}).get("remediations", []), "option_id", "label", false, "Select a remediation to validate…")
     body.add_child(_tests_remediation)
     body.add_child(HSeparator.new())
     _test_result_labels.clear()
@@ -617,7 +617,7 @@ func _build_tests_page() -> void:
         body.add_child(HSeparator.new())
         _test_result_labels[test_id] = result
         run.pressed.connect(func() -> void:
-            if _tests_remediation.selected < 0:
+            if str(_tests_remediation.get_selected_metadata()).is_empty():
                 result.text = "Choose a remediation to validate first."
                 return
             verification_requested.emit(test_id, str(_tests_remediation.get_item_metadata(_tests_remediation.selected))))
@@ -644,7 +644,7 @@ func _build_submit_page() -> void:
     body.add_child(_heading("Revise your hypothesis (optional)", 20, INK))
     _revise_current = _heading("Current hypothesis: not recorded", 14, MUTED)
     body.add_child(_revise_current)
-    _revise_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label")
+    _revise_option = _option(_scenario.get("hypotheses", []), "hypothesis_id", "label", false, "Select a hypothesis to revise…")
     body.add_child(_revise_option)
     _revise_confidence = _slider()
     body.add_child(_revise_confidence)
@@ -659,11 +659,11 @@ func _build_submit_page() -> void:
     body.add_child(HSeparator.new())
 
     body.add_child(_heading("Submit your conclusion", 22, INK))
-    _submit_root = _option(options.get("root_causes", []), "option_id", "label")
+    _submit_root = _option(options.get("root_causes", []), "option_id", "label", false, "Select the most likely root cause…")
     body.add_child(_labeled("Root cause", _submit_root))
-    _submit_remediation = _option(options.get("remediations", []), "option_id", "label")
+    _submit_remediation = _option(options.get("remediations", []), "option_id", "label", false, "Select the remediation you would submit…")
     body.add_child(_labeled("Remediation", _submit_remediation))
-    _submit_rollback = _option(options.get("rollbacks", []), "option_id", "label")
+    _submit_rollback = _option(options.get("rollbacks", []), "option_id", "label", false, "Select a rollback plan…")
     body.add_child(_labeled("Rollback plan", _submit_rollback))
     _submit_validation = _itemlist(90)
     _fill_itemlist(_submit_validation, _scenario.get("tests", []), "test_id", "title")
@@ -692,7 +692,7 @@ func _build_submit_page() -> void:
     body.add_child(_submit_status)
 
     _revise_confidence.value_changed.connect(func(v: float) -> void: _revise_confidence_label.text = "Confidence: %d%%" % int(v))
-    _revise_option.item_selected.connect(func(_i: int) -> void: _revise_button.disabled = _revise_option.selected < 0)
+    _revise_option.item_selected.connect(func(_i: int) -> void: _revise_button.disabled = str(_revise_option.get_selected_metadata()).is_empty())
     _revise_button.pressed.connect(_on_revise)
     _submit_confidence.value_changed.connect(func(v: float) -> void: _submit_confidence_label.text = "Final confidence: %d%%" % int(v))
     for control: OptionButton in [_submit_root, _submit_remediation, _submit_rollback]:
@@ -701,7 +701,7 @@ func _build_submit_page() -> void:
     _submit_button.pressed.connect(_on_submit)
 
 func _on_revise() -> void:
-    if _revise_option.selected < 0:
+    if str(_revise_option.get_selected_metadata()).is_empty():
         return
     revision_submitted.emit(
         str(_revise_option.get_item_metadata(_revise_option.selected)),
@@ -731,9 +731,9 @@ func _on_submit() -> void:
 
 func _update_submit_state() -> void:
     _submit_button.disabled = (
-        _submit_root.selected < 0
-        or _submit_remediation.selected < 0
-        or _submit_rollback.selected < 0
+        str(_submit_root.get_selected_metadata()).is_empty()
+        or str(_submit_remediation.get_selected_metadata()).is_empty()
+        or str(_submit_rollback.get_selected_metadata()).is_empty()
         or _submit_validation.get_selected_items().is_empty())
 
 func _refresh_submit(snapshot: Dictionary) -> void:
@@ -832,14 +832,18 @@ func _slider() -> HSlider:
     slider.focus_mode = Control.FOCUS_ALL
     return slider
 
-func _option(items: Variant, id_field: String, label_field: String, humanize := false) -> OptionButton:
+func _option(items: Variant, id_field: String, label_field: String, humanize := false, placeholder := "") -> OptionButton:
     var control := OptionButton.new()
     control.focus_mode = Control.FOCUS_ALL
+    if not placeholder.is_empty():
+        control.add_item(placeholder)
+        control.set_item_metadata(0, "")
+        control.set_item_disabled(0, true)
     for item: Dictionary in items if typeof(items) == TYPE_ARRAY else []:
         var text := str(item.get(label_field, item.get(id_field, "")))
         control.add_item(_humanize(text) if humanize else text)
         control.set_item_metadata(control.item_count - 1, item.get(id_field, ""))
-    control.select(-1)
+    control.select(0 if not placeholder.is_empty() else -1)
     return control
 
 func _itemlist(min_height: int) -> ItemList:
@@ -984,6 +988,16 @@ func _apply_page_theme() -> void:
     t.set_color("font_color", "TextEdit", INK)
     t.set_stylebox("panel", "ItemList", field)
     t.set_color("font_color", "ItemList", INK)
+    t.set_color("font_hovered_color", "ItemList", INK)
+    t.set_color("font_selected_color", "ItemList", Color("172554"))
+    var item_selected := StyleBoxFlat.new()
+    item_selected.bg_color = Color("dbeafe")
+    item_selected.border_color = Color("3b82f6")
+    item_selected.set_border_width_all(1)
+    item_selected.set_corner_radius_all(4)
+    item_selected.set_content_margin_all(4)
+    t.set_stylebox("selected", "ItemList", item_selected)
+    t.set_stylebox("selected_focus", "ItemList", item_selected)
     for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
         var box := StyleBoxFlat.new()
         box.bg_color = Color(0.93, 0.9, 0.83, 1)
