@@ -11,6 +11,7 @@ const ScenarioLoader = preload("res://scripts/domain/scenario_loader.gd")
 @onready var workspace: BrowserWorkspace = $UI/Workspace
 @onready var office: OfficeLayer = $UI/OfficeLayer
 @onready var notepad: Notepad = $UI/Notepad
+@onready var ide_console: Node = $UI/IDEConsole
 @onready var title_screen: Control = $UI/TitleScreen
 
 ## Base URL of the FastAPI grading backend. Empty = offline prototype (local unscored
@@ -76,19 +77,20 @@ func configure_dependencies(
 	_set_phase("title")
 
 func begin_session(email: String = "") -> Dictionary:
-	if _phase != "title":
-		return _reject("Session can only begin from the title screen")
-	_candidate_email = email.strip_edges()
-	var result: Dictionary = _session.open_assessment(true)
-	if result.ok:
-		workspace.configure(_scenario)
-		workspace.set_started(false)
-		office.configure(_scenario)
-		office.set_snapshot(_session.snapshot())
-		_view = "office"
-		_set_phase("briefing")
-		_play_intro_if_needed()
-	return _finish_intent(result)
+    if _phase != "title":
+        return _reject("Session can only begin from the title screen")
+    _candidate_email = email.strip_edges()
+    var result: Dictionary = _session.open_assessment(true)
+    if result.ok:
+        workspace.configure(_scenario)
+        workspace.set_started(false)
+        office.configure(_scenario)
+        office.set_snapshot(_session.snapshot())
+        workspace.set_started(true)
+        _view = "office"
+        _set_phase("room")
+        _play_intro_if_needed()
+    return _finish_intent(result)
 
 func submit_initial_hypothesis(hypothesis_id: String, confidence: int) -> Dictionary:
 	if _phase != "briefing":
@@ -253,6 +255,28 @@ func _connect_signals() -> void:
 	office.evidence_view_requested.connect(view_artifact)
 	office.modal_changed.connect(func(_open: bool) -> void: _update_player_input())
 	office.view_toggle_requested.connect(_toggle_view)
+    title_screen.start_requested.connect(begin_session)
+    workspace.initial_hypothesis_submitted.connect(submit_initial_hypothesis)
+    workspace.evidence_view_requested.connect(view_artifact)
+    workspace.disposition_submitted.connect(record_ai_disposition)
+    workspace.revision_submitted.connect(submit_revision)
+    workspace.verification_requested.connect(request_verification)
+    workspace.final_submission_requested.connect(submit_final)
+    workspace.restart_requested.connect(restart_session)
+    workspace.leave_requested.connect(_back_to_desk)
+    workspace.notepad_requested.connect(func() -> void: notepad.open_pad())
+    workspace.assistant_requested.connect(_open_codex_console)
+    if ide_console != null and ide_console.has_signal("prompt_submitted"):
+        ide_console.prompt_submitted.connect(_on_codex_prompt)
+    notepad.closed.connect(_update_presentation)
+    if player != null:
+        player.interaction_requested.connect(_on_interact)
+        player.nearest_station_changed.connect(_on_nearest_station_changed)
+        player.hypothesis_requested.connect(open_hypothesis_panel)
+    office.evidence_view_requested.connect(view_artifact)
+    office.modal_changed.connect(func(_open: bool) -> void: _update_player_input())
+    office.view_toggle_requested.connect(_toggle_view)
+    office.senior_question_asked.connect(_on_senior_question)
 
 func _toggle_view() -> void:
 	var cam := room.get_node_or_null("Camera3D")
@@ -310,6 +334,22 @@ func _back_to_desk() -> void:
 	# Close the PC and return to the seated first-person desk hub (still seated).
 	_desk_pc_open = false
 	_update_presentation()
+
+## Open the Codex IDE console overlay, launched from the workspace's Codex tab. The console
+## is PC-only now (no global hotkey), so it only opens from here while seated at the PC.
+func _open_codex_console() -> void:
+    if ide_console != null and ide_console.has_method("show_console"):
+        ide_console.show_console()
+
+## Log the candidate's raw AI prompt / senior question into the Proof Replay (Layer-2 review).
+## Advisory only — the deterministic grader ignores these event types.
+func _on_codex_prompt(text: String) -> void:
+    if _session != null and (_phase == "briefing" or _phase == "room"):
+        _session.record_ai_prompt(text)
+
+func _on_senior_question(text: String) -> void:
+    if _session != null and (_phase == "briefing" or _phase == "room"):
+        _session.record_senior_question(text)
 
 func _stand() -> void:
 	if _phase != "briefing" and _phase != "room":
