@@ -84,6 +84,15 @@ class Settings(BaseSettings):
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
     nim_grader_model: str = "meta/llama-3.1-70b-instruct"
 
+    # --- Email report delivery (Brevo SMTP relay). Empty host disables the feature entirely. ---
+    # Relay gotcha: email_smtp_user (login) differs from email_address (verified From). Sender falls
+    # back to email_address for login only when email_smtp_user is blank (direct Gmail/Outlook case).
+    email_smtp_host: str | None = None
+    email_smtp_port: int = 587
+    email_smtp_user: str | None = None
+    email_password: str | None = None
+    email_address: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
