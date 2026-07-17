@@ -160,7 +160,7 @@ func configure(scenario: Dictionary) -> void:
     _build_submit_page()
     _build_report_page()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
-    set_active_tab("prompting")
+    set_active_tab("brief")
 
 func set_started(started: bool) -> void:
     _started = started
@@ -245,7 +245,7 @@ func _add_tab_button(key: String, label: String) -> void:
 func _on_tab_pressed(key: String) -> void:
     if key == "report" and not _report_available:
         return
-    if key != "prompting" and key != "home" and key != "brief" and key != "report" and not _started:
+    if key != "home" and key != "brief" and key != "report" and not _started:
         # These tabs unlock once the candidate records an initial hypothesis; send them
         # to the Brief tab (where that happens) instead of a dead tap.
         set_active_tab("brief")
@@ -264,7 +264,7 @@ func _restyle_tabs() -> void:
         var button: Button = _buttons[key]
         var accent: Color = ACCENT.get(key, NAVY)
         var active := key == _active
-        var locked := (key != "prompting" and key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
+        var locked := (key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
         button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
         button.add_theme_stylebox_override("hover", _tab_style(active, accent, true))
