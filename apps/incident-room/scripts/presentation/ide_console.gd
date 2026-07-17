@@ -60,18 +60,19 @@ func _ready() -> void:
 	_input.text_submitted.connect(_on_submit)
 	_file_rail.item_selected.connect(func(i: int) -> void: _show_file(_file_rail.get_item_text(i)))
 	_seed_from_scenario()
+	_hint.visible = false  # PC-only now: opened from the workspace, not a floating backtick hint
 	_log("[color=#858585]Codex online. Read the source on the left, then ask for a change below.[/color]")
 	if not _brief.is_empty():
 		_log("[color=#858585]incident: %s[/color]" % _escape(_brief))
 
 # --- show / hide ---------------------------------------------------------
 
+## PC-only: the console opens from the workspace's Codex tab (main._open_codex_console),
+## never a global hotkey — so it can't bypass the investigate-first gate. Backtick only
+## closes it while open, as a convenience.
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_QUOTELEFT:
-		if _body.visible:
-			hide_console()
-		elif _can_open():
-			show_console()
+	if _body.visible and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_QUOTELEFT:
+		hide_console()
 		get_viewport().set_input_as_handled()
 
 ## Don't open (and pause the tree) while the entry/sign-in screen is up. Read-only sibling
@@ -91,7 +92,7 @@ func show_console() -> void:
 
 func hide_console() -> void:
 	_body.visible = false
-	_hint.visible = true
+	_hint.visible = false
 	if _paused_by_us:
 		get_tree().paused = false
 		_paused_by_us = false

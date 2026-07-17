@@ -10,6 +10,7 @@ const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summ
 @onready var workspace: BrowserWorkspace = $UI/Workspace
 @onready var office: OfficeLayer = $UI/OfficeLayer
 @onready var notepad: Notepad = $UI/Notepad
+@onready var ide_console: Node = $UI/IDEConsole
 @onready var title_screen: Control = $UI/TitleScreen
 
 ## Base URL of the FastAPI grading backend. Empty = offline prototype (local unscored
@@ -244,6 +245,7 @@ func _connect_signals() -> void:
     workspace.restart_requested.connect(restart_session)
     workspace.leave_requested.connect(_back_to_desk)
     workspace.notepad_requested.connect(func() -> void: notepad.open_pad())
+    workspace.assistant_requested.connect(_open_codex_console)
     notepad.closed.connect(_update_presentation)
     if player != null:
         player.interaction_requested.connect(_on_interact)
@@ -309,6 +311,12 @@ func _back_to_desk() -> void:
     # Close the PC and return to the seated first-person desk hub (still seated).
     _desk_pc_open = false
     _update_presentation()
+
+## Open the Codex IDE console overlay, launched from the workspace's Codex tab. The console
+## is PC-only now (no global hotkey), so it only opens from here while seated at the PC.
+func _open_codex_console() -> void:
+    if ide_console != null and ide_console.has_method("show_console"):
+        ide_console.show_console()
 
 func _stand() -> void:
     if _phase != "briefing" and _phase != "room":
