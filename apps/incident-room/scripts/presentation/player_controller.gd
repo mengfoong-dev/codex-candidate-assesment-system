@@ -117,9 +117,14 @@ func set_look_enabled(enabled: bool) -> void:
     if not enabled:
         _pointer_down = false
 
-## Toggle the seated pose (used when sitting at the desk).
+## Toggle the seated pose (used when sitting at the desk). Also kills the station glow while
+## seated (relights on standing) — the sit/stand teleport stays inside the desk trigger, so
+## body_entered/exited won't do it. Idempotent with those signals if the seat ever moves out.
 func set_seated(seated: bool) -> void:
     player_visual.set_seated(seated)
+    for station: Area3D in _nearby_stations:
+        if is_instance_valid(station) and station.has_method("set_glow"):
+            station.set_glow(not seated)
 
 func register_station(station: Area3D) -> void:
     if not _nearby_stations.has(station):
