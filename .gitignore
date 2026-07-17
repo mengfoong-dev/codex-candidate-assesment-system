@@ -20,8 +20,19 @@ AGENTS.local.md
 # Vendored asset source archives — only the extracted files under assets/third_party are tracked.
 *.zip
 
-# Playwright MCP scratch output.
+# Node dependencies & build output — never commit; reinstall via npm/pnpm.
+node_modules/
+dist/
+.tsbuild/
+*.tsbuildinfo
+
+# fs-sandbox runtime (WORKSPACE_BACKEND=fs installs a Node toolchain here — generated, per ADR 0001).
+.harness/
+
+# Local tool caches (not team-shared).
 .playwright-mcp/
+.playwright-cli/
+.firecrawl/
 
 # Stray root-level scratch drops (screenshots, duplicate asset exports).
 /vibeproof-live.png
