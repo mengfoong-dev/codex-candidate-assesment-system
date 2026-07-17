@@ -124,3 +124,51 @@ async def test_write_validate_fails_when_rewrite_is_still_sequential(new_session
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "failed"
+
+
+# --- run the sandbox app + per-session revert to base -------------------------------------------
+# "Revert to base state for every session" is NOT a reset action (that would break the locked
+# orphan-never-delete rule — old edited rows must survive for Proof Replay). The base seed lives
+# immutably on disk; each NEW session re-seeds from it. This test runs the sandbox app in one
+# session (read real content -> edit it -> validate the edit) and proves the next session is back
+# to the pristine base, and that the on-disk source of truth was never mutated by the edit.
+async def test_sandbox_app_runs_and_each_new_session_reverts_to_base(client):
+    from src.registry import get_default_scenario
+
+    base = {f["path"]: f["content"] for f in get_default_scenario().seeded_files}
+    orchestrator = "src/homepage_orchestrator.ts"
+    assert orchestrator in base  # sanity: the seed loaded at all
+
+    # --- session A: run the sandbox app end-to-end ---
+    a = (await client.post("/api/sessions", json={"display_name": "A"})).json()["session_id"]
+
+    read_a = await client.get(f"/api/sessions/{a}/files/{orchestrator}")
+    assert read_a.status_code == 200
+    assert read_a.json()["content"] == base[orchestrator]  # real seed, never "File not found"
+    assert read_a.json()["source"] == "seeded"
+
+    await _write_orchestrator(a, _CONCURRENT_REWRITE)  # candidate/AI edits the app in-session
+
+    edited = (await client.get(f"/api/sessions/{a}/files/{orchestrator}")).json()
+    assert edited["content"] == _CONCURRENT_REWRITE
+    assert edited["source"] == "ai"  # A now diverges from base
+
+    ran = await client.post(
+        f"/api/sessions/{a}/tests/p95_latency", json={"remediation_id": "scale_cpu"}
+    )
+    assert ran.json()["status"] == "passed"  # the edited app validates (write->validate loop)
+
+    # --- session B: a brand-new session is back to the pristine base ---
+    b = (await client.post("/api/sessions", json={"display_name": "B"})).json()["session_id"]
+
+    read_b = (await client.get(f"/api/sessions/{b}/files/{orchestrator}")).json()
+    assert read_b["content"] == base[orchestrator]  # reverted to base — A's edit is not visible
+    assert read_b["source"] == "seeded"
+
+    listing_b = {
+        f["path"]: f["source"] for f in (await client.get(f"/api/sessions/{b}/files")).json()
+    }
+    assert listing_b == {path: "seeded" for path in base}  # every base file re-seeded verbatim
+
+    # --- the on-disk base was never mutated by A's edit ---
+    assert {f["path"]: f["content"] for f in get_default_scenario().seeded_files} == base

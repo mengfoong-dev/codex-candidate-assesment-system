@@ -86,6 +86,11 @@ def _print_report(report: dict[str, Any]) -> None:
 async def _run() -> int:
     from src.config import get_settings
 
+    # ADR 0001: this interactive tool runs against the TRUE on-disk sandbox (real files, real
+    # `vitest run`), not the default DB-rows workspace. setdefault so `WORKSPACE_BACKEND=db` can
+    # still force the old behavior. The sandbox root defaults to a stable OS-temp folder, so the
+    # Node toolchain is installed once and reused across runs.
+    os.environ.setdefault("WORKSPACE_BACKEND", "fs")
     get_settings.cache_clear()
     if not get_settings().cohere_api_key:
         print("COHERE_API_KEY is empty. Add a rotated key to backend/.env, then rerun this command.")

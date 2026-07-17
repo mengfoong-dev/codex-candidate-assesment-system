@@ -57,10 +57,15 @@ def test_manifest_and_disk_are_one_to_one():
     on_disk = {
         PurePosixPath(p.relative_to(base).as_posix()).as_posix()
         for p in base.rglob("*")
-        if p.is_file() and p.name != "_manifest.json"
+        # `.harness/` is the ADR 0001 sandbox grading harness (tsconfig + the vitest test). It lives
+        # on disk but is DELIBERATELY absent from _manifest.json so it never seeds into session_files
+        # or list_files — the candidate/AI must not see the test that grades them.
+        if p.is_file() and p.name != "_manifest.json" and not p.match(".harness/*") and ".harness" not in p.parts
     }
     declared = {f["path"] for f in get_default_scenario().seeded_files}
     assert on_disk == declared
+    # And the hidden harness must never sneak into the seeded set.
+    assert not any(".harness" in path for path in declared)
 
 
 def test_every_seed_file_has_a_nonempty_role():

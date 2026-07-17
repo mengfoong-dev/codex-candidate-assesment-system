@@ -45,23 +45,39 @@ async def run_scripted_test(
     expected_result = next(
         t["expected_result"] for t in scenario.definition["tests"] if t["test_id"] == test_id
     )
-    result = scenario.results_by_remediation(test_id, remediation_id)
-    if result is None:
-        status, actual_result = "unavailable", _UNAVAILABLE_MESSAGE
+
+    from src.workspace import sandbox
+
+    if sandbox.enabled():
+        # ADR 0001: real execution. Run the actual `vitest run` against the session's on-disk files
+        # (the AI/candidate edits), so the result is genuine test output, not a scripted lookup.
+        import anyio
+
+        sandbox_result = await anyio.to_thread.run_sync(sandbox.run_tests, session_id, test_id)
+        status, actual_result, scripted = (
+            sandbox_result["status"],
+            sandbox_result["actual_result"],
+            False,
+        )
     else:
-        status, actual_result = result["status"], result["actual_result"]
+        scripted = True
+        result = scenario.results_by_remediation(test_id, remediation_id)
+        if result is None:
+            status, actual_result = "unavailable", _UNAVAILABLE_MESSAGE
+        else:
+            status, actual_result = result["status"], result["actual_result"]
 
-    # Write->validate loop (D006-safe, static): if the candidate/AI actually rewrote the orchestrator,
-    # grade the two required validation tests against the FILE CONTENT instead of the remediation-id
-    # table, so a genuine written fix is what earns the pass. Nothing executes — see rewrite_check.
-    if scenario.scenario_id == "homepage_latency" and test_id in _CONTENT_VALIDATED_TESTS:
-        orchestrator = await db.get(SessionFile, (session_id, _ORCHESTRATOR_PATH))
-        if orchestrator is not None and orchestrator.source in ("ai", "user"):
-            from src.evaluation.rewrite_check import evaluate_orchestrator_rewrite
+        # Write->validate loop (D006-safe, static): if the candidate/AI actually rewrote the
+        # orchestrator, grade the two required validation tests against the FILE CONTENT instead of
+        # the remediation-id table, so a genuine written fix earns the pass. Nothing executes here.
+        if scenario.scenario_id == "homepage_latency" and test_id in _CONTENT_VALIDATED_TESTS:
+            orchestrator = await db.get(SessionFile, (session_id, _ORCHESTRATOR_PATH))
+            if orchestrator is not None and orchestrator.source in ("ai", "user"):
+                from src.evaluation.rewrite_check import evaluate_orchestrator_rewrite
 
-            verdict = evaluate_orchestrator_rewrite(orchestrator.content)
-            status = "passed" if verdict["passed"] else "failed"
-            actual_result = f"Validated against your edited {_ORCHESTRATOR_PATH}: {verdict['reason']}"
+                verdict = evaluate_orchestrator_rewrite(orchestrator.content)
+                status = "passed" if verdict["passed"] else "failed"
+                actual_result = f"Validated against your edited {_ORCHESTRATOR_PATH}: {verdict['reason']}"
 
     await append_event(
         db,
@@ -84,5 +100,6 @@ async def run_scripted_test(
         "expected_result": expected_result,
         "actual_result": actual_result,
         "status": status,
-        "scripted": True,  # always true — this is a scripted test result, never real execution
+        # True = scripted lookup (D006 default); False = real vitest execution (ADR 0001 sandbox).
+        "scripted": scripted,
     }
