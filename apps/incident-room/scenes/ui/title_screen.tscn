@@ -143,6 +143,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 10)
 
 [node name="LoginLabel" type="Label" parent="Entry/Col"]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.68, 0.75, 1)
 theme_override_font_sizes/font_size = 13
@@ -153,6 +154,7 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="Email" type="LineEdit" parent="Entry/Col/Row"]
+visible = false
 custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.93, 0.96, 0.98, 1)
@@ -173,6 +175,8 @@ theme_override_styles/hover = SubResource("CTAHover")
 theme_override_styles/pressed = SubResource("CTA")
 theme_override_styles/focus = SubResource("CTAHover")
 text = "Continue  →"
+
+text = "Start assessment"
 
 [node name="Hint" type="Label" parent="Entry/Col"]
 layout_mode = 2

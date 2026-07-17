@@ -32,10 +32,11 @@ const ACCENT := {
     "report": Color(0.98, 0.7, 0.25, 1),
 }
 const TAB_DEFS := [
+    {"key": "prompting", "label": "Codex"},
     {"key": "home", "label": "Home"},
     {"key": "brief", "label": "Brief"},
     {"key": "evidence", "label": "Evidence"},
-    {"key": "assistant", "label": "Codex"},
+    {"key": "assistant", "label": "Assistant"},
     {"key": "tests", "label": "Files & Tests"},
     {"key": "submit", "label": "Submit"},
 ]
@@ -138,13 +139,14 @@ func configure(scenario: Dictionary) -> void:
     _build_tabs()
     _build_home_page()
     _build_brief_page()
+    _build_prompting_page()
     _build_evidence_page()
     _build_assistant_page()
     _build_tests_page()
     _build_submit_page()
     _build_report_page()
     set_url("🔒  vibeproof.app / incident / %s" % str(scenario.get("scenario_id", "session")))
-    set_active_tab("home")
+    set_active_tab("prompting")
 
 func set_started(started: bool) -> void:
     _started = started
@@ -229,7 +231,7 @@ func _add_tab_button(key: String, label: String) -> void:
 func _on_tab_pressed(key: String) -> void:
     if key == "report" and not _report_available:
         return
-    if key != "home" and key != "brief" and key != "report" and not _started:
+    if key != "prompting" and key != "home" and key != "brief" and key != "report" and not _started:
         # These tabs unlock once the candidate records an initial hypothesis; send them
         # to the Brief tab (where that happens) instead of a dead tap.
         set_active_tab("brief")
@@ -248,7 +250,7 @@ func _restyle_tabs() -> void:
         var button: Button = _buttons[key]
         var accent: Color = ACCENT.get(key, NAVY)
         var active := key == _active
-        var locked := (key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
+        var locked := (key != "prompting" and key != "home" and key != "brief" and key != "report" and not _started) or (key == "report" and not _report_available)
         button.disabled = locked
         button.add_theme_stylebox_override("normal", _tab_style(active, accent))
         button.add_theme_stylebox_override("hover", _tab_style(active, accent, true))
@@ -294,6 +296,26 @@ func _page_body(key: String) -> VBoxContainer:
     body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     body.add_theme_constant_override("separation", 10)
     scroll.add_child(body)
+    return body
+
+## Codex keeps its header and columns fixed. Each column owns its own scroll area,
+## so a long problem statement never scrolls the conversation or run output away.
+func _fixed_page_body(key: String) -> VBoxContainer:
+    var page := MarginContainer.new()
+    page.name = "Page_" + key
+    page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    page.add_theme_constant_override("margin_left", 34)
+    page.add_theme_constant_override("margin_top", 24)
+    page.add_theme_constant_override("margin_right", 34)
+    page.add_theme_constant_override("margin_bottom", 24)
+    page.visible = false
+    _host.add_child(page)
+    _pages[key] = page
+    var body := VBoxContainer.new()
+    body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    body.add_theme_constant_override("separation", 10)
+    page.add_child(body)
     return body
 
 # --- Brief -------------------------------------------------------------------
@@ -355,78 +377,181 @@ func _build_brief_page() -> void:
             initial_hypothesis_submitted.emit(str(_brief_option.get_item_metadata(_brief_option.selected)), int(_brief_confidence.value)))
 
 func _build_prompting_page() -> void:
-    var body := _page_body("prompting")
-    body.add_child(_heading("Candidate Prompting", 27, INK))
-    body.add_child(_heading("Use the copilot alongside the evidence workspace. Your prompts and actions are recorded.", 15, MUTED))
+    var body := _fixed_page_body("prompting")
+    var top := HBoxContainer.new()
+    top.add_theme_constant_override("separation", 12)
+    top.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+    body.add_child(top)
+    var title := VBoxContainer.new()
+    title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    top.add_child(title)
+    title.add_child(_heading("Codex", 27, INK))
+    title.add_child(_heading("Ask focused questions, review the system response, and run your current prompt locally.", 14, MUTED))
+    var timer_label := _heading("Time remaining 45:00", 15, ACCENT["assistant"])
+    timer_label.custom_minimum_size = Vector2(170, 40)
+    timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    top.add_child(timer_label)
+    var run_button := _flat_button("▶ Run")
+    run_button.custom_minimum_size = Vector2(88, 40)
+    run_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    top.add_child(run_button)
+    var submit_button := _flat_button("Submit")
+    submit_button.custom_minimum_size = Vector2(94, 40)
+    submit_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    submit_button.disabled = true
+    top.add_child(submit_button)
 
     var workspace := HBoxContainer.new()
     workspace.add_theme_constant_override("separation", 14)
     workspace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
     body.add_child(workspace)
 
-    var incident_card := _add_workspace_card(workspace, "Incident brief", ACCENT["brief"])
+    var incident_card := _add_scrollable_workspace_card(workspace, "PROBLEM", ACCENT["brief"])
+    (incident_card.get_parent() as PanelContainer).custom_minimum_size = Vector2(275, 0)
     incident_card.add_child(_heading("%s — %s" % [_scenario.get("title", "Incident briefing"), _scenario.get("role", "Candidate")], 18, INK))
     incident_card.add_child(_richtext(str(_scenario.get("brief", "")), 130))
     incident_card.add_child(HSeparator.new())
-    incident_card.add_child(_heading("Assessment flow", 15, ACCENT["brief"]))
-    incident_card.add_child(_heading("Your initial hypothesis is recorded. Use this screen to investigate it with the copilot and the evidence below.", 14, MUTED))
+    incident_card.add_child(_heading("What to include", 15, ACCENT["brief"]))
+    incident_card.add_child(_heading("State your approach, important assumptions, how you will validate the result, and a safe rollback condition. For coding tasks, write the complete solution in the editor.", 14, MUTED))
 
-    var conversation_card := _add_workspace_card(workspace, "Conversation", ACCENT["assistant"])
-    conversation_card.add_child(_heading("Engineering copilot", 18, INK))
-    conversation_card.add_child(_heading("Copilot ready · prompts stay in this assessment session.", 13, MUTED))
+    var work_card := _add_scrollable_workspace_card(workspace, "SYSTEM PROMPT", ACCENT["assistant"])
+    work_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    work_card.add_child(_heading("Conversation", 18, INK))
     var chat_scroll := ScrollContainer.new()
     chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-    chat_scroll.custom_minimum_size = Vector2(0, 255)
-    conversation_card.add_child(chat_scroll)
+    chat_scroll.custom_minimum_size = Vector2(360, 260)
+    work_card.add_child(chat_scroll)
     var chat_log := VBoxContainer.new()
     chat_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     chat_log.add_theme_constant_override("separation", 8)
     chat_scroll.add_child(chat_log)
-    chat_log.add_child(_bubble("You", "Help me understand the latency spike and what I should verify first.", Color(0.88, 0.91, 0.98, 1)))
-    chat_log.add_child(_bubble("Copilot", "Start with the trace and compare it with healthy CPU and database signals. Then inspect the homepage orchestration code.", Color(0.93, 0.88, 0.99, 1)))
+    chat_log.add_child(_bubble("System", "You are investigating a homepage latency incident. Use the available evidence, identify what to verify, and propose a safe remediation.", Color(0.93, 0.88, 0.99, 1)))
+    chat_log.add_child(_bubble("AI", "I can help you reason through the evidence. Start with the request trace and compare it with the healthy CPU and database signals.", Color(0.88, 0.91, 0.98, 1)))
     var chat_row := HBoxContainer.new()
-    chat_row.add_theme_constant_override("separation", 7)
-    conversation_card.add_child(chat_row)
-    var chat_input := LineEdit.new()
-    chat_input.placeholder_text = "Ask the copilot about this incident"
-    chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    chat_input.add_theme_font_size_override("font_size", 14)
-    chat_row.add_child(chat_input)
-    var chat_send := _flat_button("Send")
-    chat_send.custom_minimum_size = Vector2(74, 38)
-    chat_row.add_child(chat_send)
-    var send_prompt := func() -> void:
-        var prompt := chat_input.text.strip_edges()
-        if prompt.is_empty():
-            return
-        chat_log.add_child(_bubble("You", prompt, Color(0.88, 0.91, 0.98, 1)))
-        chat_input.clear()
-        chat_log.add_child(_bubble("Copilot", "Focus on the trace, compare it with the healthy service signals, and use the artifacts on the right to validate your hypothesis.", Color(0.93, 0.88, 0.99, 1)))
-        chat_scroll.scroll_vertical = 100000
-    chat_send.pressed.connect(send_prompt)
-    chat_input.text_submitted.connect(func(_text: String) -> void: send_prompt.call())
+    chat_row.add_theme_constant_override("separation", 8)
+    work_card.add_child(chat_row)
+    var candidate_input := TextEdit.new()
+    candidate_input.custom_minimum_size = Vector2(0, 72)
+    candidate_input.placeholder_text = "Type your prompt to the AI"
+    candidate_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    candidate_input.focus_mode = Control.FOCUS_ALL
+    chat_row.add_child(candidate_input)
+    var send_button := _flat_button("Send")
+    send_button.custom_minimum_size = Vector2(76, 38)
+    send_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    chat_row.add_child(send_button)
 
-    var output_card := _add_workspace_card(workspace, "Evidence and output", ACCENT["evidence"])
-    output_card.add_child(_heading("Homepage signals", 18, INK))
-    output_card.add_child(_heading("p95 latency   180 ms → 850 ms\nCPU usage     35% (healthy)\nDatabase      healthy", 15, INK))
-    output_card.add_child(HSeparator.new())
-    output_card.add_child(_heading("Evidence", 15, ACCENT["evidence"]))
-    var evidence_scroll := ScrollContainer.new()
-    evidence_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-    evidence_scroll.custom_minimum_size = Vector2(0, 170)
-    output_card.add_child(evidence_scroll)
-    var evidence_list := VBoxContainer.new()
-    evidence_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    evidence_list.add_theme_constant_override("separation", 7)
-    evidence_scroll.add_child(evidence_list)
-    for artifact: Dictionary in _scenario.get("artifacts", []):
-        evidence_list.add_child(_heading(str(artifact.get("title", "Evidence artifact")), 14, INK))
-        var content: Array = artifact.get("content", [])
-        if not content.is_empty():
-            evidence_list.add_child(_heading("• " + str(content[0]), 13, MUTED))
-    output_card.add_child(HSeparator.new())
-    output_card.add_child(_heading("Result", 15, ACCENT["submit"]))
-    output_card.add_child(_heading("Build an evidence-backed diagnosis, then state a safe remediation, validation plan, and rollback condition in your submission.", 14, MUTED))
+    var output_card := _add_scrollable_workspace_card(workspace, "RUN OUTPUT", ACCENT["tests"])
+    (output_card.get_parent() as PanelContainer).custom_minimum_size = Vector2(310, 0)
+    output_card.add_child(_heading("Ready to validate", 18, INK))
+    output_card.add_child(_heading("Run displays the most recent prompt and a mocked result.", 13, MUTED))
+    var output := _richtext("[b]No run yet.[/b]\nSend a prompt, then select [b]Run[/b].", 260)
+    output.scroll_active = true
+    output_card.add_child(output)
+    var status := _heading("", 13, ACCENT["submit"])
+    status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    output_card.add_child(status)
+    var submit_sheet := Control.new()
+    submit_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    submit_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+    submit_sheet.visible = false
+    (_pages["prompting"] as Control).add_child(submit_sheet)
+    var dim := ColorRect.new()
+    dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    dim.color = Color(0.05, 0.07, 0.12, 0.28)
+    submit_sheet.add_child(dim)
+    var center := CenterContainer.new()
+    center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    submit_sheet.add_child(center)
+    var sheet := PanelContainer.new()
+    sheet.custom_minimum_size = Vector2(430, 0)
+    var sheet_style := StyleBoxFlat.new()
+    sheet_style.bg_color = Color(0.98, 0.97, 0.94, 1)
+    sheet_style.set_corner_radius_all(16)
+    sheet_style.set_border_width_all(1)
+    sheet_style.border_color = Color(0.78, 0.76, 0.7, 1)
+    sheet_style.content_margin_left = 28
+    sheet_style.content_margin_right = 28
+    sheet_style.content_margin_top = 24
+    sheet_style.content_margin_bottom = 22
+    sheet.add_theme_stylebox_override("panel", sheet_style)
+    center.add_child(sheet)
+    var sheet_content := VBoxContainer.new()
+    sheet_content.add_theme_constant_override("separation", 12)
+    sheet.add_child(sheet_content)
+    var sheet_title := _heading("Submit your work?", 22, INK)
+    sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    sheet_content.add_child(sheet_title)
+    var sheet_message := _heading("Your current prompt and run result will be recorded for this local prototype. You cannot edit this submission afterwards.", 14, MUTED)
+    sheet_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    sheet_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    sheet_content.add_child(sheet_message)
+    var sheet_actions := HBoxContainer.new()
+    sheet_actions.alignment = BoxContainer.ALIGNMENT_CENTER
+    sheet_actions.add_theme_constant_override("separation", 10)
+    sheet_content.add_child(sheet_actions)
+    var cancel_sheet := _flat_button("Cancel")
+    cancel_sheet.custom_minimum_size = Vector2(110, 40)
+    var confirm_sheet := _flat_button("Submit")
+    confirm_sheet.custom_minimum_size = Vector2(110, 40)
+    var confirm_style := StyleBoxFlat.new()
+    confirm_style.bg_color = Color(0.12, 0.5, 0.46, 1)
+    confirm_style.set_corner_radius_all(8)
+    confirm_style.set_content_margin_all(9)
+    confirm_sheet.add_theme_stylebox_override("normal", confirm_style)
+    confirm_sheet.add_theme_stylebox_override("hover", confirm_style)
+    confirm_sheet.add_theme_stylebox_override("pressed", confirm_style)
+    confirm_sheet.add_theme_color_override("font_color", Color.WHITE)
+    sheet_actions.add_child(confirm_sheet)
+    sheet_actions.add_child(cancel_sheet)
+
+    var state := {"last_input": ""}
+    var send_prompt := func() -> void:
+        var value := candidate_input.text.strip_edges()
+        if value.is_empty():
+            return
+        state.last_input = value
+        chat_log.add_child(_bubble("You", value, Color(0.88, 0.91, 0.98, 1)))
+        candidate_input.clear()
+        chat_log.add_child(_bubble("AI", "Check the request trace for work that happens sequentially. Compare each claim against the evidence before choosing a remediation.", Color(0.93, 0.88, 0.99, 1)))
+        chat_scroll.scroll_vertical = 100000
+    send_button.pressed.connect(send_prompt)
+    candidate_input.gui_input.connect(func(event: InputEvent) -> void:
+        if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER and not event.shift_pressed:
+            candidate_input.accept_event()
+            send_prompt.call())
+    run_button.pressed.connect(func() -> void:
+        var value := str(state.last_input)
+        if value.is_empty():
+            submit_button.disabled = true
+            output.text = "[color=#b94040][b]Run needs your input.[/b][/color]\nSend a prompt to the AI before running."
+            status.text = ""
+            return
+        var passed := true
+        submit_button.disabled = not passed
+        var result := "[color=#23834d][b]PASS[/b][/color]" if passed else "[color=#b94040][b]NEEDS REVISION[/b][/color]"
+        var checks := "2 / 2 mocked checks passed" if passed else "1 / 2 mocked checks passed — add more specific reasoning or a complete implementation"
+        output.text = "%s\n%s\n\n[b]Your input[/b]\n[code]%s[/code]\n\n[b]Prototype note[/b]\nThis local frontend result is mocked; it does not execute code or call an AI model." % [result, checks, value.left(700).replace("[", "\\[")]
+        status.text = "Run complete. Submit is enabled." if passed else "Improve the input, then run again.")
+    submit_button.pressed.connect(func() -> void:
+        submit_sheet.visible = true
+        confirm_sheet.grab_focus.call_deferred())
+    cancel_sheet.pressed.connect(func() -> void: submit_sheet.visible = false)
+    confirm_sheet.pressed.connect(func() -> void:
+        submit_sheet.visible = false
+        status.text = "Submitted locally for this prototype. No backend submission has been made."
+        submit_button.disabled = true)
+
+    var started_at := Time.get_ticks_msec()
+    var ticker := Timer.new()
+    ticker.wait_time = 1.0
+    ticker.timeout.connect(func() -> void:
+        var remaining := maxi(0, 45 * 60 - int((Time.get_ticks_msec() - started_at) / 1000))
+        timer_label.text = "Time remaining %02d:%02d" % [remaining / 60, remaining % 60])
+    body.add_child(ticker)
+    ticker.start()
 
 func _update_brief_confirm() -> void:
     # The slider defaults to a valid, displayed 50%; only a hypothesis choice is required.
@@ -976,6 +1101,35 @@ func _add_workspace_card(parent: Container, title: String, accent: Color) -> VBo
     var content := VBoxContainer.new()
     content.add_theme_constant_override("separation", 9)
     panel.add_child(content)
+    content.add_child(_heading(title, 14, accent))
+    return content
+
+func _add_scrollable_workspace_card(parent: Container, title: String, accent: Color) -> VBoxContainer:
+    var panel := PanelContainer.new()
+    panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    var style := StyleBoxFlat.new()
+    style.bg_color = CARD
+    style.set_corner_radius_all(12)
+    style.set_border_width_all(1)
+    style.border_color = accent
+    style.border_width_top = 4
+    panel.add_theme_stylebox_override("panel", style)
+    parent.add_child(panel)
+    var scroll := ScrollContainer.new()
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    panel.add_child(scroll)
+    var margins := MarginContainer.new()
+    margins.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    margins.add_theme_constant_override("margin_left", 16)
+    margins.add_theme_constant_override("margin_right", 16)
+    margins.add_theme_constant_override("margin_top", 14)
+    margins.add_theme_constant_override("margin_bottom", 16)
+    scroll.add_child(margins)
+    var content := VBoxContainer.new()
+    content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    content.add_theme_constant_override("separation", 9)
+    margins.add_child(content)
     content.add_child(_heading(title, 14, accent))
     return content
 
