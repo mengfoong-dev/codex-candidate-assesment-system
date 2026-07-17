@@ -33,10 +33,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
 
 [node name="Rows" type="VBoxContainer" parent="Body/Margin"]
 layout_mode = 2
@@ -67,54 +67,57 @@ layout_mode = 2
 text = "Recorded assessment session"
 
 [node name="Close" type="Button" parent="Body/Margin/Rows/TitleBar"]
+custom_minimum_size = Vector2(96, 34)
 layout_mode = 2
-text = "Close  (`)"
+text = "Close ×"
 
 [node name="Split" type="HSplitContainer" parent="Body/Margin/Rows"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
-split_offset = 480
+split_offset = 0
 
-[node name="Conversation" type="PanelContainer" parent="Body/Margin/Rows/Split"]
-custom_minimum_size = Vector2(400, 0)
+[node name="Files" type="PanelContainer" parent="Body/Margin/Rows/Split"]
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
 
-[node name="Column" type="VBoxContainer" parent="Body/Margin/Rows/Split/Conversation"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Scroll" type="RichTextLabel" parent="Body/Margin/Rows/Split/Conversation/Column"]
-layout_mode = 2
-size_flags_vertical = 3
-bbcode_enabled = true
-scroll_following = true
-
-[node name="Composer" type="PanelContainer" parent="Body/Margin/Rows/Split/Conversation/Column"]
-layout_mode = 2
-
-[node name="Column" type="VBoxContainer" parent="Body/Margin/Rows/Split/Conversation/Column/Composer"]
-layout_mode = 2
-theme_override_constants/separation = 0
-
-[node name="PromptRow" type="HBoxContainer" parent="Body/Margin/Rows/Split/Conversation/Column/Composer/Column"]
+[node name="Column" type="VBoxContainer" parent="Body/Margin/Rows/Split/Files"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Input" type="TextEdit" parent="Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow"]
-custom_minimum_size = Vector2(0, 78)
+[node name="Title" type="Label" parent="Body/Margin/Rows/Split/Files/Column"]
 layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Message Codex…"
-wrap_mode = 1
+text = "EXPLORER"
 
-[node name="Send" type="Button" parent="Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow"]
-custom_minimum_size = Vector2(82, 78)
+[node name="SourceLabel" type="Label" parent="Body/Margin/Rows/Split/Files/Column"]
 layout_mode = 2
-text = "Send ↗"
+text = "SOURCE"
+
+[node name="FileList" type="ItemList" parent="Body/Margin/Rows/Split/Files/Column"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+allow_reselect = true
+
+[node name="TestsLabel" type="Label" parent="Body/Margin/Rows/Split/Files/Column"]
+layout_mode = 2
+text = "TESTS"
+
+[node name="TestList" type="ItemList" parent="Body/Margin/Rows/Split/Files/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+allow_reselect = true
+
+[node name="Hint" type="Label" parent="Body/Margin/Rows/Split/Files/Column"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Select a file to review it. Test files are read-only."
 
 [node name="Code" type="VBoxContainer" parent="Body/Margin/Rows/Split"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
 theme_override_constants/separation = 10
 
 [node name="Header" type="HBoxContainer" parent="Body/Margin/Rows/Split/Code"]
@@ -128,7 +131,10 @@ text = "SOURCE"
 
 [node name="FilePath" type="Label" parent="Body/Margin/Rows/Split/Code/Header"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "src/watch_page_orchestrator.ts"
+text_overrun_behavior = 3
+clip_text = true
 
 [node name="FileRail" type="ItemList" parent="Body/Margin/Rows/Split/Code/Header"]
 visible = false
@@ -142,8 +148,14 @@ size_flags_horizontal = 3
 layout_mode = 2
 text = "●  Saved locally"
 
+[node name="RunTests" type="Button" parent="Body/Margin/Rows/Split/Code/Header"]
+custom_minimum_size = Vector2(104, 30)
+layout_mode = 2
+text = "Run tests"
+
 [node name="WorkArea" type="VSplitContainer" parent="Body/Margin/Rows/Split/Code"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 split_offset = -170
 
@@ -182,9 +194,48 @@ size_flags_vertical = 3
 bbcode_enabled = true
 scroll_following = true
 
-[node name="Footer" type="Label" parent="Body/Margin/Rows/Split/Code"]
+[node name="Conversation" type="PanelContainer" parent="Body/Margin/Rows/Split"]
+custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
-text = "TypeScript · Review changes before you run or submit"
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="Column" type="VBoxContainer" parent="Body/Margin/Rows/Split/Conversation"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Scroll" type="ScrollContainer" parent="Body/Margin/Rows/Split/Conversation/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Messages" type="VBoxContainer" parent="Body/Margin/Rows/Split/Conversation/Column/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Composer" type="PanelContainer" parent="Body/Margin/Rows/Split/Conversation/Column"]
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Body/Margin/Rows/Split/Conversation/Column/Composer"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="PromptRow" type="HBoxContainer" parent="Body/Margin/Rows/Split/Conversation/Column/Composer/Column"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Input" type="TextEdit" parent="Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow"]
+custom_minimum_size = Vector2(0, 78)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Ask Copilot to change the code…"
+wrap_mode = 1
+
+[node name="Send" type="Button" parent="Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow"]
+custom_minimum_size = Vector2(82, 78)
+layout_mode = 2
+text = "Send ↗"
 
 [node name="Hint" type="Label" parent="."]
 layout_mode = 1

@@ -38,6 +38,7 @@ const AMBER := Color("dcdcaa")
 
 @onready var _body: Control = $Body
 @onready var _hint: Label = $Hint
+@onready var _split: HSplitContainer = $Body/Margin/Rows/Split
 @onready var _brand: Label = $Body/Margin/Rows/TitleBar/Brand
 @onready var _title: Label = $Body/Margin/Rows/TitleBar/Title
 @onready var _close: Button = $Body/Margin/Rows/TitleBar/Close
@@ -45,13 +46,18 @@ const AMBER := Color("dcdcaa")
 @onready var _file_rail: ItemList = $Body/Margin/Rows/Split/Code/Header/FileRail
 @onready var _source_label: Label = $Body/Margin/Rows/Split/Code/Header/SourceLabel
 @onready var _saved: Label = $Body/Margin/Rows/Split/Code/Header/Saved
+@onready var _files_panel: PanelContainer = $Body/Margin/Rows/Split/Files
+@onready var _file_list: ItemList = $Body/Margin/Rows/Split/Files/Column/FileList
+@onready var _test_list: ItemList = $Body/Margin/Rows/Split/Files/Column/TestList
+@onready var _run_tests: Button = $Body/Margin/Rows/Split/Code/Header/RunTests
 @onready var _editor: CodeEdit = $Body/Margin/Rows/Split/Code/WorkArea/Editor
 @onready var _terminal: PanelContainer = $Body/Margin/Rows/Split/Code/WorkArea/Terminal
 @onready var _terminal_output: RichTextLabel = $Body/Margin/Rows/Split/Code/WorkArea/Terminal/Column/Output
 @onready var _terminal_status: Label = $Body/Margin/Rows/Split/Code/WorkArea/Terminal/Column/Header/Status
 @onready var _conversation: PanelContainer = $Body/Margin/Rows/Split/Conversation
 @onready var _composer: PanelContainer = $Body/Margin/Rows/Split/Conversation/Column/Composer
-@onready var _scroll: RichTextLabel = $Body/Margin/Rows/Split/Conversation/Column/Scroll
+@onready var _scroll: ScrollContainer = $Body/Margin/Rows/Split/Conversation/Column/Scroll
+@onready var _messages: VBoxContainer = $Body/Margin/Rows/Split/Conversation/Column/Scroll/Messages
 @onready var _input: TextEdit = $Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow/Input
 @onready var _send: Button = $Body/Margin/Rows/Split/Conversation/Column/Composer/Column/PromptRow/Send
 
@@ -61,10 +67,14 @@ var _brief := ""
 var _history: Array = []  # [{role, content}] sent to the assistant
 var _lines: Array = []    # conversation transcript (bbcode lines)
 var _terminal_lines: Array = []
+var _active_path := EDITOR_TAB
+var _thinking_card: Control
 var _busy := false
 var _paused_by_us := false
 
 func _ready() -> void:
+	# Runtime order is intentional: Files | Copilot conversation | source and terminal.
+	_split.move_child(_conversation, 1)
 	_http = HTTPRequest.new()
 	add_child(_http)
 	_http.request_completed.connect(_on_reply)
@@ -72,9 +82,12 @@ func _ready() -> void:
 	_close.pressed.connect(hide_console)
 	_input.gui_input.connect(_on_prompt_input)
 	_send.pressed.connect(func() -> void: _on_submit(_input.text))
+	_file_list.item_selected.connect(_on_file_selected)
+	_test_list.item_selected.connect(_on_test_selected)
+	_run_tests.pressed.connect(_on_run_tests)
 	_seed_from_scenario()
 	_hint.visible = false  # PC-only now: opened from the workspace, not a floating backtick hint
-	_terminal_log("[color=#8b949e]Workspace ready. Use the assessment Run control to validate your change.[/color]")
+	_terminal_log("[color=#8b949e]Workspace ready. Ask Copilot for a change, then run tests to validate it.[/color]")
 
 ## Clear every per-candidate trace (chat history, terminal scrollback, edited source) so the
 ## next session starts clean. Called by main.restart_session — the console is a persistent scene
@@ -83,6 +96,9 @@ func reset() -> void:
 	_history.clear()
 	_lines.clear()
 	_terminal_lines.clear()
+	for card in _messages.get_children():
+		card.queue_free()
+	_thinking_card = null
 	_busy = false
 	if is_instance_valid(_input):
 		_input.editable = true
@@ -91,7 +107,7 @@ func reset() -> void:
 		_send.disabled = false
 	_seed_from_scenario()  # re-reads pristine source into the editor
 	_terminal_status.text = "Ready"
-	_terminal_log("[color=#8b949e]Workspace ready. Use the assessment Run control to validate your change.[/color]")
+	_terminal_log("[color=#8b949e]Workspace ready. Ask Copilot for a change, then run tests to validate it.[/color]")
 	hide_console()
 
 # --- show / hide ---------------------------------------------------------
@@ -158,12 +174,32 @@ func _apply_theme() -> void:
 	terminal_box.set_border_width_all(1)
 	terminal_box.set_corner_radius_all(8)
 	_terminal.add_theme_stylebox_override("panel", terminal_box)
-	_scroll.add_theme_color_override("default_color", Color("c9d1d9"))
-	_scroll.add_theme_font_size_override("normal_font_size", 14)
-	_scroll.add_theme_constant_override("line_separation", 7)
+	var files_box := _flat(Color("111827"), 14, 14)
+	files_box.border_color = Color("30363d")
+	files_box.set_border_width_all(1)
+	files_box.set_corner_radius_all(10)
+	_files_panel.add_theme_stylebox_override("panel", files_box)
 	_terminal_output.add_theme_color_override("default_color", Color("8b949e"))
 	_terminal_output.add_theme_font_size_override("normal_font_size", 13)
 	_terminal_status.add_theme_color_override("font_color", Color("8b949e"))
+	_run_tests.add_theme_stylebox_override("normal", _flat(Color("238636"), 10, 5))
+	_run_tests.add_theme_stylebox_override("hover", _flat(Color("2ea043"), 10, 5))
+	_run_tests.add_theme_color_override("font_color", Color("ffffff"))
+	var selected_file := _flat(Color("1f6feb"), 8, 5)
+	selected_file.set_corner_radius_all(5)
+	var hover_file := _flat(Color("21262d"), 8, 5)
+	for list in [_file_list, _test_list]:
+		list.add_theme_color_override("font_color", Color("c9d1d9"))
+		list.add_theme_color_override("font_selected_color", Color("ffffff"))
+		list.add_theme_stylebox_override("selected", selected_file)
+		list.add_theme_stylebox_override("hovered", hover_file)
+	for label in [
+		$Body/Margin/Rows/Split/Files/Column/Title,
+		$Body/Margin/Rows/Split/Files/Column/SourceLabel,
+		$Body/Margin/Rows/Split/Files/Column/TestsLabel,
+	]:
+		label.add_theme_color_override("font_color", Color("8b949e"))
+		label.add_theme_font_size_override("font_size", 12)
 	_brand.add_theme_color_override("font_color", Color("f0f6fc"))
 	_brand.add_theme_font_size_override("font_size", 20)
 	_title.add_theme_color_override("font_color", Color("8b949e"))
@@ -186,10 +222,13 @@ func _apply_theme() -> void:
 	_send.add_theme_stylebox_override("normal", send_box)
 	_send.add_theme_stylebox_override("hover", _flat(Color("2ea043"), 12, 8))
 	_send.add_theme_color_override("font_color", Color("ffffff"))
+	var close_box := _flat(Color("b42318"), 12, 7)
+	close_box.set_corner_radius_all(6)
+	_close.add_theme_stylebox_override("normal", close_box)
+	_close.add_theme_stylebox_override("hover", _flat(Color("dc2626"), 12, 7))
+	_close.add_theme_color_override("font_color", Color("ffffff"))
 	if mono != null:
 		_editor.add_theme_font_override("font", mono)
-		_scroll.add_theme_font_override("normal_font", mono)
-		_scroll.add_theme_font_override("bold_font", mono)
 		_terminal_output.add_theme_font_override("normal_font", mono)
 		for c in [_title, _file_path, _input, _hint]:
 			c.add_theme_font_override("font", mono)
@@ -240,10 +279,19 @@ func _seed_from_scenario() -> void:
 	var src := "\n".join(lines)
 	if src.strip_edges().is_empty():
 		src = _fallback_source()
+	_files.clear()
 	_files[EDITOR_TAB] = src
+	_files["tests/watch_page_orchestrator.test.ts"] = _test_file()
 	_file_rail.clear()
 	_file_rail.add_item(EDITOR_TAB)
-	_file_path.text = EDITOR_TAB
+	_file_list.clear()
+	_file_list.add_item("watch_page_orchestrator.ts")
+	_file_list.set_item_metadata(0, EDITOR_TAB)
+	_test_list.clear()
+	_test_list.add_item("watch_page_orchestrator.test.ts")
+	_test_list.set_item_metadata(0, "tests/watch_page_orchestrator.test.ts")
+	_file_list.select(0)
+	_active_path = ""
 	_show_file(EDITOR_TAB)
 
 func _lookup(items: Variant, key: String, value: String) -> Dictionary:
@@ -254,8 +302,37 @@ func _lookup(items: Variant, key: String, value: String) -> Dictionary:
 	return {}
 
 func _show_file(path: String) -> void:
+	if _active_path == EDITOR_TAB:
+		_files[EDITOR_TAB] = _editor.text
+	_active_path = path
 	_editor.text = str(_files.get(path, ""))
+	_editor.editable = path == EDITOR_TAB
 	_file_path.text = path
+	_source_label.text = "SOURCE" if path == EDITOR_TAB else "TEST"
+
+func _on_file_selected(index: int) -> void:
+	if index >= 0:
+		_test_list.deselect_all()
+		_show_file(str(_file_list.get_item_metadata(index)))
+
+func _on_test_selected(index: int) -> void:
+	if index >= 0:
+		_file_list.deselect_all()
+		_show_file(str(_test_list.get_item_metadata(index)))
+
+func _on_run_tests() -> void:
+	if _active_path == EDITOR_TAB:
+		_files[EDITOR_TAB] = _editor.text
+	_terminal_log("[color=#8b949e]$ npm test -- watch_page_orchestrator[/color]")
+	if str(_files.get(EDITOR_TAB, "")).contains("Promise.all"):
+		_terminal_status.text = "Passed"
+		_terminal_log("[color=#3fb950]✓[/color] tests/watch_page_orchestrator.test.ts (4/4 passed)")
+		_terminal_log("[color=#3fb950]✓[/color] correctness regression  [color=#8b949e]fixtures preserved[/color]")
+		_terminal_log("[color=#3fb950]✓[/color] p95 latency target  [color=#8b949e]independent fetches parallelized[/color]")
+	else:
+		_terminal_status.text = "Needs changes"
+		_terminal_log("[color=#f85149]✗[/color] expected the independent lookups to use Promise.all")
+		_terminal_log("[color=#8b949e]1 failed, 3 passed. Review the source and run again.[/color]")
 
 # --- prompt -> assistant -> apply ---------------------------------------
 
@@ -270,14 +347,14 @@ func _on_submit(text: String) -> void:
 		return
 	_input.clear()
 	prompt_submitted.emit(prompt)
-	_log("[color=#79c0ff][b]YOU[/b][/color]\n%s" % _escape(prompt))
+	_append_message_card("YOU", prompt, Color("152238"), Color("79c0ff"))
 	_history.append({"role": "user", "content": prompt})
 	_busy = true
 	_input.editable = false
 	_send.disabled = true
 	_terminal_status.text = "Working"
 	_terminal_log("[color=#79c0ff]›[/color] Codex request sent")
-	_log("[color=#8b949e][i]Codex is thinking…[/i][/color]")
+	_thinking_card = _append_message_card("CODEX", "Codex is thinking…", Color("251b3b"), Color("d2a8ff"), true)
 	var payload := {"messages": _history, "task": _task_context()}
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var err := _http.request(assistant_proxy_url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
@@ -288,7 +365,7 @@ func _task_context() -> String:
 	return "\n".join(PackedStringArray([
 		_brief,
 		"The candidate is editing %s. Current contents:" % EDITOR_TAB,
-		_editor.text,
+		str(_files.get(EDITOR_TAB, _editor.text)),
 		"When you change the code, reply with a one-line explanation then the FULL updated file in one ```ts fenced block.",
 	]))
 
@@ -308,11 +385,12 @@ func apply_assistant_reply(reply: String) -> void:
 	_history.append({"role": "assistant", "content": reply})
 	_remove_thinking()
 	var prose := _strip_code(reply)
-	_log("[color=#d2a8ff][b]CODEX[/b][/color]\n%s" % _escape(prose if not prose.strip_edges().is_empty() else reply))
+	_append_message_card("CODEX", prose if not prose.strip_edges().is_empty() else reply, Color("251b3b"), Color("d2a8ff"))
 	var code := _extract_code(reply)
 	if not code.is_empty():
 		_files[EDITOR_TAB] = code
-		_editor.text = code
+		_active_path = ""
+		_show_file(EDITOR_TAB)
 		_terminal_status.text = "Changed"
 		_terminal_log("[color=#3fb950]✓[/color] Applied Codex change to %s" % EDITOR_TAB)
 	else:
@@ -342,18 +420,42 @@ func _strip_code(reply: String) -> String:
 	var i := reply.find("```")
 	return reply.substr(0, i).strip_edges() if i > 0 else reply
 
-# --- terminal scrollback -------------------------------------------------
+# --- conversation cards / terminal scrollback ---------------------------
 
-func _log(bbcode_line: String) -> void:
-	_lines.append(bbcode_line)
-	if is_instance_valid(_scroll):
-		_scroll.text = "\n".join(_lines)
+func _append_message_card(sender: String, message: String, fill: Color, label_color: Color, thinking := false) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var card_box := _flat(fill, 14, 12)
+	card_box.border_color = Color("30363d")
+	card_box.set_border_width_all(1)
+	card_box.set_corner_radius_all(10)
+	card.add_theme_stylebox_override("panel", card_box)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	card.add_child(column)
+	var sender_label := Label.new()
+	sender_label.text = sender
+	sender_label.add_theme_color_override("font_color", label_color)
+	sender_label.add_theme_font_size_override("font_size", 12)
+	column.add_child(sender_label)
+	var body_label := Label.new()
+	body_label.text = message
+	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body_label.add_theme_color_override("font_color", Color("f0f6fc") if not thinking else Color("a78bfa"))
+	body_label.add_theme_font_size_override("font_size", 14)
+	if ResourceLoader.exists(FONT_PATH):
+		body_label.add_theme_font_override("font", load(FONT_PATH))
+	column.add_child(body_label)
+	_messages.add_child(card)
+	_scroll.call_deferred("set_v_scroll", 1000000)
+	return card
 
 func _remove_thinking() -> void:
-	if _lines.size() > 0 and str(_lines[_lines.size() - 1]).contains("Codex is thinking"):
-		_lines.remove_at(_lines.size() - 1)
-		if is_instance_valid(_scroll):
-			_scroll.text = "\n".join(_lines)
+	if is_instance_valid(_thinking_card):
+		_thinking_card.queue_free()
+	_thinking_card = null
 
 func _terminal_log(bbcode_line: String) -> void:
 	_terminal_lines.append(bbcode_line)
@@ -366,7 +468,7 @@ func _escape(s: String) -> String:
 # --- offline fallbacks (no backend / proxy) ------------------------------
 
 func _offline_reply() -> String:
-	return "Codex is offline. From the trace the three data fetches run sequentially — they're independent, so parallelize them with Promise.all. Applying the reference fix.\n```ts\n%s\n```" % _reference_fix()
+	return "The three data fetches are independent, so I updated the source to run them together with Promise.all. Review the edit, then run the test suite.\n```ts\n%s\n```" % _reference_fix()
 
 func _reference_fix() -> String:
 	return "\n".join(PackedStringArray([
@@ -386,4 +488,18 @@ func _fallback_source() -> String:
 		"const recommendations = await getRecommendations(videoId);",
 		"const comments = await getComments(videoId);",
 		"return renderWatchPage({ details, recommendations, comments });",
+	]))
+
+func _test_file() -> String:
+	return "\n".join(PackedStringArray([
+		"import { renderWatchPage } from '../src/watch_page_orchestrator';",
+		"",
+		"describe('watch page orchestration', () => {",
+		"  it('runs independent lookups concurrently', async () => {",
+		"    await renderWatchPage('video-123');",
+		"    expect(getVideoDetails).toHaveBeenCalled();",
+		"    expect(getRecommendations).toHaveBeenCalled();",
+		"    expect(getComments).toHaveBeenCalled();",
+		"  });",
+		"});",
 	]))
