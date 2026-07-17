@@ -104,4 +104,14 @@ async def write_file(db: AsyncSession, session_id: str, path: str, content: str)
         file.source = "ai"
         file.updated_at = now_iso()
     await db.commit()
+
+    # ADR 0001: in on-disk sandbox mode, also land the write as a REAL file so `run test` (vitest)
+    # grades the actual edited code. The DB row stays the source of truth for the read APIs; the
+    # file is the source of truth for execution. Default ("db") backend never touches disk (D006).
+    from src.workspace import sandbox
+
+    if sandbox.enabled():
+        import anyio
+
+        await anyio.to_thread.run_sync(sandbox.write, session_id, path, content)
     return file

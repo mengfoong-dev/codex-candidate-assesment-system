@@ -14,6 +14,25 @@ the earlier Anthropic and two-active-vendor descriptions in this file.
 - `14979fd feat(simulation): add five-turn interactive SSE flow`
 - `2fdc78c docs(milestone): record interactive flow verification`
 
+## This change — opt-in true sandbox + mini React app (ADR 0001)
+
+Adds a real on-disk sandbox for the interactive session (opt-in via `WORKSPACE_BACKEND=fs`) plus a
+browser client for it. The web MVP default is unchanged (DB rows, nothing executes — D006); every
+backend change is gated on `sandbox.enabled()`.
+
+- **Backend** (`src/workspace/sandbox.py`): in `fs` mode, `create_session` materializes the seed as
+  real files per session, `write_file` also lands the edit on disk, and `POST /tests/{id}` runs a
+  real `vitest run` (returns `scripted: false`). The grading test lives in
+  `data/workspaces/homepage_latency/.harness/` and is deliberately absent from `_manifest.json`, so
+  it never seeds into `session_files`/`list_files`. Full rationale:
+  `docs/decisions/0001-true-sandbox-for-interactive-cli.md`.
+- **Interactive CLI** (`tools/run-interactive-simulation.ps1`) sets `WORKSPACE_BACKEND=fs`.
+- **Mini React sandbox app** (`apps/candidate-prompting-demo`): file list + read-only CodeMirror
+  viewer + streaming Simulation-Engine chat (`fetch()`-read SSE, since `EventSource` can't POST) +
+  a run-test panel showing real `vitest` output.
+- **Verification:** backend suite 77 passed; real-vitest e2e (seed fails `p95_latency`, the
+  `Promise.all` fix passes it); frontend `npm run build` green; live endpoint contract check.
+
 ## Live architecture
 
 | Layer | Active behavior |
@@ -25,7 +44,9 @@ the earlier Anthropic and two-active-vendor descriptions in this file.
 | Scoring layer 2 | One Cohere rubric grader per dimension, recorded with `consensus: "single"`. Groq/NIM run only when `AI_PANEL_FALLBACK_ENABLED=true` and the full Cohere panel is unavailable. |
 | Scoring layer 3 | Deterministic context indices, never used as an employment decision. |
 
-The virtual workspace remains session-scoped database data. No generated file is executed.
+The virtual workspace remains session-scoped database data **by default, and nothing executes in
+the web MVP (D006)**. The interactive session can now opt into a real on-disk sandbox that runs
+`vitest` — see "This change" below and ADR 0001.
 
 ## Candidate and frontend flow
 

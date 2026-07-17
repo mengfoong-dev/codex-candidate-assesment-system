@@ -77,6 +77,26 @@ async def create_session(db, *, display_name: str, scenario_id: str | None) -> d
         actor="system",
     )
 
+    # ADR 0001: when the on-disk sandbox is enabled (interactive CLI), materialize the same seed
+    # files as REAL files on disk so the AI's edits and `run test` operate on a real workspace.
+    # Default ("db") backend skips this entirely — D006 behavior is unchanged. Offloaded to a
+    # thread because materialize() may run a blocking `npm install` on the first session.
+    from src.workspace import sandbox
+
+    if sandbox.enabled():
+        import functools
+
+        import anyio
+
+        await anyio.to_thread.run_sync(
+            functools.partial(
+                sandbox.materialize,
+                session_id,
+                scenario_id=scenario.scenario_id,
+                seeded_files=scenario.seeded_files,
+            )
+        )
+
     return {
         "session_id": session_id,
         "scenario": scenario.candidate_safe_view(),
