@@ -19,6 +19,7 @@ src/
   scenarios/     GET /api/scenarios (candidate-safe list)
   sessions/      create, snapshot, submit  (session lifecycle)
   events/        POST /events  (typed, validated, append-only, concurrency-safe)
+  chat/          POST /chat (candidate prompting MVP, thin AI relay)
   workspace/     files listing + scripted test results
   simulation/    SSE chat (Cohere Command A+ + workspace file tools)
   evaluation/    3-layer scoring + Proof Replay report

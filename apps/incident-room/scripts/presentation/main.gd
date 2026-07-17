@@ -12,6 +12,12 @@ const UnscoredSummaryBuilderScript = preload("res://scripts/domain/unscored_summ
 @onready var notepad: Notepad = $UI/Notepad
 @onready var title_screen: Control = $UI/TitleScreen
 
+## Base URL of the FastAPI grading backend. Empty = offline prototype (local unscored
+## summary only); set = submit is graded by the backend and the real score is shown.
+@export var backend_base_url := "https://vibeproof-backend-production.up.railway.app"
+
+var _grader: BackendGrader
+var _last_submission: Dictionary = {}
 var _scenario: Dictionary = {}
 var _logger_factory := Callable()
 var _summary_writer := Callable()
@@ -25,6 +31,7 @@ var _pre_sit := Transform3D.IDENTITY
 var _current_summary: Dictionary = {}
 var _session_serial := 0
 var _session_id := ""
+var _candidate_email := ""
 
 # Where the player sits and the seated camera framing, at a bullpen desk in the isometric
 # office (desk ~x=-4.6, chair ~x=-5.3, monitor ~x=-4.6, all near z=3.4). The player sits in
@@ -61,9 +68,10 @@ func configure_dependencies(
     _configure_static_ui()
     _set_phase("title")
 
-func begin_session() -> Dictionary:
+func begin_session(email: String = "") -> Dictionary:
     if _phase != "title":
         return _reject("Session can only begin from the title screen")
+    _candidate_email = email.strip_edges()
     var result: Dictionary = _session.open_assessment(true)
     if result.ok:
         workspace.configure(_scenario)
@@ -146,7 +154,27 @@ func submit_final(submission: Dictionary) -> Dictionary:
         ]
     _set_phase("summary")
     workspace.show_report(_current_summary)
+    _last_submission = submission.duplicate(true)
+    if not backend_base_url.strip_edges().is_empty():
+        _grade_with_backend()
     return _finish_intent(result)
+
+## Fire-and-forget backend grading after the local submit: replay the session to the FastAPI
+## grader and render the real deterministic score into the report when it returns.
+func _grade_with_backend() -> void:
+    if _grader == null:
+        _grader = BackendGrader.new()
+        add_child(_grader)
+    if workspace.has_method("show_backend_pending"):
+        workspace.show_backend_pending()
+    var res: Dictionary = await _grader.grade(
+        backend_base_url, _candidate_email, _session.ordered_events(), _last_submission, _scenario)
+    if res.get("ok", false):
+        if workspace.has_method("show_backend_score"):
+            workspace.show_backend_score(res)
+    else:
+        if workspace.has_method("show_backend_error"):
+            workspace.show_backend_error(str(res.get("error", "grading unavailable")))
 
 func restart_session() -> Dictionary:
     _create_fresh_session()
@@ -220,7 +248,7 @@ func _toggle_view() -> void:
 func _configure_static_ui() -> void:
     if _scenario.is_empty():
         return
-    title_screen.configure(_scenario.get("notices", {}))
+    title_screen.configure(_scenario)
 
 # --- Office <-> desk presentation loop ---------------------------------------
 

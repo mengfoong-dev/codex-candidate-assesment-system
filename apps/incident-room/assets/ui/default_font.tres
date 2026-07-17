@@ -1,0 +1,13 @@
+[gd_resource type="FontVariation" load_steps=3 format=3]
+
+; Project-wide default UI font (wired via gui/theme/custom_font in project.godot).
+; Bundled base + emoji fallback so BOTH normal text and emoji-as-icons render on
+; every platform incl. Web export, which has no system fonts to borrow.
+;   base_font  = Noto Sans  -> Latin/UI text (matches Godot's built-in font)
+;   fallbacks  = Noto Emoji -> 💻📝⬆🔒👁🖥☕📄 icons, monochrome so they take the label color
+[ext_resource type="FontFile" path="res://assets/third_party/fonts/NotoSans.ttf" id="1_base"]
+[ext_resource type="FontFile" path="res://assets/third_party/fonts/NotoEmoji.ttf" id="2_emoji"]
+
+[resource]
+base_font = ExtResource("1_base")
+fallbacks = Array[Font]([ExtResource("2_emoji")])
