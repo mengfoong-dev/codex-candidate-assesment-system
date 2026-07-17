@@ -2,19 +2,29 @@
 
 ## Last action
 
-Installed the Hugging Face CLI as an isolated `uv` tool, verified that
-`beratdgan/Qwen3-14B-Interview-Coach` is a 9.0 GB Q4 GGUF with no Hugging Face
-Inference Provider mapping, and opened FPT AI Factory's Google sign-in flow in
-Playwright. The named `fpttrial` browser session reset to `about:blank` and was
-closed; Google authentication did **not** complete.
+Signed in to FPT AI Factory via **Continue with Google** (account holder completed
+sign-in/MFA in a headed `fpttrial` Chrome). Landed on workspace **`AI-KQU32F5YA`**,
+region **Japan (JPN01)**, **Total Balance $101.00** (the $1 card verification appears
+already applied — the $100 grant + $1 = $101). Inspected both deployment paths and
+stopped at the GPU Container "Create Container" button without clicking it.
+
+Deployment options observed:
+
+- **Model Hub / serverless Inference API** serves the **base `Qwen/Qwen3-14B`**
+  (Apache-2.0) plus ~50 Qwen variants — API-key + Inference API, no GPU to manage.
+  Does **not** carry the fine-tune `beratdgan/Qwen3-14B-Interview-Coach`.
+- **GPU Container (self-host)**: only in-stock instance is **1×H200, 141 GB VRAM,
+  $6.60/hour** (On-Demand, billed every 15 min, tax incl.). 2×–8×H200 all Out of
+  Stock. Defaults: Jupyter template (changeable to custom), HTTP port 8000 (vLLM).
+  $101 balance ≈ ~15 hours. The 9 GB Q4 GGUF fits trivially in one H200.
 
 ## Next action
 
-Run `playwright-cli -s=fpttrial open --browser=chrome --persistent
-'https://ai.fptcloud.jp/?ref=AI-KGQCJ4S11'`, choose **Continue with Google**, then
-wait for the account holder to complete Google sign-in/MFA. After the FPT dashboard
-loads, inspect the deployment options and stop before submitting the required card
-and $1 verification top-up.
+Decide the path (see Open threads): (a) call base `Qwen/Qwen3-14B` via FPT's
+serverless Inference API — clean Apache-2.0 licence, cheapest; or (b) self-host the
+fine-tune on a 1×H200 GPU Container — needs the author's commercial permission first
+(CC BY-NC 4.0) and explicit spend approval ($6.60/hr). Do not click "Create
+Container" or add credits without explicit approval.
 
 ## Why
 
