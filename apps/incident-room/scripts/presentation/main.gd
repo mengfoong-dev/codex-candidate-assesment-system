@@ -469,8 +469,8 @@ func _intro_lines() -> Array:
 func _intro_fallback() -> Array:
     return [
         "Morning — glad you're on. We've got a live one.",
-        "Right after last night's release, the homepage got slow. p95 latency jumped from 180 ms to about 850 ms. Users are feeling it.",
-        "I'm buried in the release checklist, so I'm handing this incident to you. You're the on-call engineer now.",
+        "Right after last night's release, VibeTube's watch page got slow. p95 latency jumped from 180 ms to about 850 ms. Viewers are feeling it.",
+        "The alert fired and the logs are full of slow watch-page loads. I'm buried in the release checklist, so I'm handing this incident to you — you're on-call now.",
         "Here's how I work: don't guess. Dig up the facts first — the metrics wall, the logs, the request trace, the source. Ask me anything you need; that's what I'm here for.",
         "There's an AI copilot on your laptop too. Use it — but check what it tells you before you trust it. I want to see how you verify, not just that you prompted it.",
         "When you've got a cause you can back with evidence, propose a safe fix — with a rollback and a way to validate it. Head to your desk when you're ready.",
