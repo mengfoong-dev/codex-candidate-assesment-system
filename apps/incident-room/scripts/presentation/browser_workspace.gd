@@ -166,16 +166,54 @@ func show_backend_score(result: Dictionary) -> void:
     var pct := int(round(total / maxv * 100.0)) if maxv > 0.0 else 0
     var lines := PackedStringArray([
         "[b]Graded by the assessment backend[/b]",
-        "Deterministic score: %.1f / %.1f  (%d%%)" % [total, maxv, pct],
+        "",
+        "[b]Layer 1 — Deterministic score[/b]  [color=#3fb950](scored)[/color]",
+        "%.1f / %.1f  (%d%%)" % [total, maxv, pct],
     ])
     for c: Variant in result.get("criteria", []):
         var cd: Dictionary = c
         var status := str(cd.get("status", ""))
         var mark := "✓" if status == "met" else ("—" if status == "excluded" else "✗")
         lines.append("  %s %s" % [mark, str(cd.get("label", cd.get("criterion_id", "")))])
+
+    # Layers 2 & 3 live in the full report body finalize() returns under "report" — the deterministic
+    # fields above are a flattened convenience copy, so the AI analysis + indices were never shown.
+    var scores: Dictionary = (result.get("report", {}) as Dictionary).get("scores", {})
+
+    # Layer 2 — AI analysis: labeled model opinion, NOT scored (D007/D009). Show score as a small
+    # chip after the dimension, never as a headline, so it never reads as a grade.
+    var ai: Dictionary = scores.get("ai_analysis", {})
+    var dims: Array = ai.get("dimensions", [])
+    if not dims.is_empty():
+        lines.append("")
+        lines.append("[b]Layer 2 — AI analysis[/b]  [color=#dca441](model opinion · not scored)[/color]")
+        for d: Variant in dims:
+            var dd: Dictionary = d
+            var flag := "  [color=#f85149]⚑[/color]" if dd.get("flagged", false) else ""
+            lines.append("  • %s  %s/%s%s" % [
+                str(dd.get("dimension", "")), _fmt_num(dd.get("score")), str(dd.get("scale", 5)), flag])
+
+    # Layer 3 — Context indices: context only, never scored (D009).
+    var ctx: Dictionary = scores.get("context_indices", {})
+    var indices: Array = ctx.get("indices", [])
+    if not indices.is_empty():
+        lines.append("")
+        lines.append("[b]Layer 3 — Context indices[/b]  [color=#8b949e](context only · never scored)[/color]")
+        for i: Variant in indices:
+            var ii: Dictionary = i
+            var val := _fmt_num(ii.get("value")) if bool(ii.get("available", true)) else "n/a"
+            lines.append("  • %s: %s" % [str(ii.get("index_id", "")), val])
+
     _report_score.text = "\n".join(lines)
     if _report_heading != null:
         _report_heading.text = "Proof Replay — graded"
+
+## Format a numeric score/index value: integers show plain (4), fractions to 2dp (42.50), null -> n/a.
+func _fmt_num(v: Variant) -> String:
+    if v == null:
+        return "n/a"
+    var f := float(v)
+    return str(int(f)) if is_equal_approx(f, floor(f)) else "%.2f" % f
 
 func show_backend_error(message: String) -> void:
     if _report_score != null:

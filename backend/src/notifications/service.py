@@ -19,10 +19,10 @@ from email.message import EmailMessage
 from starlette.concurrency import run_in_threadpool
 
 from src.config import get_settings
+from src.notifications.render import render_report_email
 
 logger = logging.getLogger("vibeproof.notifications")
 
-_SUBJECT = "Your VibeProof assessment report"
 _BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
@@ -30,28 +30,14 @@ def _looks_like_email(value: str) -> bool:
     return bool(value) and "@" in value and "." in value.rsplit("@", 1)[-1]
 
 
-def _format_body(report: dict) -> str:
-    scores = report.get("scores", {})
-    det = scores.get("deterministic", {})
-    lines = ["Your VibeProof assessment report", ""]
-    total, maxv = det.get("total"), det.get("max")
-    if total is not None and maxv:
-        pct = round(total / maxv * 100) if maxv else 0
-        lines.append(f"Deterministic score: {total} / {maxv}  ({pct}%)")
-    dims = scores.get("ai_analysis", {}).get("dimensions", [])
-    if dims:
-        lines += ["", "AI analysis (model opinion — human review required):"]
-        lines += [f"  - {d.get('dimension')}: {d.get('score')}/5" for d in dims]
-    lines += ["", "This is decision-support evidence, not an employment decision."]
-    return "\n".join(lines)
-
-
-def _build_message(to_email: str, sender: str, report: dict) -> EmailMessage:
+def _build_message(to_email: str, sender: str, subject: str, html: str, text: str) -> EmailMessage:
+    """Multipart message: text/plain fallback + the styled text/html template."""
     msg = EmailMessage()
-    msg["Subject"] = _SUBJECT
+    msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = to_email
-    msg.set_content(_format_body(report))
+    msg.set_content(text)                      # text/plain part (clients without HTML)
+    msg.add_alternative(html, subtype="html")  # richer text/html part
     return msg
 
 
@@ -62,14 +48,15 @@ def _send_sync(host: str, port: int, user: str, password: str, msg: EmailMessage
         smtp.send_message(msg)
 
 
-def _send_via_api_sync(api_key: str, sender: str, to_email: str, text: str) -> None:
+def _send_via_api_sync(api_key: str, sender: str, to_email: str, subject: str, html: str, text: str) -> None:
     """POST the report to Brevo's transactional-email REST API over HTTPS/443. Raises on non-2xx."""
     payload = json.dumps(
         {
             "sender": {"email": sender},
             "to": [{"email": to_email}],
-            "subject": _SUBJECT,
-            "textContent": text,
+            "subject": subject,
+            "htmlContent": html,   # styled 3-layer template (Gmail-safe inline CSS)
+            "textContent": text,   # plain-text fallback
         }
     ).encode()
     req = urllib.request.Request(
@@ -97,13 +84,14 @@ async def send_report_email(*, to_email: str, report: dict) -> bool:
         logger.info("report email skipped: recipient %r is not an email address", to_email)
         return False  # display_name is not an email (e.g. "Anonymous" / "candidate")
     try:
+        subject, html, text = render_report_email(report)  # styled 3-layer template (subject/html/text)
         if s.email_api_key:
             await run_in_threadpool(
-                _send_via_api_sync, s.email_api_key, s.email_address, to_email, _format_body(report)
+                _send_via_api_sync, s.email_api_key, s.email_address, to_email, subject, html, text
             )
             logger.info("report email sent to %s via Brevo API (from %s)", to_email, s.email_address)
         else:
-            msg = _build_message(to_email, s.email_address, report)
+            msg = _build_message(to_email, s.email_address, subject, html, text)
             await run_in_threadpool(
                 _send_sync, s.email_smtp_host, s.email_smtp_port, s.email_smtp_user, s.email_password, msg
             )
@@ -121,7 +109,4 @@ if __name__ == "__main__":
     # ponytail: one runnable check of the pure logic (no network) — the send path is covered by
     # tests/test_notifications.py which mocks smtplib.
     assert _looks_like_email("a@b.com") and not _looks_like_email("Anonymous")
-    body = _format_body({"scores": {"deterministic": {"total": 60, "max": 80},
-                                    "ai_analysis": {"dimensions": [{"dimension": "evidence_use", "score": 4}]}}})
-    assert "60 / 80  (75%)" in body and "evidence_use: 4/5" in body
     print("notifications self-check ok")
