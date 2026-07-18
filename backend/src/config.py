@@ -84,6 +84,13 @@ class Settings(BaseSettings):
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
     nim_grader_model: str = "meta/llama-3.1-70b-instruct"
 
+    # --- Email report delivery (Brevo SMTP relay). Optional — no creds => sending is a no-op. ---
+    email_smtp_host: str | None = None
+    email_smtp_port: int = 587
+    email_smtp_user: str | None = None   # relay LOGIN (differs from email_address, the From/sender)
+    email_password: str | None = None
+    email_address: str | None = None     # verified From/sender
+
 
 @lru_cache
 def get_settings() -> Settings:
