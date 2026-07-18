@@ -17,7 +17,7 @@
 <img alt="Godot tests" src="https://img.shields.io/badge/godot%20suites-14%20passing-3DD68C" />
 </p>
 
-<sub><a href="https://vibeproof-web-production.up.railway.app">▶ Play the browser build</a> · <a href="docs/README.md">Documentation</a> · <a href="#-getting-started">Getting started</a> · <a href="#-what-is-actually-built-verified">Verified status</a></sub>
+<sub><a href="https://vibeproof-web-production.up.railway.app">▶ Play the browser build</a> · <a href="docs/pitch/vibeproof-story.html">◈ The story (slide deck)</a> · <a href="docs/README.md">Documentation</a> · <a href="#-getting-started">Getting started</a> · <a href="#-what-is-actually-built-verified">Verified status</a></sub>
 
 </div>
 
@@ -131,11 +131,57 @@ flowchart TD
     SR --> REP[GET /report<br/>Proof Replay]
 ```
 
-| Layer | Verdict | What it is |
+| Layer | Verdict | Source | One-line summary |
+| --- | --- | --- | --- |
+| **1 — Deterministic rules** | **Scored** | `evaluation/rules.py` | Pure predicates over the event log → the only points anyone earns. |
+| **2 — LLM rubric panel** | **Labelled, not a verdict** | `evaluation/panel.py` | Cohere grades 7 dimensions 1–5 + writes a narrative and interview questions. |
+| **3 — Context indices** | **Never scored** | `evaluation/indices.py` | Behavioural formulas (`Eₚ`, EPI, entropy…) shown to the reviewer as context only. |
+
+### Layer 1 — deterministic rules (the only scored layer)
+
+A set of pure, synchronous predicates over the append-only event log — **no model in the loop**. Each returns *earned points, status (`met`/`missed`/`excluded`), and the event IDs that prove it* (`evidence_refs`). Two families:
+
+- **9 scenario-authored criteria** (`homepage_latency_v1.json`) — **6 positive** (e.g. *trace-before-change*, *healthy-signals-used*, *revised-after-contradiction*) and **3 warning penalties** (e.g. *unsupported CPU scaling*, *unverified AI acceptance*). Detection is by **precedence + presence** over events (did the trace view come *before* the first fix action?), never a fixed station order.
+- **2 backend-added graduated criteria** (0–10, `rules.py`), scored on a ratio:
+  - **Evidence Coverage** = `|relevant artifacts viewed before submit| / |relevant artifacts| × 10`
+  - **Verification Discipline** = `N_verified_dispositions / N_total_dispositions × 10` (a disposition counts as verified if it was `verify_then_adapt`/`reject_suggestion`, *or* a later `test_executed` empirically checked it)
+
+**Dynamic denominator** (`rules.py:289`): `positive_points_available` sums only positive criteria that aren't **excluded**. A criterion is excluded by its own formula (Verification Discipline when there were zero AI suggestions) or globally by a `technical_error` event (D007: never penalise a platform outage). The final score is `Q = max(0, total) / positive_points_available × 100` — and **that `Q` is fed straight into Layer 3.**
+
+### Layer 2 — LLM rubric panel (labelled analysis, never a verdict)
+
+Cohere **Command A+** grades **7 rubric dimensions** (`problem_framing`, `investigation_strategy`, `hypothesis_quality`, `evidence_use`, `prompt_precision`, `problem_decomposition`, `communication_clarity`), each **1–5 against fixed anchors** (`registry.py`). The 7 calls **fan out concurrently via `asyncio.gather`** (`panel.py:299`), grading against a **compact evidence digest** — never the raw event log — at `temperature=0.2`, JSON-object mode, 2 retries, with the 1–5 range enforced app-side. Each row cites only event IDs present in the digest.
+
+It also writes a **`thinking_style` narrative** (3–5 descriptive sentences, `scored: false`) and **3–5 suggested interview questions** drawn from the candidate's *missed* Layer-1 criteria + any *flagged* dimensions.
+
+- **Consensus:** with one grader → its raw score; with ≥2 (fallback on) → the **median of two**, `flagged` when they disagree by ≥2.
+- **Fallback:** Groq + NVIDIA NIM are **opt-in only** (`AI_PANEL_FALLBACK_ENABLED`) and fire **only if the Cohere primary returned nothing** — one OpenAI-compatible client, base-URL swap, no LiteLLM.
+- **Degraded ≠ failed:** if a vendor is down, missing rows are simply omitted; grading still completes.
+
+### Layer 3 — context indices (never scored)
+
+Pure formulas over the event log, **zero-safe** — a missing prerequisite yields `available: false` + a `reason`, never a `NaN`/crash. `report.py` hardcodes `scored: false` on every one, so they can *never* become points (D009: efficiency is not competence).
+
+| Index | Formula | Reads |
 | --- | --- | --- |
-| **1 — Deterministic rules** | **Scored** | Rule handlers over the event log (incl. graduated *Evidence Coverage* + *Verification Discipline*). Every result carries `evidence_refs` = event IDs. No model in the loop. |
-| **2 — LLM rubric panel** | **Labelled, not a verdict** | Cohere grades 7 rubric dimensions (one `asyncio.gather` call each) + writes a narrative and 3–5 suggested interview questions. Opt-in Groq / NVIDIA NIM fallback. |
-| **3 — Context indices** | **Never scored** | `Eₚ`, EPI, Investigation Entropy, Hypothesis Convergence, AI Reliance — behavioural context for the reviewer only (`report.py` hardcodes `scored: false`). |
+| **Prompt Efficiency (`Eₚ`)** | `Q / (1 + 0.05·P_total·(1 + R_fail))` | Layer-1 `Q`, prompt count, fail/reject rate |
+| **Economical Prompting (EPI)** | `(Q/100) / (T/1000)` | Layer-1 `Q`, total tokens |
+| **Investigation Entropy** | `−Σ p·log₂(p) / log₂(4)` | spread of evidence *types* viewed |
+| **Hypothesis Convergence** | `1 / r` | rank `r` at which the correct hypothesis appeared (0 if never) |
+| **AI Reliance** | `N_accept_immediately / N_disp_total` | how often AI suggestions were taken unchecked |
+
+Plus **raw counts** (prompts, tokens, tool calls, distinct artifacts, elapsed active ms) shown as timeline context only.
+
+### How a grading run executes
+
+Triggered once at submit — `sessions.submit` records the `final_submission` event, flips the session to `submitted` under a **per-session lock**, then calls `run_evaluation` (`evaluation/service.py:153`):
+
+1. `rule_grade(...)` → Layer 1 (sync). Produces `Q`.
+2. `compute_indices(events, Q, ...)` → Layer 3 (sync). **Needs `Q` from step 1** — hence the ordering.
+3. `await rubric_panel(...)` → Layer 2 (async fan-out inside).
+4. Delete any prior `scoring_results` for the session (re-grade is idempotent), write all rows tagged by `layer`, flip status → `graded`.
+
+An **unexpected** error propagates so the caller marks the session `manual_review` (not silently `graded`); a **degraded panel** is not an error. `GET /api/sessions/{id}/report` then reads `scoring_results` and assembles the **Proof Replay**.
 
 ## ✅ What is actually built (verified)
 
