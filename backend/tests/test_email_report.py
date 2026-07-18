@@ -47,8 +47,8 @@ def _configure_email(monkeypatch):
     )
 
 
-async def _graded_session(client) -> str:
-    resp = await client.post("/api/sessions", json={"display_name": "Test Candidate"})
+async def _graded_session(client, display_name: str = "Test Candidate") -> str:
+    resp = await client.post("/api/sessions", json={"display_name": display_name})
     session_id = resp.json()["session_id"]
     for artifact_id in ("metrics_overview", "homepage_trace", "homepage_orchestrator"):
         await client.post(
@@ -117,6 +117,46 @@ async def test_email_report_503_when_not_configured(client, monkeypatch):
     resp = await client.post("/api/sessions/any-id/email-report", json={"email": "me@example.com"})
     assert resp.status_code == 503
     assert resp.json()["error"]["code"] == "email_not_configured"
+
+
+# --- GET /report auto-send (flow finale): emails the candidate once on first fetch ---
+
+async def test_report_auto_emails_candidate_once(client, monkeypatch):
+    _configure_email(monkeypatch)
+    calls: list[str] = []
+    monkeypatch.setattr(router_module, "send_report_email", lambda to, report: calls.append(to))
+    # Reset the module-level once-guard so a prior test's session id can't mask this one.
+    router_module._emailed_sessions.clear()
+    session_id = await _graded_session(client, display_name="grad@example.com")
+
+    r1 = await client.get(f"/api/sessions/{session_id}/report")
+    assert r1.status_code == 200
+    assert calls == ["grad@example.com"]           # emailed the session's candidate, once
+    r2 = await client.get(f"/api/sessions/{session_id}/report")
+    assert r2.status_code == 200
+    assert calls == ["grad@example.com"]           # re-fetch must NOT resend (once-guard)
+
+
+async def test_report_no_auto_email_when_display_name_not_email(client, monkeypatch):
+    _configure_email(monkeypatch)
+    calls: list[str] = []
+    monkeypatch.setattr(router_module, "send_report_email", lambda to, report: calls.append(to))
+    session_id = await _graded_session(client, display_name="Test Candidate")  # not an email
+    resp = await client.get(f"/api/sessions/{session_id}/report")
+    assert resp.status_code == 200
+    assert calls == []                             # no address to send to -> silent skip
+
+
+async def test_report_renders_even_if_auto_email_fails(client, monkeypatch):
+    _configure_email(monkeypatch)
+    def _boom(to, report):
+        raise RuntimeError("smtp down")
+    monkeypatch.setattr(router_module, "send_report_email", _boom)
+    router_module._emailed_sessions.clear()
+    session_id = await _graded_session(client, display_name="grad@example.com")
+    resp = await client.get(f"/api/sessions/{session_id}/report")
+    assert resp.status_code == 200                 # best-effort: results view renders regardless
+    assert "scores" in resp.json()
 
 
 # --- renderer unit test: the D007/D009 layer boundaries must be visible in the HTML ---

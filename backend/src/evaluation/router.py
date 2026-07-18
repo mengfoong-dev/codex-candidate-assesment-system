@@ -28,6 +28,12 @@ class EmailReportIn(BaseModel):
     email: str
 
 
+# ponytail: in-process once-guard so re-fetching /report can't re-email the same session. A resend
+# after a backend restart is harmless for the single-process demo (mirrors the in-process lock in
+# database.py). Swap for a session column if this ever runs multi-process.
+_emailed_sessions: set[str] = set()
+
+
 async def _require_gradable(db, session_id: str) -> Session:
     """Shared precondition for the report endpoints: exists + submitted + not stuck in manual review.
     Extracted so the 404/409/503 contract can't drift between get_report and email_report."""
@@ -48,8 +54,28 @@ async def _require_gradable(db, session_id: str) -> Session:
 
 @router.get("/sessions/{session_id}/report")
 async def get_report(session_id: str, db=Depends(get_db)):
-    await _require_gradable(db, session_id)
-    return await build_report(db, session_id)
+    session = await _require_gradable(db, session_id)
+    report = await build_report(db, session_id)
+    await _maybe_email_report(session, report)  # flow finale: emails the candidate on first fetch
+    return report
+
+
+async def _maybe_email_report(session: Session, report: dict) -> None:
+    """Best-effort: on the first report fetch after grading, email it to the candidate at the address
+    the session was opened with (display_name). Unlike POST /email-report this NEVER raises — viewing
+    results must render whether or not mail is configured or delivery succeeds. Once-guarded so a
+    re-fetch can't resend."""
+    if session.id in _emailed_sessions:
+        return
+    settings = get_settings()
+    to = (session.display_name or "").strip()
+    if not (settings.email_smtp_host and settings.email_address and _EMAIL_RE.match(to)):
+        return  # not configured, or display_name isn't a real email (e.g. "candidate"/"Anonymous")
+    try:
+        await anyio.to_thread.run_sync(send_report_email, to, report)
+        _emailed_sessions.add(session.id)  # mark only on success so a transient failure can retry
+    except Exception:
+        pass  # best-effort; POST /email-report remains the manual retry path
 
 
 @router.post("/sessions/{session_id}/email-report")
