@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     # Credentials pasted into a hosting UI (Railway) commonly arrive wrapped in quotes or with
     # stray whitespace/newlines; a contaminated key auths as 401 and — because the grader swallows
     # errors to a degraded panel — looks like "Cohere never ran". Strip both at the trust boundary.
-    @field_validator("cohere_api_key", "groq_api_key", "nim_api_key", "email_password", mode="before")
+    @field_validator("cohere_api_key", "groq_api_key", "nim_api_key", "email_password", "email_api_key", mode="before")
     @classmethod
     def _clean_secret(cls, value: object) -> object:
         if not isinstance(value, str):
@@ -97,7 +97,11 @@ class Settings(BaseSettings):
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
     nim_grader_model: str = "meta/llama-3.1-70b-instruct"
 
-    # --- Email report delivery (Brevo SMTP relay). Optional — no creds => sending is a no-op. ---
+    # --- Email report delivery (Brevo). Optional — no creds => sending is a no-op. ---
+    # Prefer the HTTP API (email_api_key) over 443: PaaS hosts (Railway) block outbound SMTP ports
+    # (25/465/587/2525 all time out), so SMTP works locally but never in production. SMTP fields are
+    # kept as a local-dev fallback used only when no API key is set.
+    email_api_key: str | None = None     # Brevo v3 REST API key (xkeysib-...), NOT the SMTP key
     email_smtp_host: str | None = None
     email_smtp_port: int = 587
     email_smtp_user: str | None = None   # relay LOGIN (differs from email_address, the From/sender)

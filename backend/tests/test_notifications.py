@@ -1,4 +1,5 @@
 """Best-effort report email: sends when configured, no-ops otherwise, never raises. No network."""
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +16,7 @@ REPORT = {
 
 def _settings(**over):
     base = dict(
+        email_api_key=None,
         email_smtp_host="smtp.test",
         email_smtp_port=587,
         email_smtp_user="login",
@@ -23,6 +25,17 @@ def _settings(**over):
     )
     base.update(over)
     return SimpleNamespace(**base)
+
+
+class _FakeResponse:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return b'{"messageId":"<test>"}'
 
 
 class _FakeSMTP:
@@ -99,3 +112,51 @@ async def test_delivery_failure_is_swallowed(monkeypatch):
     sent = await notify.send_report_email(to_email="cand@example.com", report=REPORT)
 
     assert sent is False  # best-effort: never raises
+
+
+@pytest.mark.asyncio
+async def test_prefers_brevo_api_when_key_set(monkeypatch):
+    _FakeSMTP.sent = []
+    captured = {}
+
+    def fake_urlopen(req, timeout=0):
+        captured["url"] = req.full_url
+        captured["api_key"] = req.headers.get("Api-key")
+        captured["body"] = json.loads(req.data.decode())
+        return _FakeResponse()
+
+    monkeypatch.setattr(notify, "get_settings", lambda: _settings(email_api_key="xkeysib-abc"))
+    monkeypatch.setattr(notify.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(notify.smtplib, "SMTP", _FakeSMTP)  # must NOT be used
+
+    sent = await notify.send_report_email(to_email="cand@example.com", report=REPORT)
+
+    assert sent is True
+    assert _FakeSMTP.sent == []  # API preferred over SMTP
+    assert captured["url"] == notify._BREVO_API_URL
+    assert captured["api_key"] == "xkeysib-abc"
+    assert captured["body"]["to"][0]["email"] == "cand@example.com"
+    assert captured["body"]["sender"]["email"] == "from@vibeproof.app"
+    assert "evidence_use: 4/5" in captured["body"]["textContent"]
+
+
+@pytest.mark.asyncio
+async def test_api_failure_is_swallowed(monkeypatch):
+    def boom(*a, **k):
+        raise OSError("api down")
+
+    monkeypatch.setattr(notify, "get_settings", lambda: _settings(email_api_key="xkeysib-abc"))
+    monkeypatch.setattr(notify.urllib.request, "urlopen", boom)
+
+    sent = await notify.send_report_email(to_email="cand@example.com", report=REPORT)
+
+    assert sent is False  # best-effort: never raises
+
+
+@pytest.mark.asyncio
+async def test_noop_when_neither_api_nor_smtp(monkeypatch):
+    monkeypatch.setattr(notify, "get_settings", lambda: _settings(email_api_key=None, email_password=None))
+
+    sent = await notify.send_report_email(to_email="cand@example.com", report=REPORT)
+
+    assert sent is False
