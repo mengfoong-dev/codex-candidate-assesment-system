@@ -14,6 +14,8 @@ signal senior_question_asked(text: String)
 
 ## Where the senior's live voice comes from. Overridable per build/deploy.
 @export var senior_proxy_url := "http://localhost:8080/api/senior/chat"
+## Where Sam's reply is synthesized to speech (ElevenLabs via the backend; key stays server-side).
+@export var tts_url := "https://vibeproof-backend-production.up.railway.app/api/tts"
 
 const INK := Color(0.13, 0.17, 0.31, 1)
 const MUTED := Color(0.4, 0.38, 0.44, 1)
@@ -30,6 +32,8 @@ var _modal: PanelContainer
 var _title: Label
 var _body: VBoxContainer
 var _http: HTTPRequest
+var _tts_http: HTTPRequest
+var _tts_player: AudioStreamPlayer
 var _chat_log: RichTextLabel
 var _chat_input: LineEdit
 var _chat_send: Button
@@ -46,6 +50,11 @@ func _ready() -> void:
     _http = HTTPRequest.new()
     add_child(_http)
     _http.request_completed.connect(_on_senior_response)
+    _tts_http = HTTPRequest.new()
+    add_child(_tts_http)
+    _tts_http.request_completed.connect(_on_tts_done)
+    _tts_player = AudioStreamPlayer.new()
+    add_child(_tts_player)
     _close()
 
 func _build_view_toggle() -> void:
@@ -163,8 +172,26 @@ func _finish_reply(reply: String) -> void:
             lines.remove_at(lines.size() - 1)
         _chat_log.text = "\n".join(lines) + ("\n" if lines.size() > 0 else "")
     _say("Sam", reply, SENIOR)
+    _speak(reply)
     if _chat_input != null:
         _chat_input.grab_focus.call_deferred()  # keep the cursor in the box so you can just keep talking
+
+## Speak Sam's reply aloud via the backend TTS proxy. Best-effort: a 204/empty/error response just
+## stays silent, so the text dialogue never waits on (or breaks over) the voice call.
+func _speak(text: String) -> void:
+    if _tts_http == null or text.strip_edges().is_empty():
+        return
+    _tts_http.cancel_request()  # a new reply supersedes any voice still being fetched
+    var headers := PackedStringArray(["Content-Type: application/json"])
+    _tts_http.request(tts_url, headers, HTTPClient.METHOD_POST, JSON.stringify({"text": text}))
+
+func _on_tts_done(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+    if code != 200 or body.is_empty():
+        return  # not configured / failed -> silence
+    var stream := AudioStreamMP3.new()
+    stream.data = body
+    _tts_player.stream = stream
+    _tts_player.play()
 
 func _fallback() -> String:
     return "I can't get to my terminal this second — start with the request trace at your desk and see where the time actually goes."
