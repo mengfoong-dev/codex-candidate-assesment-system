@@ -57,6 +57,7 @@ func _new_main(tree: SceneTree, scenario: Dictionary) -> Node:
         Callable(self, "_logger_factory"),
         Callable(self, "_summary_writer")
     )
+    main.backend_base_url = ""  # hermetic: never touch the live grading backend from tests
     return main
 
 func _drive_evidence_based_path(main: Node) -> void:

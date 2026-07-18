@@ -52,6 +52,10 @@ def _build_digest(events: list[dict], submission: dict) -> str:
         event_type, payload = event["event_type"], event["payload"]
         if event_type == "ai_prompt_submitted":
             lines.append(f'[{event["event_id"]}] prompt: {payload.get("prompt", "")!r}')
+        elif event_type == "candidate_ai_prompt":
+            # Godot/web frontends stream the candidate's raw prompt here; same rubric signal as
+            # ai_prompt_submitted, just carried in payload["text"].
+            lines.append(f'[{event["event_id"]}] prompt: {payload.get("text", "")!r}')
         elif event_type == "evidence_viewed":
             lines.append(f'[{event["event_id"]}] evidence_viewed: {payload.get("artifact_id")}')
         elif event_type == "hypothesis_recorded":
@@ -70,6 +74,12 @@ def _build_digest(events: list[dict], submission: dict) -> str:
             lines.append(f'[{event["event_id"]}] decision: {payload.get("action")} - {payload.get("rationale")}')
         elif event_type == "test_executed":
             lines.append(f'[{event["event_id"]}] test_executed: {payload.get("test_id")} -> {payload.get("status")}')
+        elif event_type == "candidate_senior_question":
+            lines.append(f'[{event["event_id"]}] senior question: {payload.get("text", "")!r}')
+        elif event_type == "station_visited":
+            lines.append(
+                f'[{event["event_id"]}] station_visited: {payload.get("station_id")} ({payload.get("station_kind")})'
+            )
     lines.append(
         f'[submission] root_cause={submission.get("root_cause_id")} remediation={submission.get("remediation_id")} '
         f'confidence={submission.get("final_confidence")} rationale={submission.get("rationale", "")!r}'

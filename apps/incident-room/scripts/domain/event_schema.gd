@@ -13,6 +13,7 @@ const EVENT_TYPES: Array[String] = [
     "test_executed",
     "decision_recorded",
     "final_submission",
+    "station_visited",
     # Layer-2 review only: the candidate's raw prompt/question text. Not scored (the grader
     # drops these), captured so a reviewer can judge how they gathered info and used AI.
     "candidate_ai_prompt",
