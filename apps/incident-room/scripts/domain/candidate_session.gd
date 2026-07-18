@@ -13,6 +13,7 @@ var _viewed_artifact_ids: Array[String] = []
 var _ai_disposition_id := ""
 var _verification_actions: Array[Dictionary] = []
 var _final_submission: Dictionary = {}
+var _visited_stations: Dictionary = {}
 
 func _init(scenario: Dictionary, logger: RefCounted) -> void:
     _scenario = scenario.duplicate(true)
@@ -95,6 +96,14 @@ func record_ai_prompt(text: String) -> Dictionary:
 
 func record_senior_question(text: String) -> Dictionary:
     return _logger.append("candidate_senior_question", {"text": text})
+
+## Logs a station's first visit only (dedupe by station_id) so the Proof Replay records the
+## candidate's investigation path without noise from repeat E-presses on the same station.
+func record_station_visit(station_id: String, kind: String, title: String = "") -> Dictionary:
+    if _visited_stations.has(station_id):
+        return {"ok": true, "skipped": true}
+    _visited_stations[station_id] = true
+    return _logger.append("station_visited", {"station_id": station_id, "station_kind": kind, "title": title})
 
 func revise_hypothesis(hypothesis_id: String, confidence: int, trigger_fact_ids: Array) -> Dictionary:
     var phase_error := _require_investigation_ready()

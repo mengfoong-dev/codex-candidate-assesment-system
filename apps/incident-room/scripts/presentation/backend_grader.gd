@@ -190,7 +190,19 @@ func _map_event(ev_v: Variant) -> Dictionary:
 	var p: Dictionary = ev.get("payload", {})
 	match t:
 		"evidence_viewed":
-			return {"event_type": t, "payload": {"artifact_id": str(p.get("artifact_id", ""))}}
+			return {"event_type": t, "payload": {
+				"artifact_id": str(p.get("artifact_id", "")),
+				"station_id": str(p.get("station_id", "")),
+				"evidence_type": str(p.get("evidence_type", "")),
+			}}
+		"station_visited":
+			return {"event_type": t, "payload": {
+				"station_id": str(p.get("station_id", "")),
+				"station_kind": str(p.get("station_kind", "investigation")),
+				"title": str(p.get("title", "")),
+			}}
+		"candidate_senior_question":
+			return {"event_type": t, "payload": {"text": str(p.get("text", ""))}}
 		"hypothesis_recorded":
 			return {"event_type": t, "payload": {
 				"version": int(p.get("version", 1)),

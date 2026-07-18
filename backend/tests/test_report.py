@@ -41,6 +41,14 @@ async def test_report_has_all_three_layers_with_provenance(client, new_session):
             json={"event_type": "evidence_viewed", "payload": {"artifact_id": artifact_id}},
         )
         assert resp.status_code == 201, resp.text
+    # Godot-only navigation events: Layer-3 CONTEXT (D009), never scored — the report surfaces them
+    # under stations_visited, not inside scores.deterministic.
+    for station_id in ("metrics_desk", "trace_desk", "metrics_desk"):
+        resp = await client.post(
+            f"/api/sessions/{session_id}/events",
+            json={"event_type": "station_visited", "payload": {"station_id": station_id}},
+        )
+        assert resp.status_code == 201, resp.text
     # No ai_suggestion_dispositioned here: the events domain only accepts a disposition once the
     # simulation engine has actually produced that response_id (anti-forgery — you can't disposition
     # a suggestion you were never shown), which means driving a real chat turn — out of scope for
@@ -97,6 +105,15 @@ async def test_report_has_all_three_layers_with_provenance(client, new_session):
     context_indices = report["scores"]["context_indices"]
     assert context_indices["scored"] is False
     assert context_indices["indices"]
+
+    # stations_visited is display-only context: distinct stations in first-seen order, no dedup
+    # collapsing the kind/first_sequence fields, and it never leaks into the scored deterministic block.
+    assert report["stations_visited"] == [
+        {"station_id": "metrics_desk", "station_kind": "investigation", "first_sequence": 5},
+        {"station_id": "trace_desk", "station_kind": "investigation", "first_sequence": 6},
+    ]
+    deterministic_criterion_ids = {c["criterion_id"] for c in deterministic["criteria"]}
+    assert "metrics_desk" not in deterministic_criterion_ids and "trace_desk" not in deterministic_criterion_ids
 
     assert report["interview_questions"] == ["Walk me through why you ruled out CPU saturation."]
     assert "human_review" in report["notices"]

@@ -302,12 +302,20 @@ func _on_interact(station_id: String) -> void:
         return
     if _view != "office" or office.is_modal_open():
         return
+    var can_record := _session != null and (_phase == "briefing" or _phase == "room")
     match station_id:
         "my_desk":
+            if can_record:
+                _session.record_station_visit("my_desk", "desk", "Your desk")
             _sit()
         "senior":
+            if can_record:
+                _session.record_station_visit("senior", "senior", "Sam")
             office.open_senior()
         _:
+            if can_record:
+                var station := _find_by_id(_scenario.get("stations", []), "station_id", station_id)
+                _session.record_station_visit(station_id, "investigation", str(station.get("title", station_id)))
             office.open_station(station_id)
 
 func _on_nearest_station_changed(station_id: String) -> void:
@@ -345,6 +353,8 @@ func _back_to_desk() -> void:
 ## Open the Codex IDE console overlay, launched from the workspace's Codex tab. The console
 ## is PC-only now (no global hotkey), so it only opens from here while seated at the PC.
 func _open_codex_console() -> void:
+    if _session != null and (_phase == "briefing" or _phase == "room"):
+        _session.record_station_visit("codex_desk", "assistant", "Codex")
     if ide_console != null and ide_console.has_method("show_console"):
         ide_console.show_console()
 
