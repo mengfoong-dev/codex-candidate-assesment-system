@@ -24,6 +24,7 @@ FRONTEND_EVENT_TYPES: frozenset[str] = frozenset(
         "search_performed",
         "ai_suggestion_dispositioned",
         "decision_recorded",  # candidate judgment; establishes the change boundary for rule 1
+        "candidate_ai_prompt",  # raw prompt text the candidate sent the AI copilot; feeds the Layer-2 rubric
     }
 )
 
@@ -93,6 +94,12 @@ class DecisionRecordedPayload(BaseModel):
     risk: str | None = None
 
 
+class CandidateAiPromptPayload(BaseModel):
+    # The candidate's raw free-text prompt to the AI copilot. Not scored deterministically (carries no
+    # scenario IDs), but the Layer-2 rubric reads it to judge prompt_precision / problem_decomposition.
+    text: str
+
+
 # event_type -> payload model, for the events service to dispatch typed validation.
 FRONTEND_PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
     "evidence_viewed": EvidenceViewedPayload,
@@ -100,6 +107,7 @@ FRONTEND_PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
     "hypothesis_revised": HypothesisRevisedPayload,
     "search_performed": SearchPerformedPayload,
     "ai_suggestion_dispositioned": AiSuggestionDispositionedPayload,
+    "candidate_ai_prompt": CandidateAiPromptPayload,
     "decision_recorded": DecisionRecordedPayload,
 }
 

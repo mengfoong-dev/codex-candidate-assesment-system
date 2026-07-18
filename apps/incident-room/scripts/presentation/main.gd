@@ -81,6 +81,11 @@ func begin_session(email: String = "") -> Dictionary:
     _candidate_email = email.strip_edges()
     var result: Dictionary = _session.open_assessment(true)
     if result.ok:
+        # Open the backend grading session now so events (incl. Codex prompts) stream live. The
+        # coroutine runs in the background; events logged before it resolves are queued by the grader.
+        if not backend_base_url.strip_edges().is_empty():
+            _ensure_grader()
+            _grader.begin(backend_base_url, _candidate_email)
         workspace.configure(_scenario)
         workspace.set_started(false)
         office.configure(_scenario)
@@ -168,16 +173,15 @@ func submit_final(submission: Dictionary) -> Dictionary:
         _grade_with_backend()
     return _finish_intent(result)
 
-## Fire-and-forget backend grading after the local submit: replay the session to the FastAPI
-## grader and render the real deterministic score into the report when it returns.
+## Fire-and-forget backend grading after the local submit. Events streamed live during the session,
+## so finalize() just flushes any tail, submits, and reads the report; it falls back to a full batch
+## replay if the live session never opened (offline at start).
 func _grade_with_backend() -> void:
-    if _grader == null:
-        _grader = BackendGrader.new()
-        add_child(_grader)
+    _ensure_grader()
     if workspace.has_method("show_backend_pending"):
         workspace.show_backend_pending()
-    var res: Dictionary = await _grader.grade(
-        backend_base_url, _candidate_email, _session.ordered_events(), _last_submission, _scenario)
+    var res: Dictionary = await _grader.finalize(
+        _session.ordered_events(), _last_submission, _scenario)
     if res.get("ok", false):
         if workspace.has_method("show_backend_score"):
             workspace.show_backend_score(res)
@@ -237,9 +241,23 @@ func _create_fresh_session() -> void:
             "user://vibeproof/sessions",
             Callable()
         )
+    # Stream every accepted event to the backend as it happens (no-op until a grader exists and a
+    # backend session is open). Guarded so injected test doubles without the setter still work.
+    if _logger.has_method("set_on_append"):
+        _logger.set_on_append(_on_event_logged)
     _session = CandidateSessionScript.new(_scenario, _logger)
     _current_summary = {}
     _intro_shown = false
+
+## EventLogger sink: forward each recorded event to the live backend client (fire-and-forget).
+func _on_event_logged(event: Dictionary) -> void:
+    if _grader != null:
+        _grader.on_event(event)
+
+func _ensure_grader() -> void:
+    if _grader == null:
+        _grader = BackendGrader.new()
+        add_child(_grader)
 
 func _connect_signals() -> void:
     title_screen.start_requested.connect(begin_session)
@@ -255,6 +273,8 @@ func _connect_signals() -> void:
     workspace.assistant_requested.connect(_open_codex_console)
     if ide_console != null and ide_console.has_signal("prompt_submitted"):
         ide_console.prompt_submitted.connect(_on_codex_prompt)
+    if ide_console != null and ide_console.has_signal("code_applied"):
+        ide_console.code_applied.connect(_on_code_applied)
     notepad.closed.connect(_update_presentation)
     if player != null:
         player.interaction_requested.connect(_on_interact)
@@ -333,6 +353,12 @@ func _open_codex_console() -> void:
 func _on_codex_prompt(text: String) -> void:
     if _session != null and (_phase == "briefing" or _phase == "room"):
         _session.record_ai_prompt(text)
+
+## Stream the candidate's AI-edited orchestrator to the backend (mapped to its canonical path) so the
+## content-aware rewrite grading evaluates the real edited code, not the seed.
+func _on_code_applied(content: String) -> void:
+    if _grader != null and (_phase == "briefing" or _phase == "room"):
+        _grader.send_file(content)
 
 func _on_senior_question(text: String) -> void:
     if _session != null and (_phase == "briefing" or _phase == "room"):

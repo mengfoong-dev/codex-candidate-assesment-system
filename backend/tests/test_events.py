@@ -23,6 +23,19 @@ async def test_evidence_viewed_unknown_artifact_id_422(new_session, client):
     assert resp.json()["error"]["code"] == "invalid_event_ids"
 
 
+async def test_candidate_ai_prompt_accepted(new_session, client):
+    """The candidate's free-text Codex prompt now streams in as a frontend event (was 422 before the
+    wiring). It carries no scenario IDs, so it passes membership validation and is recorded for the
+    Layer-2 rubric."""
+    session_id = new_session["session_id"]
+    resp = await client.post(
+        f"/api/sessions/{session_id}/events",
+        json={"event_type": "candidate_ai_prompt", "payload": {"text": "Which downstream calls can run concurrently?"}},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["event_type"] == "candidate_ai_prompt"
+
+
 async def test_backend_only_event_type_rejected(new_session, client):
     session_id = new_session["session_id"]
     resp = await client.post(

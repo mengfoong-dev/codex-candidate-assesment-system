@@ -113,3 +113,18 @@ async def test_report_404_before_submission(client, new_session):
     resp = await client.get(f"/api/sessions/{new_session['session_id']}/report")
     assert resp.status_code == 409
     assert resp.json()["error"]["code"] == "not_submitted"
+
+
+def test_build_digest_includes_candidate_prompt_text():
+    """The Layer-2 digest must surface the candidate's streamed prompt so the rubric can grade
+    prompt_precision. Before the wiring, candidate_ai_prompt events were dropped and this text was
+    invisible to the grader."""
+    events = [
+        {
+            "event_id": "e1",
+            "event_type": "candidate_ai_prompt",
+            "payload": {"text": "List the downstream calls and tell me which are independent."},
+        }
+    ]
+    digest = panel_module._build_digest(events, submission={})
+    assert "List the downstream calls" in digest

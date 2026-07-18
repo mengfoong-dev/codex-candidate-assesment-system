@@ -52,6 +52,10 @@ def _build_digest(events: list[dict], submission: dict) -> str:
         event_type, payload = event["event_type"], event["payload"]
         if event_type == "ai_prompt_submitted":
             lines.append(f'[{event["event_id"]}] prompt: {payload.get("prompt", "")!r}')
+        elif event_type == "candidate_ai_prompt":
+            # Godot/web frontends stream the candidate's raw prompt here; same rubric signal as
+            # ai_prompt_submitted, just carried in payload["text"].
+            lines.append(f'[{event["event_id"]}] prompt: {payload.get("text", "")!r}')
         elif event_type == "evidence_viewed":
             lines.append(f'[{event["event_id"]}] evidence_viewed: {payload.get("artifact_id")}')
         elif event_type == "hypothesis_recorded":

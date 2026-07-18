@@ -13,6 +13,14 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
+# The scenario JSON has a single source of truth: the Godot copy the candidate actually sees
+# (apps/incident-room/data/scenarios). We prefer it when the checkout has it, and fall back to the
+# bundled backend mirror for standalone deploys (Railway service root = backend/, where the sibling
+# app dir is absent from the build context). SCENARIO_DATA_DIR env still overrides either default.
+_GODOT_SCENARIOS = Path(__file__).resolve().parents[2] / "apps" / "incident-room" / "data" / "scenarios"
+_BACKEND_SCENARIOS = Path(__file__).resolve().parent.parent / "data" / "scenarios"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
@@ -45,7 +53,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./vibeproof.db"
 
     # --- Scenario data ---
-    scenario_data_dir: Path = Path(__file__).resolve().parent.parent / "data" / "scenarios"
+    scenario_data_dir: Path = _GODOT_SCENARIOS if _GODOT_SCENARIOS.exists() else _BACKEND_SCENARIOS
     # Virtual Workspace seed apps: one directory per scenario_id, each with a _manifest.json.
     workspace_data_dir: Path = Path(__file__).resolve().parent.parent / "data" / "workspaces"
     default_scenario_id: str = "homepage_latency"

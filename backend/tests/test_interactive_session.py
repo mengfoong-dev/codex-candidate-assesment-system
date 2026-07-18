@@ -177,7 +177,7 @@ async def test_prompt_reader_waits_for_each_streamed_agent_reply_and_shows_the_p
         assert total_turns == 5
         # This assertion fails if the runner gathers all prompts before opening the first SSE stream.
         assert coding_agent.prompts == [f"candidate prompt {turn}" for turn in range(1, turn_number)]
-        assert any("Homepage Latency Incident" in line for line in output)
+        assert any("VibeTube Watch-Page Latency Incident" in line for line in output)
         assert any("Assessment capture started" in line for line in output)
         return f"candidate prompt {turn_number}"
 
