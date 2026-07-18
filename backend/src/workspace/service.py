@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from src.event_log import append_event
 from src.exceptions import AppError
-from src.models import SessionFile
+from src.models import Session, SessionFile
 from src.registry import Scenario
 from src.schemas import TestExecutedPayload
 
@@ -32,6 +32,24 @@ async def get_file(db, session_id: str, path: str) -> dict:
     if f is None:
         raise AppError("file_not_found", f"Unknown file {path!r} for session {session_id}", 404)
     return {"path": f.path, "source": f.source, "updated_at": f.updated_at, "content": f.content}
+
+
+async def save_candidate_file(db, *, session_id: str, path: str, content: str) -> dict:
+    """Persist a candidate/AI-applied edit to a workspace file so the content-aware rewrite grading
+    (run_scripted_test) evaluates the real edited code, not the seed. Upserts with source='ai' (the
+    edit came from the AI copilot), and refuses writes once the session is submitted (409), matching
+    the event log's post-submit lockout. Column-only status read — no ORM hydration."""
+    row = (await db.execute(select(Session.status).where(Session.id == session_id))).first()
+    if row is None:
+        raise AppError("session_not_found", f"Unknown session {session_id}", 404)
+    if row.status != "active":
+        raise AppError("session_not_active", "Session no longer accepts writes", 409)
+
+    from src.simulation.tools import write_file  # lazy: avoids a workspace<->simulation import cycle
+
+    f = await write_file(db, session_id, path, content)
+    await db.commit()
+    return {"path": f.path, "source": f.source, "updated_at": f.updated_at}
 
 
 async def run_scripted_test(

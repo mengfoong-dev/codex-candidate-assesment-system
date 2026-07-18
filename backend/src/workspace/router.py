@@ -8,13 +8,17 @@ from src.database import get_db
 from src.exceptions import AppError
 from src.models import Session
 from src.registry import get_scenario
-from src.workspace.service import get_file, list_files, run_scripted_test
+from src.workspace.service import get_file, list_files, run_scripted_test, save_candidate_file
 
 router = APIRouter(tags=["workspace"])
 
 
 class RunTestIn(BaseModel):
     remediation_id: str
+
+
+class WriteFileIn(BaseModel):
+    content: str
 
 
 async def _require_session(db, session_id: str) -> None:
@@ -51,6 +55,14 @@ async def get_files(session_id: str, db: AsyncSession = Depends(get_db)):
 async def get_file_content(session_id: str, file_path: str, db: AsyncSession = Depends(get_db)):
     await _require_session(db, session_id)
     return await get_file(db, session_id, file_path)
+
+
+@router.post("/sessions/{session_id}/files/{file_path:path}")
+async def post_file(session_id: str, file_path: str, body: WriteFileIn, db: AsyncSession = Depends(get_db)):
+    """Candidate/AI save of a workspace file. The Godot copilot POSTs its edited orchestrator here so
+    the content-aware rewrite grading evaluates the real code (the editor's display name maps to the
+    backend's canonical src/homepage_orchestrator.ts on the client side)."""
+    return await save_candidate_file(db, session_id=session_id, path=file_path, content=body.content)
 
 
 @router.post("/sessions/{session_id}/tests/{test_id}")

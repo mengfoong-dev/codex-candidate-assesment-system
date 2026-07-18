@@ -126,6 +126,30 @@ async def test_write_validate_fails_when_rewrite_is_still_sequential(new_session
     assert resp.json()["status"] == "failed"
 
 
+async def test_post_file_endpoint_persists_edit_and_feeds_content_aware_grading(new_session, client):
+    """The write endpoint the Godot copilot POSTs its edited orchestrator to: it persists as source
+    'ai' and makes content-aware grading evaluate the real code (not the seed)."""
+    session_id = new_session["session_id"]
+
+    write_resp = await client.post(
+        f"/api/sessions/{session_id}/files/src/homepage_orchestrator.ts",
+        json={"content": _CONCURRENT_REWRITE},
+    )
+    assert write_resp.status_code == 200, write_resp.text
+    assert write_resp.json()["source"] == "ai"
+
+    got = await client.get(f"/api/sessions/{session_id}/files/src/homepage_orchestrator.ts")
+    assert got.json()["content"] == _CONCURRENT_REWRITE
+    assert got.json()["source"] == "ai"
+
+    graded = await client.post(
+        f"/api/sessions/{session_id}/tests/p95_latency", json={"remediation_id": "scale_cpu"}
+    )
+    assert graded.status_code == 200, graded.text
+    assert graded.json()["status"] == "passed"
+    assert "Validated against your edited" in graded.json()["actual_result"]
+
+
 # --- run the sandbox app + per-session revert to base -------------------------------------------
 # "Revert to base state for every session" is NOT a reset action (that would break the locked
 # orphan-never-delete rule — old edited rows must survive for Proof Replay). The base seed lives

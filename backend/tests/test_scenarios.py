@@ -10,7 +10,9 @@ async def test_list_scenarios(client):
     scenario = body[0]
     assert scenario["scenario_id"] == "homepage_latency"
     assert scenario["version"] == "1.0.0"
-    assert scenario["title"] == "Homepage Latency Incident"
+    # Backend now reads the shared Godot scenario copy (apps/incident-room/data/scenarios), which
+    # carries the VibeTube rebrand; the drifted "Homepage" mirror is only a standalone-deploy fallback.
+    assert scenario["title"] == "VibeTube Watch-Page Latency Incident"
     assert scenario["duration_minutes"] == 30
     # Catalog view is intentionally thin — no scoring/answer-revealing keys here either.
     assert set(scenario.keys()) == {"scenario_id", "version", "title", "role", "duration_minutes"}

@@ -11,10 +11,115 @@ extends Node
 
 var _http: HTTPRequest
 
+# --- live streaming state (session opened at assessment-start; events POSTed as they occur) ---
+var _base_url := ""
+var _email := ""
+var _sid := ""                       # backend session id; empty until begin() resolves
+var _ready := false                  # true once the backend session exists and events may flow
+var _queue: Array[Dictionary] = []   # accepted events awaiting POST (buffered until _ready)
+var _draining := false               # guards against overlapping _drain() loops
+
+# The candidate edits "src/watch_page_orchestrator.ts" in the Godot IDE (VibeTube skin), but the
+# backend's canonical workspace path is unchanged. Map to it when streaming edited content so the
+# content-aware rewrite grading finds the file it grades.
+const ORCHESTRATOR_BACKEND_PATH := "src/homepage_orchestrator.ts"
+
 func _ensure_http() -> void:
 	if _http == null:
 		_http = HTTPRequest.new()
 		add_child(_http)
+
+## Open the grading session at assessment-start so events can stream live. Fire-and-forget: callers
+## do not await. Events logged before the session id returns are queued and flushed on ready. Safe to
+## call again on restart — resets state and opens a fresh backend session (orphan-never-delete).
+func begin(base_url: String, email: String) -> void:
+	_ensure_http()
+	_base_url = base_url.strip_edges().trim_suffix("/")
+	_email = email
+	_sid = ""
+	_ready = false
+	_queue.clear()
+	if _base_url.is_empty():
+		return
+	var created := await _req(HTTPClient.METHOD_POST, _base_url + "/api/sessions",
+		{"display_name": email if not email.is_empty() else "candidate"})
+	if not created.ok:
+		return  # backend down / offline -> finalize() falls back to the batch replay
+	_sid = str(created.body.get("session_id", ""))
+	_ready = not _sid.is_empty()
+	if _ready:
+		await _drain()
+
+## Sync entry point from the EventLogger sink: enqueue one accepted event (only those we forward),
+## then flush. Callers do not await — posting happens in the background _drain() loop.
+func on_event(event: Dictionary) -> void:
+	var event_type := str(event.get("event_type", ""))
+	# Only buffer what the backend accepts: the mappable frontend events, plus test executions
+	# (which use a separate endpoint). Everything else (assessment_opened, senior questions, ...) is
+	# dropped here exactly as the batch replay drops it.
+	if event_type != "test_executed" and _map_event(event).is_empty():
+		return
+	_queue.append(event.duplicate(true))
+	if _ready and not _draining:
+		await _drain()
+
+## Stream the candidate's AI-edited file content to the backend (source='ai' server-side), so the
+## content-aware rewrite grading evaluates the real code. Buffered/serialized like events; flushed
+## before submit by finalize(). Callers do not await.
+func send_file(content: String, path: String = ORCHESTRATOR_BACKEND_PATH) -> void:
+	_queue.append({"__kind__": "file", "path": path, "content": content})
+	if _ready and not _draining:
+		await _drain()
+
+## Drain the buffer in order, awaiting each POST before the next (HTTPRequest is single-flight).
+func _drain() -> void:
+	if _draining:
+		return
+	_draining = true
+	while _ready and not _queue.is_empty():
+		var item: Dictionary = _queue.pop_front()
+		if item.get("__kind__", "") == "file":
+			await _req(HTTPClient.METHOD_POST, "%s/api/sessions/%s/files/%s" % [_base_url, _sid, str(item.get("path", ""))],
+				{"content": str(item.get("content", ""))})
+		elif str(item.get("event_type", "")) == "test_executed":
+			var p: Dictionary = item.get("payload", {})
+			await _req(HTTPClient.METHOD_POST,
+				"%s/api/sessions/%s/tests/%s" % [_base_url, _sid, str(p.get("test_id", ""))],
+				{"remediation_id": str(p.get("remediation_id", ""))})
+		else:
+			await _req(HTTPClient.METHOD_POST, "%s/api/sessions/%s/events" % [_base_url, _sid],
+				_map_event(item))
+	_draining = false
+
+## Block until the buffer is fully sent (used before submit so grading sees every event).
+func _await_flush() -> void:
+	if _ready and not _draining and not _queue.is_empty():
+		await _drain()
+	while _draining:
+		await get_tree().create_timer(0.02).timeout
+
+## Called at submit. If the live session is up, flush the buffer then submit + read the report on it.
+## Otherwise fall back to the original batch replay (offline-safe). Same return shape as grade().
+func finalize(events: Array, submission: Dictionary, scenario: Dictionary) -> Dictionary:
+	if not _ready or _sid.is_empty():
+		return await grade(_base_url, _email, events, submission, scenario)
+	await _await_flush()
+	var sub := await _req(HTTPClient.METHOD_POST, "%s/api/sessions/%s/submit" % [_base_url, _sid],
+		_submit_body(submission, scenario))
+	if not sub.ok:
+		return {"ok": false, "error": "submit: " + str(sub.error)}
+	var rep := await _req(HTTPClient.METHOD_GET, "%s/api/sessions/%s/report" % [_base_url, _sid], {})
+	if not rep.ok:
+		return {"ok": false, "error": "report: " + str(rep.error)}
+	var det: Dictionary = (rep.body.get("scores", {}) as Dictionary).get("deterministic", {})
+	return {
+		"ok": true,
+		"session_id": _sid,
+		"total": float(det.get("total", 0.0)),
+		"max": float(det.get("max", 0.0)),
+		"criteria": det.get("criteria", []),
+		"report": rep.body,
+	}
 
 func grade(base_url: String, email: String, events: Array, submission: Dictionary, scenario: Dictionary) -> Dictionary:
 	_ensure_http()
@@ -98,9 +203,6 @@ func _map_event(ev_v: Variant) -> Dictionary:
 			}}
 		"candidate_senior_question":
 			return {"event_type": t, "payload": {"text": str(p.get("text", ""))}}
-		"candidate_ai_prompt":
-			# The candidate's raw prompt to Codex — feeds the Layer-2 rubric (prompt_precision).
-			return {"event_type": t, "payload": {"text": str(p.get("text", ""))}}
 		"hypothesis_recorded":
 			return {"event_type": t, "payload": {
 				"version": int(p.get("version", 1)),
@@ -130,6 +232,9 @@ func _map_event(ev_v: Variant) -> Dictionary:
 				"action": "propose_remediation:" + str(p.get("remediation_id", "")),
 				"rationale": rationale if not rationale.is_empty() else "final decision submitted",
 			}}
+		"candidate_ai_prompt":
+			# The candidate's raw prompt to Codex — feeds the Layer-2 rubric (prompt_precision).
+			return {"event_type": t, "payload": {"text": str(p.get("text", ""))}}
 		_:
 			return {}
 
