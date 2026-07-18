@@ -72,6 +72,19 @@ class Settings(BaseSettings):
     # --- Cohere Command A+ (simulation + primary grading panel) ---
     cohere_api_key: str | None = None
     cohere_model: str = "command-a-plus-05-2026"
+
+    # Credentials pasted into a hosting UI (Railway) commonly arrive wrapped in quotes or with
+    # stray whitespace/newlines; a contaminated key auths as 401 and — because the grader swallows
+    # errors to a degraded panel — looks like "Cohere never ran". Strip both at the trust boundary.
+    @field_validator("cohere_api_key", "groq_api_key", "nim_api_key", "email_password", mode="before")
+    @classmethod
+    def _clean_secret(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip()
+        if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in ("'", '"'):
+            cleaned = cleaned[1:-1].strip()
+        return cleaned or None
     sim_max_tokens: int = 1024
     sim_temperature: float = 0.2
 

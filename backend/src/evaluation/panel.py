@@ -7,10 +7,13 @@ presence turn them into concurrent live graders.
 import asyncio
 import inspect
 import json
+import logging
 from dataclasses import dataclass
 
 from src.config import get_settings
 from src.registry import NARRATIVE_DIMENSION, RUBRIC_DIMENSIONS, RUBRIC_VERSION
+
+logger = logging.getLogger("vibeproof.panel")
 
 _RETRY_ATTEMPTS = 2
 _COHERE_BASE_URL = "https://api.cohere.com"
@@ -155,7 +158,10 @@ async def _cohere_json_once(
             response = await response
         content = _first_text_content(response.message.content)
         return json.loads(content)
-    except Exception:
+    except Exception as exc:
+        # Silent None here (empty Layer-2 rows) is indistinguishable from "never called". Log so a
+        # deploy-side auth/config/model failure is visible in the service logs, not invisible.
+        logger.warning("Cohere grader call failed (%s): %s", vendor_cfg.model, exc)
         return None
 
 
@@ -176,7 +182,8 @@ async def _openai_json_once(
             temperature=temperature,
         )
         return json.loads(response.choices[0].message.content)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Fallback grader call failed (%s/%s): %s", vendor_cfg.vendor, vendor_cfg.model, exc)
         return None
 
 
