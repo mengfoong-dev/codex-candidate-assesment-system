@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     email_password: str | None = None
     email_address: str | None = None     # verified From/sender
 
+    # --- ElevenLabs text-to-speech (Sam the senior speaks). Key stays server-side. ---
+    elevenlabs_api_key: str | None = None
+    elevenlabs_voice_id: str = "CwhRBWXzGAHq8TQ4Fs17"  # "Roger" — laid-back, casual
+
 
 @lru_cache
 def get_settings() -> Settings:
