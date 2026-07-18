@@ -145,6 +145,10 @@ func request_verification(test_id: String, remediation_id: String) -> Dictionary
 func submit_final(submission: Dictionary) -> Dictionary:
     if _phase != "room":
         return _reject("Final submission is only available inside the workspace")
+    # Real validation, not a checkbox: carry the actual Codex sandbox Run-Tests outcome into the
+    # submission so the grader (rule 5) credits validation only when the candidate's code passed.
+    if ide_console != null and ide_console.has_method("last_test_passed"):
+        submission["sandbox_passed"] = ide_console.last_test_passed()
     var result: Dictionary = _session.submit_final(submission)
     if not result.ok:
         workspace.set_submit_error(result.get("errors", []))

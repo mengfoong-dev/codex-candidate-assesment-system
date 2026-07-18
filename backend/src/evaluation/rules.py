@@ -130,8 +130,12 @@ def _rule_independence_checked(events, submission, final_sub, points_value):
 
 
 def _rule_dual_validation_selected(events, submission, final_sub, points_value):
-    selected = set(submission.get("validation_test_ids", []))
-    if REQUIRED_VALIDATION_TEST_IDS <= selected:
+    # Real validation, not self-declared: credit only when the candidate's code ACTUALLY passed the
+    # sandbox Run-Tests (submission.sandbox_passed). Legacy path: an explicit validation_test_ids
+    # checklist still counts, so older full-form submissions grade unchanged.
+    passed = bool(submission.get("sandbox_passed")) \
+        or REQUIRED_VALIDATION_TEST_IDS <= set(submission.get("validation_test_ids") or [])
+    if passed:
         cited = [
             e for e in events
             if e["event_type"] == "test_executed" and e["payload"].get("test_id") in REQUIRED_VALIDATION_TEST_IDS
@@ -162,7 +166,14 @@ def _rule_unverified_ai_acceptance(events, submission, final_sub, points_value):
 
 
 def _rule_diagnosis_without_evidence(events, submission, final_sub, points_value):
-    if not submission.get("supporting_evidence_ids"):
+    # ponytail: the slim submit form no longer collects an evidence checklist. When the field is
+    # omitted (None), this criterion doesn't apply — excluded from the max rather than penalising
+    # every candidate -15. If present (legacy full form), keep the original "empty => uncited" rule.
+    # NOTE for Seb: confirm "excluded" vs deriving cited evidence from viewed-artifact events.
+    evidence = submission.get("supporting_evidence_ids")
+    if evidence is None:
+        return 0.0, "excluded", _refs(final_sub)
+    if not evidence:
         return points_value, "met", _refs(final_sub)
     return 0.0, "missed", _refs(final_sub)
 

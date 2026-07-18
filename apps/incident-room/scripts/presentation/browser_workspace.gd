@@ -659,23 +659,7 @@ func _build_submit_page() -> void:
     body.add_child(_labeled("Root cause", _submit_root))
     _submit_remediation = _option(options.get("remediations", []), "option_id", "label", false, "Select the remediation you would submit…")
     body.add_child(_labeled("Remediation", _submit_remediation))
-    _submit_rollback = _option(options.get("rollbacks", []), "option_id", "label", false, "Select a rollback plan…")
-    body.add_child(_labeled("Rollback plan", _submit_rollback))
-    _submit_validation = _itemlist(90)
-    _fill_itemlist(_submit_validation, _scenario.get("tests", []), "test_id", "title")
-    body.add_child(_labeled("Validation tests (select the ones you ran)", _submit_validation))
-    _submit_evidence = _itemlist(90)
-    body.add_child(_labeled("Supporting evidence (viewed artifacts)", _submit_evidence))
-    _submit_risks = _itemlist(90)
-    _fill_itemlist(_submit_risks, options.get("risks", []), "option_id", "label")
-    body.add_child(_labeled("Risks", _submit_risks))
-    _submit_assumptions = _itemlist(90)
-    _fill_itemlist(_submit_assumptions, options.get("assumptions", []), "option_id", "label")
-    body.add_child(_labeled("Assumptions", _submit_assumptions))
-    _submit_confidence = _slider()
-    body.add_child(_submit_confidence)
-    _submit_confidence_label = _heading("Final confidence: 50%", 14, INK)
-    body.add_child(_submit_confidence_label)
+    body.add_child(_heading("Validation is taken from your Codex sandbox test run — pass the tests, no checklist needed.", 13, MUTED))
     _submit_rationale = TextEdit.new()
     _submit_rationale.custom_minimum_size = Vector2(0, 80)
     _submit_rationale.placeholder_text = "Explain your reasoning…"
@@ -690,10 +674,8 @@ func _build_submit_page() -> void:
     _revise_confidence.value_changed.connect(func(v: float) -> void: _revise_confidence_label.text = "Confidence: %d%%" % int(v))
     _revise_option.item_selected.connect(func(_i: int) -> void: _revise_button.disabled = str(_revise_option.get_selected_metadata()).is_empty())
     _revise_button.pressed.connect(_on_revise)
-    _submit_confidence.value_changed.connect(func(v: float) -> void: _submit_confidence_label.text = "Final confidence: %d%%" % int(v))
-    for control: OptionButton in [_submit_root, _submit_remediation, _submit_rollback]:
+    for control: OptionButton in [_submit_root, _submit_remediation]:
         control.item_selected.connect(func(_i: int) -> void: _update_submit_state())
-    _submit_validation.multi_selected.connect(func(_i: int, _s: bool) -> void: _update_submit_state())
     _submit_button.pressed.connect(_on_submit)
 
 func _on_revise() -> void:
@@ -713,24 +695,18 @@ func _on_submit() -> void:
         return
     if _submit_status != null:
         _submit_status.text = ""
+    # Slim submit: root cause + remediation + rationale. Validation credit comes from the real
+    # Codex sandbox result (main injects sandbox_passed), not a self-declared checklist.
     final_submission_requested.emit({
         "root_cause_id": _submit_root.get_item_metadata(_submit_root.selected),
-        "evidence_ids": _selected_metadata(_submit_evidence),
         "remediation_id": _submit_remediation.get_item_metadata(_submit_remediation.selected),
-        "risk_ids": _selected_metadata(_submit_risks),
-        "assumption_ids": _selected_metadata(_submit_assumptions),
-        "validation_test_ids": _selected_metadata(_submit_validation),
-        "rollback_id": _submit_rollback.get_item_metadata(_submit_rollback.selected),
-        "final_confidence": int(_submit_confidence.value),
         "rationale": _submit_rationale.text,
     })
 
 func _update_submit_state() -> void:
     _submit_button.disabled = (
         str(_submit_root.get_selected_metadata()).is_empty()
-        or str(_submit_remediation.get_selected_metadata()).is_empty()
-        or str(_submit_rollback.get_selected_metadata()).is_empty()
-        or _submit_validation.get_selected_items().is_empty())
+        or str(_submit_remediation.get_selected_metadata()).is_empty())
 
 func _refresh_submit(snapshot: Dictionary) -> void:
     if _revise_current == null:
@@ -749,13 +725,6 @@ func _refresh_submit(snapshot: Dictionary) -> void:
             _revise_facts.add_item(str(fact.get("label", fact.get("fact_id", ""))))
             _revise_facts.set_item_metadata(_revise_facts.item_count - 1, fact.get("fact_id", ""))
     _reselect(_revise_facts, kept_facts)
-    var kept_evidence := _selected_metadata(_submit_evidence)
-    _submit_evidence.clear()
-    for artifact_id: Variant in viewed:
-        var artifact := _lookup(_scenario.get("artifacts", []), "artifact_id", str(artifact_id))
-        _submit_evidence.add_item(str(artifact.get("title", artifact_id)))
-        _submit_evidence.set_item_metadata(_submit_evidence.item_count - 1, artifact_id)
-    _reselect(_submit_evidence, kept_evidence)
 
 # --- Report ------------------------------------------------------------------
 

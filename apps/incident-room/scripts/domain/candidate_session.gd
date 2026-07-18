@@ -164,7 +164,7 @@ func submit_final(submission: Dictionary) -> Dictionary:
         "remediation_id": submission.remediation_id,
         "risk_ids": submission.get("risk_ids", []).duplicate(),
         "assumption_ids": submission.get("assumption_ids", []).duplicate(),
-        "rollback_id": submission.rollback_id,
+        "rollback_id": submission.get("rollback_id", ""),
         "rationale": submission.get("rationale", ""),
     })
     if not decision_result.ok:
@@ -207,26 +207,24 @@ func _require_investigation_ready(require_hypothesis: bool = false) -> String:
     return ""
 
 func _validate_submission(submission: Dictionary) -> String:
-    var required := ["root_cause_id", "remediation_id", "validation_test_ids", "rollback_id", "final_confidence"]
-    for key: String in required:
+    # Slim submit: only root cause + remediation are required. Legacy fields are validated only
+    # when provided; validation credit now comes from the real sandbox result (sandbox_passed), so
+    # a validation_test_ids checklist is no longer required or execution-checked here.
+    for key: String in ["root_cause_id", "remediation_id"]:
         if not submission.has(key):
             return "Submission is missing required field: %s" % key
     if _find_by_id(_scenario.submission_options.root_causes, "option_id", str(submission.root_cause_id)).is_empty():
         return "Unknown root cause: %s" % submission.root_cause_id
     if _find_by_id(_scenario.submission_options.remediations, "option_id", str(submission.remediation_id)).is_empty():
         return "Unknown remediation: %s" % submission.remediation_id
-    if _find_by_id(_scenario.submission_options.rollbacks, "option_id", str(submission.rollback_id)).is_empty():
-        return "Unknown rollback: %s" % submission.rollback_id
-    if not _valid_confidence(int(submission.final_confidence)):
+    var rollback_id := str(submission.get("rollback_id", ""))
+    if not rollback_id.is_empty() and _find_by_id(_scenario.submission_options.rollbacks, "option_id", rollback_id).is_empty():
+        return "Unknown rollback: %s" % rollback_id
+    if submission.has("final_confidence") and not _valid_confidence(int(submission.final_confidence)):
         return "Confidence must be between 0 and 100"
-    var validation_ids: Array = submission.validation_test_ids
-    if validation_ids.is_empty():
-        return "At least one validation test is required"
-    for test_id: Variant in validation_ids:
+    for test_id: Variant in submission.get("validation_test_ids", []):
         if _find_by_id(_scenario.tests, "test_id", str(test_id)).is_empty():
             return "Unknown test: %s" % test_id
-        if not _verification_recorded(str(test_id), str(submission.remediation_id)):
-            return "Validation test was not executed: %s" % test_id
     for artifact_id: Variant in submission.get("evidence_ids", []):
         if not _viewed_artifact_ids.has(str(artifact_id)):
             return "Evidence was not viewed: %s" % artifact_id

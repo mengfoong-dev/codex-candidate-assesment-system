@@ -79,6 +79,7 @@ var _active_path := EDITOR_TAB
 var _thinking_card: Control
 var _busy := false
 var _request_kind := "chat"  # "chat" | "test" — routes the shared _http reply in _on_reply
+var _last_test_passed := false  # real sandbox Run-Tests outcome — read by main into the submission
 var _paused_by_us := false
 
 func _ready() -> void:
@@ -371,8 +372,14 @@ func _apply_test_result(result: Dictionary) -> void:
 			line += "  [color=#8b949e]%s[/color]" % _escape(msg.split("\n")[0])
 		_terminal_log(line)
 	var ok := str(result.get("status", "")) == "passed"
+	_last_test_passed = ok  # carried into the submission as sandbox_passed (drives grader rule 5)
 	_terminal_status.text = "Passed" if ok else "Needs changes"
 	_terminal_log("[color=%s]%d passed, %d failed[/color]" % ["#3fb950" if ok else "#8b949e", int(result.get("passed", 0)), int(result.get("failed", 0))])
+
+## Whether the candidate's most recent Codex Run-Tests actually passed. main reads this into the
+## submission (sandbox_passed) so the grader credits validation on a real result, not a checkbox.
+func last_test_passed() -> bool:
+	return _last_test_passed
 
 # --- prompt -> assistant -> apply ---------------------------------------
 
