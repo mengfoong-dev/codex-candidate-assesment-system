@@ -19,6 +19,8 @@ signal prompt_submitted(text: String)
 ## Emitted with the full edited file content whenever an assistant reply applies a code change, so
 ## the candidate's AI-edited orchestrator can be streamed to the backend for content-aware grading.
 signal code_applied(content: String)
+## Emitted when the candidate clicks "Submit solution" in the console — main opens the submission form.
+signal submit_requested
 
 ## Live in-workspace copilot endpoint (the senior-proxy assistant route).
 @export var assistant_proxy_url := "https://senior-proxy-production-82cf.up.railway.app/api/assistant/chat"
@@ -55,6 +57,7 @@ const AMBER := Color("dcdcaa")
 @onready var _file_list: ItemList = $Body/Margin/Rows/Split/Files/Column/FileList
 @onready var _test_list: ItemList = $Body/Margin/Rows/Split/Files/Column/TestList
 @onready var _run_tests: Button = $Body/Margin/Rows/Split/Code/Header/RunTests
+@onready var _submit_btn: Button = $Body/Margin/Rows/Split/Code/Header/Submit
 @onready var _editor: CodeEdit = $Body/Margin/Rows/Split/Code/WorkArea/Editor
 @onready var _terminal: PanelContainer = $Body/Margin/Rows/Split/Code/WorkArea/Terminal
 @onready var _terminal_output: RichTextLabel = $Body/Margin/Rows/Split/Code/WorkArea/Terminal/Column/Output
@@ -91,6 +94,7 @@ func _ready() -> void:
 	_file_list.item_selected.connect(_on_file_selected)
 	_test_list.item_selected.connect(_on_test_selected)
 	_run_tests.pressed.connect(_on_run_tests)
+	_submit_btn.pressed.connect(func() -> void: submit_requested.emit())
 	_seed_from_scenario()
 	_hint.visible = false  # PC-only now: opened from the workspace, not a floating backtick hint
 	_terminal_log("[color=#8b949e]Workspace ready. Ask Copilot for a change, then run tests to validate it.[/color]")

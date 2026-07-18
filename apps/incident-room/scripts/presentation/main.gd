@@ -275,6 +275,8 @@ func _connect_signals() -> void:
         ide_console.prompt_submitted.connect(_on_codex_prompt)
     if ide_console != null and ide_console.has_signal("code_applied"):
         ide_console.code_applied.connect(_on_code_applied)
+    if ide_console != null and ide_console.has_signal("submit_requested"):
+        ide_console.submit_requested.connect(_on_codex_submit)
     notepad.closed.connect(_update_presentation)
     if player != null:
         player.interaction_requested.connect(_on_interact)
@@ -357,6 +359,14 @@ func _open_codex_console() -> void:
         _session.record_station_visit("codex_desk", "assistant", "Codex")
     if ide_console != null and ide_console.has_method("show_console"):
         ide_console.show_console()
+
+## Submit from inside Codex: close the console, then open the (tab-less) submission form in the
+## workspace. Sending that form fires final_submission_requested -> submit_final -> the graded report.
+func _on_codex_submit() -> void:
+    if ide_console != null and ide_console.has_method("hide_console"):
+        ide_console.hide_console()
+    if workspace != null:
+        workspace.set_active_tab("submit")
 
 ## Log the candidate's raw AI prompt / senior question into the Proof Replay (Layer-2 review).
 ## Advisory only — the deterministic grader ignores these event types.

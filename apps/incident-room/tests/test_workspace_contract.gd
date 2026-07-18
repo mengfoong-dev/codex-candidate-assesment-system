@@ -53,7 +53,7 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
 
     workspace.configure(scenario)
     var tabs := workspace.get_node("Frame/TabStrip/Tabs")
-    t.assert_true(tabs.get_child_count() >= 4, "workspace builds the candidate tabs")
+    t.assert_true(tabs.get_child_count() >= 2, "workspace builds the candidate tabs (Investigate + Codex)")
     var has_codex_tab := false
     for child: Node in tabs.get_children():
         if child is Button and (child as Button).text == "Codex":
@@ -79,8 +79,8 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
     var text_blob := _collect_text(host)
     for artifact: Dictionary in scenario.get("artifacts", []):
         t.assert_true(text_blob.contains(str(artifact.get("title", ""))), "evidence lists artifact: %s" % artifact.get("title", ""))
-    for test_case: Dictionary in scenario.get("tests", []):
-        t.assert_true(text_blob.contains(str(test_case.get("title", ""))), "files & tests lists test: %s" % test_case.get("title", ""))
+    # Files & Tests tab was removed — the candidate now edits + runs tests inside the Codex console,
+    # and submits from there. The scenario's test list is no longer surfaced in the workspace pages.
     workspace.queue_free()
 
 func _interactive_controls(root: Node) -> Array[Control]:

@@ -35,8 +35,6 @@ const ACCENT := {
 const TAB_DEFS := [
     {"key": "evidence", "label": "Investigate"},
     {"key": "assistant", "label": "Codex"},
-    {"key": "tests", "label": "Files & Tests"},
-    {"key": "submit", "label": "Submit"},
 ]
 
 @export var demo_mode := false
@@ -132,8 +130,7 @@ func configure(scenario: Dictionary) -> void:
     _build_tabs()
     _build_evidence_page()
     _build_assistant_page()
-    _build_tests_page()
-    _build_submit_page()
+    _build_submit_page()  # built but not a tab — reached only via the Submit button in Codex
     _build_report_page()
     _p95_now_ms = _scan_metric_ms()
     _p95_fixed_ms = _scan_fixed_ms()
@@ -187,7 +184,6 @@ func show_backend_error(message: String) -> void:
 func refresh(snapshot: Dictionary) -> void:
     _refresh_evidence(snapshot)
     _refresh_assistant(snapshot)
-    _refresh_tests(snapshot)
     _refresh_submit(snapshot)
     _refresh_p95(snapshot)
 

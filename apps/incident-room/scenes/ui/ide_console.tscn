@@ -153,6 +153,11 @@ custom_minimum_size = Vector2(104, 30)
 layout_mode = 2
 text = "Run tests"
 
+[node name="Submit" type="Button" parent="Body/Margin/Rows/Split/Code/Header"]
+custom_minimum_size = Vector2(124, 30)
+layout_mode = 2
+text = "Submit solution"
+
 [node name="WorkArea" type="VSplitContainer" parent="Body/Margin/Rows/Split/Code"]
 layout_mode = 2
 size_flags_horizontal = 3
