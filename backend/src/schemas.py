@@ -185,16 +185,23 @@ class TestExecutedPayload(BaseModel):
 
 
 class FinalSubmissionPayload(BaseModel):
+    # Slim submit form: only root cause + remediation are required (+ free-text rationale). The
+    # rest are optional so the 2-dropdown form validates. Validation credit now comes from
+    # sandbox_passed — the REAL Codex Run-Tests result — not a self-declared checklist.
     root_cause_id: str
-    supporting_evidence_ids: list[str] = []
     remediation_id: str
-    expected_impact_id: str
+    rationale: str = ""
+    sandbox_passed: bool = False
+    # Optional / legacy full-form fields (kept for backward compatibility with the old form).
+    # supporting_evidence_ids defaults to None (not []) so rule 9 can tell "not collected" (exclude)
+    # apart from "collected but empty" (uncited).
+    supporting_evidence_ids: list[str] | None = None
+    expected_impact_id: str = ""
     risk_ids: list[str] = []
     assumption_ids: list[str] = []
     validation_test_ids: list[str] = []
-    rollback_id: str
-    final_confidence: int = Field(ge=0, le=100)
-    rationale: str = ""
+    rollback_id: str = ""
+    final_confidence: int = Field(default=0, ge=0, le=100)
 
 
 class TechnicalErrorPayload(BaseModel):

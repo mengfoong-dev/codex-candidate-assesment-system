@@ -114,6 +114,41 @@ async def test_blind_acceptance_fires_unverified_ai_acceptance(db):
     assert c.evidence_refs == [disposition_event["event_id"]]
 
 
+async def test_sandbox_passed_grants_dual_validation_without_a_checklist(db):
+    # Real validation, not self-declared: passing the Codex sandbox earns rule 5 even with an empty
+    # validation_test_ids checklist.
+    result, _ = await _graded(
+        "sess-sandbox-pass",
+        [
+            ("test_executed", {"test_id": "correctness_regression", "status": "passed"}),
+            ("test_executed", {"test_id": "p95_latency", "status": "passed"}),
+            ("final_submission", _submission(sandbox_passed=True, validation_test_ids=[])),
+        ],
+    )
+    c = _by_id(result, "dual_validation_selected")
+    assert c.status == "met" and c.points == 10
+
+
+async def test_no_sandbox_pass_and_no_checklist_misses_dual_validation(db):
+    result, _ = await _graded(
+        "sess-sandbox-fail",
+        [("final_submission", _submission(sandbox_passed=False, validation_test_ids=[]))],
+    )
+    c = _by_id(result, "dual_validation_selected")
+    assert c.status == "missed" and c.points == 0
+
+
+async def test_slim_form_excludes_uncited_diagnosis_when_evidence_not_collected(db):
+    # The slim submit form doesn't collect an evidence checklist (None) -> rule 9 is excluded from
+    # the max rather than penalising every candidate -15.
+    result, _ = await _graded(
+        "sess-slim",
+        [("final_submission", _submission(supporting_evidence_ids=None, validation_test_ids=[]))],
+    )
+    c = _by_id(result, "diagnosis_without_evidence")
+    assert c.status == "excluded" and c.points == 0
+
+
 async def test_scale_cpu_submission_fires_unsupported_cpu_scaling(db):
     result, events = await _graded(
         "sess-cpu",

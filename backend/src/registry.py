@@ -234,18 +234,24 @@ def validate_submission(scenario: Scenario, submission: dict) -> list[str]:
     """Validate a final_submission against the scenario's option sets (single-value + list fields)."""
     errors: list[str] = []
     opts = scenario.submission_options
-    for field in ("root_cause_id", "remediation_id", "expected_impact_id", "rollback_id"):
+    # Slim form: only root cause + remediation are required.
+    for field in ("root_cause_id", "remediation_id"):
         val = submission.get(field)
         if val not in opts[field]:
             errors.append(f"invalid {field}: {val!r}")
+    # Optional legacy single-value fields: validate only when actually provided.
+    for field in ("expected_impact_id", "rollback_id"):
+        val = submission.get(field)
+        if val and val not in opts[field]:
+            errors.append(f"invalid {field}: {val!r}")
     for field in ("risk_ids", "assumption_ids"):
-        for val in submission.get(field, []):
+        for val in submission.get(field) or []:
             if val not in opts[field]:
                 errors.append(f"invalid {field} entry: {val!r}")
-    for val in submission.get("validation_test_ids", []):
+    for val in submission.get("validation_test_ids") or []:
         if val not in scenario.test_ids:
             errors.append(f"invalid validation_test_id: {val!r}")
-    for val in submission.get("supporting_evidence_ids", []):
+    for val in submission.get("supporting_evidence_ids") or []:
         if val not in (scenario.artifact_ids | scenario.fact_ids):
             errors.append(f"invalid supporting_evidence_id: {val!r}")
     return errors
