@@ -184,6 +184,18 @@ async def submit_final_submission(db, *, session_id: str, submission: dict) -> d
 
     try:
         await run_evaluation(db, session_id)
+        # Best-effort: email the report to the candidate (display_name is their sign-in email).
+        # Wrapped separately so a delivery/build failure never downgrades a good grade to manual
+        # review — send_report_email is also a no-op when SMTP is unconfigured.
+        try:
+            from src.evaluation.report import build_report
+            from src.notifications.service import send_report_email
+
+            emailed_session = await db.get(Session, session_id)
+            report = await build_report(db, session_id)
+            await send_report_email(to_email=emailed_session.display_name, report=report)
+        except Exception:
+            pass
         return {"session_id": session_id, "status": "graded"}
     except Exception:
         # First ORM load of this PK on this request's session — fresh by construction, and safe to
