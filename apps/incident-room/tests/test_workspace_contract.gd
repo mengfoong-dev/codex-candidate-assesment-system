@@ -48,7 +48,7 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
     t.assert_true(workspace is Control, "workspace root is Control")
     for signal_name: String in WORKSPACE_SIGNALS:
         t.assert_true(workspace.has_signal(signal_name), "workspace emits %s" % signal_name)
-    for method_name: String in ["configure", "set_started", "refresh", "show_report", "set_active_tab"]:
+    for method_name: String in ["configure", "set_started", "refresh", "show_report", "show_backend_score", "set_active_tab"]:
         t.assert_true(workspace.has_method(method_name), "workspace has %s" % method_name)
 
     workspace.configure(scenario)
@@ -74,6 +74,8 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
     for control: Control in focusable:
         t.assert_true(control.focus_mode != Control.FOCUS_NONE, "workspace keyboard focus: %s" % control.name)
 
+    _assert_backend_score_layers(workspace, t)
+
     # Rendering the artifact and test data proves the tabs are populated from the scenario.
     var host := workspace.get_node("Frame/Content/PanelHost")
     var text_blob := _collect_text(host)
@@ -82,6 +84,28 @@ func _assert_workspace(tree: SceneTree, t: RefCounted, scenario: Dictionary) -> 
     # Files & Tests tab was removed — the candidate now edits + runs tests inside the Codex console,
     # and submits from there. The scenario's test list is no longer surfaced in the workspace pages.
     workspace.queue_free()
+
+func _assert_backend_score_layers(workspace: Node, t: RefCounted) -> void:
+    workspace.show_backend_score({
+        "total": 6,
+        "max": 8,
+        "report": {
+            "scores": {
+                "ai_analysis": {"dimensions": []},
+                "context_indices": {
+                    "indices": [
+                        {"index_id": "e_p", "value": 0.75, "available": true},
+                        {"index_id": "raw_counts", "value": null, "available": true},
+                    ],
+                },
+            },
+        },
+    })
+    var report_text := _collect_text(workspace)
+    t.assert_true(report_text.contains("Layer 2"), "backend score labels the unavailable AI layer")
+    t.assert_true(report_text.contains("AI analysis unavailable"), "backend score explains unavailable AI analysis")
+    t.assert_true(report_text.contains("e_p: 0.75"), "backend score shows scalar context indices")
+    t.assert_true(not report_text.contains("raw_counts"), "backend score hides raw-count bookkeeping")
 
 func _interactive_controls(root: Node) -> Array[Control]:
     var controls: Array[Control] = []

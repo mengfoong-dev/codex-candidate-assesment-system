@@ -184,9 +184,11 @@ func show_backend_score(result: Dictionary) -> void:
     # chip after the dimension, never as a headline, so it never reads as a grade.
     var ai: Dictionary = scores.get("ai_analysis", {})
     var dims: Array = ai.get("dimensions", [])
-    if not dims.is_empty():
-        lines.append("")
-        lines.append("[b]Layer 2 — AI analysis[/b]  [color=#dca441](model opinion · not scored)[/color]")
+    lines.append("")
+    lines.append("[b]Layer 2 — AI analysis[/b]  [color=#dca441](model opinion · not scored)[/color]")
+    if dims.is_empty():
+        lines.append("  AI analysis unavailable; no model dimensions were returned.")
+    else:
         for d: Variant in dims:
             var dd: Dictionary = d
             var flag := "  [color=#f85149]⚑[/color]" if dd.get("flagged", false) else ""
@@ -201,6 +203,8 @@ func show_backend_score(result: Dictionary) -> void:
         lines.append("[b]Layer 3 — Context indices[/b]  [color=#8b949e](context only · never scored)[/color]")
         for i: Variant in indices:
             var ii: Dictionary = i
+            if str(ii.get("index_id", "")) == "raw_counts":
+                continue  # Timeline bookkeeping, not a scalar candidate-facing index.
             var val := _fmt_num(ii.get("value")) if bool(ii.get("available", true)) else "n/a"
             lines.append("  • %s: %s" % [str(ii.get("index_id", "")), val])
 
