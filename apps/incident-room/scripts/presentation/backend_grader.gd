@@ -245,12 +245,8 @@ func _submit_body(s: Dictionary, scenario: Dictionary) -> Dictionary:
 		var impacts: Array = opts.get("expected_impacts", scenario.get("expected_impacts", []))
 		if not impacts.is_empty():
 			impact = str((impacts[0] as Dictionary).get("option_id", ""))
-	var ev_ids: Array = []
-	for e: Variant in s.get("evidence_ids", []):
-		ev_ids.append(str(e))
-	return {
+	var body := {
 		"root_cause_id": str(s.get("root_cause_id", "")),
-		"supporting_evidence_ids": ev_ids,
 		"remediation_id": str(s.get("remediation_id", "")),
 		"expected_impact_id": impact,
 		"risk_ids": s.get("risk_ids", []),
@@ -260,3 +256,9 @@ func _submit_body(s: Dictionary, scenario: Dictionary) -> Dictionary:
 		"final_confidence": int(s.get("final_confidence", 50)),
 		"rationale": str(s.get("rationale", "")),
 	}
+	if s.has("evidence_ids"):
+		var ev_ids: Array = []
+		for e: Variant in s.evidence_ids:
+			ev_ids.append(str(e))
+		body["supporting_evidence_ids"] = ev_ids
+	return body

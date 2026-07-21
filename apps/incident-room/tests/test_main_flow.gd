@@ -97,6 +97,14 @@ func run(tree: SceneTree) -> Array[String]:
         "payload": {"text": "what changed in the release?"},
     })
     t.assert_false(mapped_question.is_empty(), "candidate_senior_question produces a non-empty backend body")
+
+    var slim_submit := grader._submit_body({
+        "root_cause_id": "sequential_independent_calls",
+        "remediation_id": "parallelize_confirmed_independent_calls",
+    }, loaded.scenario)
+    t.assert_false(slim_submit.has("supporting_evidence_ids"), "slim submit omits the legacy evidence checklist")
+    var legacy_submit := grader._submit_body(_complete_submission(), loaded.scenario)
+    t.assert_equal(legacy_submit.supporting_evidence_ids, ["homepage_trace", "homepage_orchestrator"], "legacy evidence checklist remains supported")
     grader.free()
 
     return t.failures
