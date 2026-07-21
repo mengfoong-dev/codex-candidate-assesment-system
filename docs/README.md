@@ -28,6 +28,8 @@ VibeProof is an AI-allowed Ownership Challenge for software-engineering candidat
 
 ## Operational records
 
+- [Startup playbook](STARTUP-PLAYBOOK.md) - one command to start the local FastAPI backend and Godot application.
+- [Project final state](FINAL-STATE.md) - current whole-project runtime and verification handoff.
 - [Agent usage records](hackathon/codex-usage/README.md) - generated session and outcome logs for the hackathon project.
 
 ## Godot application

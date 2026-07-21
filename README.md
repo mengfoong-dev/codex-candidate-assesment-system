@@ -254,6 +254,17 @@ git clone https://github.com/mengfoong-dev/codex-candidate-assesment-system.git
 cd codex-candidate-assesment-system
 ```
 
+### Start both services
+
+From the repository root, launch the FastAPI backend, wait for its scenario endpoint,
+then open the Godot candidate app:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/start-project.ps1
+```
+
+See [the startup playbook](docs/STARTUP-PLAYBOOK.md) for prerequisites, verification, and troubleshooting.
+
 ### 1. Run the Godot Incident Room (candidate app)
 
 From the repository root (PowerShell). Import first — a clean checkout has no asset cache, so the first load *must* import before it runs:
