@@ -19,7 +19,6 @@ from src.events.router import router as events_router
 from src.scenarios.router import router as scenarios_router
 from src.sessions.router import router as sessions_router
 from src.simulation.router import router as simulation_router
-from src.tts.router import router as tts_router
 from src.workspace.router import router as workspace_router
 
 logger = logging.getLogger("vibeproof")
@@ -66,7 +65,6 @@ def create_app() -> FastAPI:
         workspace_router,
         simulation_router,
         evaluation_router,
-        tts_router,
     ):
         app.include_router(router, prefix="/api")
 

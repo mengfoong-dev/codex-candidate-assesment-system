@@ -16,3 +16,8 @@ async def test_list_scenarios(client):
     assert scenario["duration_minutes"] == 30
     # Catalog view is intentionally thin — no scoring/answer-revealing keys here either.
     assert set(scenario.keys()) == {"scenario_id", "version", "title", "role", "duration_minutes"}
+
+
+async def test_tts_route_is_not_exposed(client):
+    resp = await client.post("/api/tts", json={"text": "status check"})
+    assert resp.status_code == 404
